@@ -114,7 +114,7 @@ def _pytest_get_test_root():
         path_parts.append(tail)
     path_parts.reverse()
     # dbt tests are all of the form 'tests/integration/suite_name'
-    target = os.path.join(*path_parts[:5])  # TODO: try to not hard code this
+    target = os.path.join(*path_parts[:3])  # TODO: try to not hard code this
     return os.path.join(relative_to, target)
 
 

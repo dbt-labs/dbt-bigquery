@@ -67,7 +67,7 @@ class TestDocsGenerateEscapes(DBTIntegrationTest):
 
     @property
     def schema(self):
-        return 'docs_generate_029'
+        return 'docs_generate'
 
     @staticmethod
     def dir(path):
@@ -94,7 +94,6 @@ class TestDocsGenerate(DBTIntegrationTest):
         super().setUp()
         self.maxDiff = None
         self.alternate_schema = self.unique_schema() + '_test'
-        self.alternate_schema = self.alternate_schema.upper()
 
         self._created_schemas.add(self.alternate_schema)
         os.environ['DBT_ENV_CUSTOM_ENV_env_key'] = 'env_value'
@@ -105,7 +104,7 @@ class TestDocsGenerate(DBTIntegrationTest):
 
     @property
     def schema(self):
-        return 'docs_generate_029'
+        return 'docs_generate'
 
     @staticmethod
     def dir(path):
@@ -958,7 +957,7 @@ class TestDocsGenerate(DBTIntegrationTest):
                 },
                 'test.test.not_null_model_id.d01cc630e6': {
                     'alias': 'not_null_model_id',
-                    'compiled_path': Normalized('target/compiled/test/models/schema.yml/schema_test/not_null_model_id.sql'),
+                    'compiled_path': Normalized('target/compiled/test/models/schema.yml/not_null_model_id.sql'),
                     'build_path': None,
                     'created_at': ANY,
                     'column_name': 'id',
@@ -971,20 +970,20 @@ class TestDocsGenerate(DBTIntegrationTest):
                     },
                     'deferred': False,
                     'description': '',
-                    'fqn': ['test', 'schema_test', 'not_null_model_id'],
+                    'fqn': ['test', 'not_null_model_id'],
                     'name': 'not_null_model_id',
                     'original_file_path': model_schema_yml_path,
                     'package_name': 'test',
                     'patch_path': None,
-                    'path': Normalized('schema_test/not_null_model_id.sql'),
-                    'raw_sql': "{{ test_not_null(**_dbt_schema_test_kwargs) }}",
+                    'path': Normalized('not_null_model_id.sql'),
+                    'raw_sql': "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
                     'refs': [['model']],
                     'relation_name': None,
                     'resource_type': 'test',
                     'root_path': self.test_root_realpath,
                     'schema': test_audit_schema,
                     'database': self.default_database,
-                    'tags': ['schema'],
+                    'tags': [],
                     'meta': {},
                     'unique_id': 'test.test.not_null_model_id.d01cc630e6',
                     'docs': {'show': True},
@@ -1049,7 +1048,7 @@ class TestDocsGenerate(DBTIntegrationTest):
                 },
                 'test.test.test_nothing_model_.5d38568946': {
                     'alias': 'test_nothing_model_',
-                    'compiled_path': Normalized('target/compiled/test/models/schema.yml/schema_test/test_nothing_model_.sql'),
+                    'compiled_path': Normalized('target/compiled/test/models/schema.yml/test_nothing_model_.sql'),
                     'build_path': None,
                     'created_at': ANY,
                     'column_name': None,
@@ -1062,20 +1061,20 @@ class TestDocsGenerate(DBTIntegrationTest):
                     },
                     'deferred': False,
                     'description': '',
-                    'fqn': ['test', 'schema_test', 'test_nothing_model_'],
+                    'fqn': ['test', 'test_nothing_model_'],
                     'name': 'test_nothing_model_',
                     'original_file_path': model_schema_yml_path,
                     'package_name': 'test',
                     'patch_path': None,
-                    'path': normalize('schema_test/test_nothing_model_.sql'),
-                    'raw_sql': "{{ test.test_nothing(**_dbt_schema_test_kwargs) }}",
+                    'path': normalize('test_nothing_model_.sql'),
+                    'raw_sql': "{{ test.test_nothing(**_dbt_generic_test_kwargs) }}",
                     'refs': [['model']],
                     'relation_name': None,
                     'resource_type': 'test',
                     'root_path': self.test_root_realpath,
                     'schema': test_audit_schema,
                     'database': self.default_database,
-                    'tags': ['schema'],
+                    'tags': [],
                     'meta': {},
                     'unique_id': 'test.test.test_nothing_model_.5d38568946',
                     'docs': {'show': True},
@@ -1095,7 +1094,7 @@ class TestDocsGenerate(DBTIntegrationTest):
                 },
                 'test.test.unique_model_id.67b76558ff': {
                     'alias': 'unique_model_id',
-                    'compiled_path': Normalized('target/compiled/test/models/schema.yml/schema_test/unique_model_id.sql'),
+                    'compiled_path': Normalized('target/compiled/test/models/schema.yml/unique_model_id.sql'),
                     'build_path': None,
                     'created_at': ANY,
                     'column_name': 'id',
@@ -1108,20 +1107,20 @@ class TestDocsGenerate(DBTIntegrationTest):
                     },
                     'deferred': False,
                     'description': '',
-                    'fqn': ['test', 'schema_test', 'unique_model_id'],
+                    'fqn': ['test', 'unique_model_id'],
                     'name': 'unique_model_id',
                     'original_file_path': model_schema_yml_path,
                     'package_name': 'test',
                     'patch_path': None,
-                    'path': normalize('schema_test/unique_model_id.sql'),
-                    'raw_sql': "{{ test_unique(**_dbt_schema_test_kwargs) }}",
+                    'path': normalize('unique_model_id.sql'),
+                    'raw_sql': "{{ test_unique(**_dbt_generic_test_kwargs) }}",
                     'refs': [['model']],
                     'relation_name': None,
                     'resource_type': 'test',
                     'root_path': self.test_root_realpath,
                     'schema': test_audit_schema,
                     'database': self.default_database,
-                    'tags': ['schema'],
+                    'tags': [],
                     'meta': {},
                     'unique_id': 'test.test.unique_model_id.67b76558ff',
                     'docs': {'show': True},
@@ -1288,7 +1287,7 @@ class TestDocsGenerate(DBTIntegrationTest):
                 'test.macro_info': ANY,
                 'test.macro_arg_info': ANY,
             },
-            'disabled': [],
+            'disabled': {},
         }
 
     def expected_bigquery_complex_manifest(self):
@@ -1750,7 +1749,7 @@ class TestDocsGenerate(DBTIntegrationTest):
                 'test.macro_info': ANY,
                 'test.macro_arg_info': ANY,
             },
-            'disabled': [],
+            'disabled': {},
         }
 
     def _checksum_file(self, path):

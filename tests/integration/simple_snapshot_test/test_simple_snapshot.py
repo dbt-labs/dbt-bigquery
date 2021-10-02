@@ -69,8 +69,7 @@ class TestSimpleColumnSnapshotFiles(DBTIntegrationTest):
     def _run_snapshot_test(self):
         self.run_dbt(['seed'])
         self.run_dbt(['snapshot'])
-        database = self.default_database
-        database = self.adapter.quote(database)
+        database = self.adapter.quote(self.default_database)
         results = self.run_sql(
             'select * from {}.{}.my_snapshot'.format(database, self.unique_schema()),
             fetch='all'
@@ -478,7 +477,7 @@ class TestSnapshotHardDelete(DBTIntegrationTest):
         return begin_snapshot_datetime
 
     def _delete_records(self):
-        database = self.adapter.quote(database)
+        database = self.adapter.quote(self.default_database)
 
         self.run_sql(
             'delete from {}.{}.seed where id >= 10;'.format(database, self.unique_schema())
@@ -487,7 +486,7 @@ class TestSnapshotHardDelete(DBTIntegrationTest):
     def _snapshot_and_assert_invalidated(self):
         self._invalidated_snapshot_datetime = self._snapshot()
 
-        database = self.adapter.quote(database)
+        database = self.adapter.quote(self.default_database)
 
         snapshotted = self.run_sql(
             '''
@@ -504,10 +503,10 @@ class TestSnapshotHardDelete(DBTIntegrationTest):
         for result in snapshotted[10:]:
             # result is a tuple, the dbt_valid_to column is the latest
             self.assertIsInstance(result[-1], datetime)
-            self.assertGreaterEqual(result[-1].astimezone(pytz.UTC), self._invalidated_snapshot_datetime)
+            self.assertGreaterEqual(result[-1].replace(tzinfo=pytz.UTC), self._invalidated_snapshot_datetime)
 
     def _revive_records(self):
-        database = self.adapter.quote(database)
+        database = self.adapter.quote(self.default_database)
 
         revival_timestamp = datetime.now(pytz.UTC).strftime(r'%Y-%m-%d %H:%M:%S')
         self.run_sql(
@@ -521,7 +520,7 @@ class TestSnapshotHardDelete(DBTIntegrationTest):
     def _snapshot_and_assert_revived(self):
         self._revived_snapshot_datetime = self._snapshot()
 
-        database = self.adapter.quote(database)
+        database = self.adapter.quote(self.default_database)
 
         # records which weren't revived (id != 10, 11)
         invalidated_records = self.run_sql(
@@ -540,7 +539,7 @@ class TestSnapshotHardDelete(DBTIntegrationTest):
         for result in invalidated_records:
             # result is a tuple, the dbt_valid_to column is the latest
             self.assertIsInstance(result[1], datetime)
-            self.assertGreaterEqual(result[1].astimezone(pytz.UTC), self._invalidated_snapshot_datetime)
+            self.assertGreaterEqual(result[1].replace(tzinfo=pytz.UTC), self._invalidated_snapshot_datetime)
 
         # records which weren't revived (id != 10, 11)
         revived_records = self.run_sql(
@@ -562,5 +561,5 @@ class TestSnapshotHardDelete(DBTIntegrationTest):
             self.assertIsInstance(result[1], datetime)
             # there are milliseconds (part of microseconds in datetime objects) in the
             # invalidated_snapshot_datetime and not in result datetime so set the microseconds to 0
-            self.assertGreaterEqual(result[1].astimezone(pytz.UTC), self._invalidated_snapshot_datetime.replace(microsecond=0))
+            self.assertGreaterEqual(result[1].replace(tzinfo=pytz.UTC), self._invalidated_snapshot_datetime.replace(microsecond=0))
             self.assertIsNone(result[2])

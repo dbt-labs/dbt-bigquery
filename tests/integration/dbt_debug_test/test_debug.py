@@ -19,6 +19,10 @@ class TestDebug(DBTIntegrationTest):
     def models(self):
         return self.dir('models')
 
+    @pytest.fixture(autouse=True)
+    def capsys(self, capsys):
+        self.capsys = capsys
+
     @use_profile('bigquery')
     def test_bigquery_ok(self):
         self.run_dbt(['debug'])

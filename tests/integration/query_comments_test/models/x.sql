@@ -12,8 +12,7 @@
 {% set required = ['name', 'schema', 'type', 'threads'] %}
 
 {# Require what we document at https://docs.getdbt.com/docs/target #}
-	{% do required.extend(['project']) %}
-{% endif %}
+{% do required.extend(['project']) %}
 
 {% for value in required %}
 	{% if value not in target %}

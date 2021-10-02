@@ -32,7 +32,7 @@ class TestSimpleSnapshotFiles(DBTIntegrationTest):
         self.assertEqual(len(results), 1)
 
     def assert_expected(self):
-        self.run_dbt(['test', '--data', '--vars', 'version: 3'])
+        self.run_dbt(['test', '--select', 'test_type:singular', '--vars', 'version: 3'])
 
     @use_profile('bigquery')
     def test__bigquery__simple_snapshot(self):

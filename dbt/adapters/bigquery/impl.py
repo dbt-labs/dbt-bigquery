@@ -4,7 +4,6 @@ from dbt.dataclass_schema import dbtClassMixin, ValidationError
 
 import dbt.deprecations
 import dbt.exceptions
-import dbt.clients.gcloud
 import dbt.clients.agate_helper
 
 from dbt import ui

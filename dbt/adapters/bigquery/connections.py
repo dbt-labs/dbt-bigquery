@@ -18,8 +18,9 @@ from google.oauth2 import (
     service_account as GoogleServiceAccountCredentials
 )
 
+from dbt.adapters.bigquery import gcloud
 from dbt.utils import format_bytes, format_rows_number
-from dbt.clients import agate_helper, gcloud
+from dbt.clients import agate_helper
 from dbt.tracking import active_user
 from dbt.contracts.connection import ConnectionState, AdapterResponse
 from dbt.exceptions import (

@@ -16,6 +16,9 @@ models:
   # this whole model should pass and run
   - name: table_summary
     description: "The summary table"
+    tests: 
+     - unique:
+          column_name: "concat(favorite_color_copy, count)"
     columns:
       - name: favorite_color_copy
         description: "The favorite color"

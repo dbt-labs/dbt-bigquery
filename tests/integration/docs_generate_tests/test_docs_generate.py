@@ -127,7 +127,7 @@ class TestDocsGenerate(DBTIntegrationTest):
         if alternate_db is None:
             alternate_db = self.alternative_database
         project = {
-            "data-paths": [self.dir("seed")],
+            "seed-paths": [self.dir("seed")],
             'macro-paths': [self.dir('macros')],
             'snapshot-paths': [self.dir('snapshot')],
             'vars': {
@@ -1942,7 +1942,7 @@ class TestDocsGenerate(DBTIntegrationTest):
     @use_profile('bigquery')
     def test__bigquery__complex_models(self):
         self.run_and_generate(
-            extra={'source-paths': [self.dir('bq_models')]},
+            extra={'model-paths': [self.dir('bq_models')]},
             model_count=4
         )
 

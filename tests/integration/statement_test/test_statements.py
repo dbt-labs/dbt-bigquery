@@ -26,7 +26,7 @@ class TestStatementsBigquery(DBTIntegrationTest):
 
     @use_profile("bigquery")
     def test_bigquery_statements(self):
-        self.use_default_project({"data-paths": [self.dir("seed")]})
+        self.use_default_project({"seed-paths": [self.dir("seed")]})
 
         results = self.run_dbt(["seed"])
         self.assertEqual(len(results), 2)

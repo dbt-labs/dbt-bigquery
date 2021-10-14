@@ -1,3 +1,16 @@
+{% macro declare_dbt_max_partition(relation, partition_by, sql) %}
+
+  {% if '_dbt_max_partition' in sql %}
+
+    declare _dbt_max_partition {{ partition_by.data_type }} default (
+      select max({{ partition_by.field }}) from {{ this }}
+      where {{ partition_by.field }} is not null
+    );
+  
+  {% endif %}
+
+{% endmacro %}
+
 
 {% macro dbt_bigquery_validate_get_incremental_strategy(config) %}
   {#-- Find and validate the incremental strategy #}
@@ -49,13 +62,11 @@
 
       -- generated script to merge partitions into {{ target_relation }}
       declare dbt_partitions_for_replacement array<{{ partition_by.data_type }}>;
-      declare _dbt_max_partition {{ partition_by.data_type }} default (
-          select max({{ partition_by.field }}) from {{ this }}
-          where {{ partition_by.field }} is not null
-      );
 
       {# have we already created the temp table to check for schema changes? #}
       {% if not tmp_relation_exists %}
+        {{ declare_dbt_max_partition(this, partition_by, sql) }}
+        
         -- 1. create a temp table
         {{ create_table_as(True, tmp_relation, sql) }}
       {% else %}
@@ -162,7 +173,9 @@
   {% else %}
     {% set tmp_relation_exists = false %}
     {% if on_schema_change != 'ignore' %} {# Check first, since otherwise we may not build a temp table #}
-      {% do run_query(create_table_as(True, tmp_relation, sql)) %}
+      {% do run_query(
+        declare_dbt_max_partition(this, partition_by, sql) + create_table_as(True, tmp_relation, sql)
+      ) %}
       {% set tmp_relation_exists = true %}
       {% do process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
     {% endif %}

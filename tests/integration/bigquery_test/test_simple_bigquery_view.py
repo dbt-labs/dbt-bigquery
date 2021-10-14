@@ -17,7 +17,7 @@ class TestBaseBigQueryRun(DBTIntegrationTest):
     def project_config(self):
         return {
             'config-version': 2,
-            'data-paths': ['data'],
+            'seed-paths': ['seeds'],
             'macro-paths': ['macros'],
             'seeds': {
                 'quote_columns': False,

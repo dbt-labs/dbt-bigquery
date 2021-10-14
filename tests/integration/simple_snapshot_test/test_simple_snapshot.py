@@ -38,7 +38,7 @@ class TestSimpleSnapshotFiles(BaseSimpleSnapshotTest):
     def project_config(self):
         return {
             'config-version': 2,
-            "data-paths": ['data'],
+            'seed-paths': ['seeds'],
             "snapshot-paths": ['test-snapshots-pg'],
             'macro-paths': ['macros'],
         }
@@ -58,7 +58,7 @@ class TestSimpleColumnSnapshotFiles(DBTIntegrationTest):
     def project_config(self):
         return {
             'config-version': 2,
-            'data-paths': ['data'],
+            'seed-paths': ['seeds'],
             'macro-paths': ['custom-snapshot-macros', 'macros'],
             'snapshot-paths': ['test-snapshots-checkall'],
             'seeds': {
@@ -117,7 +117,7 @@ class TestSimpleSnapshotFileSelects(DBTIntegrationTest):
     def project_config(self):
         return {
             'config-version': 2,
-            "data-paths": ['data'],
+            'seed-paths': ['seeds'],
             "snapshot-paths": ['test-snapshots-select',
                                'test-snapshots-pg'],
             'macro-paths': ['macros'],
@@ -129,7 +129,7 @@ class TestConfiguredSnapshotFileSelects(TestSimpleSnapshotFileSelects):
     def project_config(self):
         return {
             'config-version': 2,
-            "data-paths": ['data'],
+            'seed-paths': ['seeds'],
             "snapshot-paths": ['test-snapshots-select-noconfig'],
             "snapshots": {
                 "test": {
@@ -280,7 +280,7 @@ class TestCheckCols(TestSimpleSnapshotFiles):
     def project_config(self):
         return {
             'config-version': 2,
-            "data-paths": ['data'],
+            'seed-paths': ['seeds'],
             "snapshot-paths": ['test-check-col-snapshots'],
             'macro-paths': ['macros'],
         }
@@ -291,7 +291,7 @@ class TestConfiguredCheckCols(TestCheckCols):
     def project_config(self):
         return {
             'config-version': 2,
-            "data-paths": ['data'],
+            'seed-paths': ['seeds'],
             "snapshot-paths": ['test-check-col-snapshots-noconfig'],
             "snapshots": {
                 "test": {
@@ -337,7 +337,7 @@ class TestUpdatedAtCheckCols(TestCheckCols):
      def project_config(self):
          return {
              'config-version': 2,
-             "data-paths": ['data'],
+            'seed-paths': ['seeds'],
              "snapshot-paths": ['test-check-col-snapshots-noconfig'],
              "snapshots": {
                  "test": {
@@ -368,7 +368,7 @@ class TestCheckColsBigquery(TestSimpleSnapshotFilesBigquery):
     def project_config(self):
         return {
             'config-version': 2,
-            "data-paths": ['data'],
+            'seed-paths': ['seeds'],
             "snapshot-paths": ['test-check-col-snapshots-bq'],
             'macro-paths': ['macros'],
         }
@@ -446,7 +446,7 @@ class TestSnapshotHardDelete(DBTIntegrationTest):
 
         return {
             'config-version': 2,
-            "data-paths": ['data'],
+            'seed-paths': ['seeds'],
             "snapshot-paths": paths,
             'macro-paths': ['macros'],
         }

@@ -39,7 +39,7 @@ class TestSimpleCopy(BaseTestSimpleCopy):
 
     @property
     def project_config(self):
-        return self.seed_quote_cfg_with({"data-paths": [self.dir("seed-initial")]})
+        return self.seed_quote_cfg_with({"seed-paths": [self.dir("seed-initial")]})
 
     @use_profile("bigquery")
     def test__bigquery__simple_copy(self):
@@ -53,7 +53,7 @@ class TestSimpleCopy(BaseTestSimpleCopy):
         self.assertTablesEqual("seed", "materialized")
         self.assertTablesEqual("seed", "get_and_ref")
 
-        self.use_default_project({"data-paths": [self.dir("seed-update")]})
+        self.use_default_project({"seed-paths": [self.dir("seed-update")]})
 
         results = self.run_dbt(["seed"])
         self.assertEqual(len(results),  1)
@@ -86,11 +86,11 @@ class TestIncrementalMergeColumns(BaseTestSimpleCopy):
     @use_profile("bigquery")
     def test__bigquery__incremental_merge_columns(self):
         self.use_default_project({
-            "data-paths": ["seeds-merge-cols-initial"]
+            "seed-paths": ["seeds-merge-cols-initial"]
         })
         self.seed_and_run()
         self.use_default_project({
-            "data-paths": ["seeds-merge-cols-update"]
+            "seed-paths": ["seeds-merge-cols-update"]
         })
         self.seed_and_run()
         self.assertTablesEqual("incremental_update_cols", "expected_result")

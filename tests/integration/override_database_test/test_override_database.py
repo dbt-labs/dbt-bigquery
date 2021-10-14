@@ -21,7 +21,7 @@ class BaseOverrideDatabase(DBTIntegrationTest):
     def project_config(self):
         return {
             'config-version': 2,
-            'data-paths': ['data'],
+            'seed-paths': ['seeds'],
             'vars': {
                 'alternate_db': self.alternative_database,
             },
@@ -100,7 +100,7 @@ class TestProjectModelOverride(BaseTestProjectModelOverride):
                     }
                 }
             },
-            'data-paths': ['data'],
+            'seed-paths': ['seeds'],
             'vars': {
                 'alternate_db': self.alternative_database,
             },
@@ -133,7 +133,7 @@ class TestProjectModelAliasOverride(BaseTestProjectModelOverride):
                     }
                 }
             },
-            'data-paths': ['data'],
+            'seed-paths': ['seeds'],
             'vars': {
                 'alternate_db': self.alternative_database,
             },

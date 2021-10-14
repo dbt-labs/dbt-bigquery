@@ -38,7 +38,7 @@ class TestRenameRelation(DBTIntegrationTest):
     def project_config(self):
         return {
             'config-version': 2,
-            'source-paths': ['models']
+            'model-paths': ['models']
         }
 
     @use_profile('bigquery')
@@ -67,7 +67,7 @@ class TestGrantAccess(DBTIntegrationTest):
     def project_config(self):
         return {
             'config-version': 2,
-            'source-paths': ['models']
+            'model-paths': ['models']
         }
 
     @use_profile('bigquery')

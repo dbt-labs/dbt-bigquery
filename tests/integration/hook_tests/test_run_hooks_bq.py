@@ -34,7 +34,7 @@ class TestBigqueryPrePostRunHooks(DBTIntegrationTest):
         return {
             'config-version': 2,
             'macro-paths': ['macros'],
-            'data-paths': ['data'],
+            'seed-paths': ['seeds'],
 
             # The create and drop table statements here validate that these hooks run
             # in the same order that they are defined. Drop before create is an error.

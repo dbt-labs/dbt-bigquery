@@ -32,7 +32,7 @@ class TestBQSchemaTests(DBTIntegrationTest):
         results = self.run_dbt()
         self.assertEqual(len(results), 1)
         test_results = self.run_schema_validations()
-        self.assertEqual(len(test_results), 9)
+        self.assertEqual(len(test_results), 11)
 
         for result in test_results:
             # assert that all deliberately failing tests actually fail

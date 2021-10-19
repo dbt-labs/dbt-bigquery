@@ -12,10 +12,18 @@ models:
       - name: favorite_color
         tests:
           - accepted_values: { values: ['blue', 'green'] }
+      - name: ephemeral_copy
+        description: "Testing a column with the same name as the model"
+        tests:
+          - not_null
+          - unique
 
   # this whole model should pass and run
   - name: table_summary
     description: "The summary table"
+    tests: 
+     - unique:
+          column_name: "concat(favorite_color_copy, count)"
     columns:
       - name: favorite_color_copy
         description: "The favorite color"

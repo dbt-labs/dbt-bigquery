@@ -419,52 +419,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
             self.raw_execute(sql, fetch='fetch_result', use_legacy_sql=True)
         return self.get_table_from_response(iterator)
 
-    def create_bigquery_table(self, database, schema, table_name, callback,
-                              sql):
-        """Create a bigquery table. The caller must supply a callback
-        that takes one argument, a `google.cloud.bigquery.Table`, and mutates
-        it.
-        """
-        conn = self.get_thread_connection()
-        client = conn.handle
-
-        view_ref = self.table_ref(database, schema, table_name, conn)
-        view = google.cloud.bigquery.Table(view_ref)
-        callback(view)
-
-        def fn():
-            return client.create_table(view)
-        self._retry_and_handle(msg=sql, conn=conn, fn=fn)
-
-    def create_view(self, database, schema, table_name, sql):
-        def callback(table):
-            table.view_query = sql
-            table.view_use_legacy_sql = False
-
-        self.create_bigquery_table(database, schema, table_name, callback, sql)
-
-    def create_table(self, database, schema, table_name, sql):
-        conn = self.get_thread_connection()
-        client = conn.handle
-
-        table_ref = self.table_ref(database, schema, table_name, conn)
-        job_params = {'destination': table_ref,
-                      'write_disposition': WRITE_TRUNCATE}
-
-        timeout = self.get_timeout(conn)
-
-        def fn():
-            return self._query_and_results(client, sql, conn, job_params,
-                                           timeout=timeout)
-        self._retry_and_handle(msg=sql, conn=conn, fn=fn)
-
-    def create_date_partitioned_table(self, database, schema, table_name):
-        def callback(table):
-            table.partitioning_type = 'DAY'
-
-        self.create_bigquery_table(database, schema, table_name, callback,
-                                   'CREATE DAY PARTITIONED TABLE')
-
     def copy_bq_table(self, source, destination, write_disposition):
         conn = self.get_thread_connection()
         client = conn.handle

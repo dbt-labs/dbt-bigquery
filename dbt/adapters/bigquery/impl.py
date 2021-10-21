@@ -497,30 +497,6 @@ class BigQueryAdapter(BaseAdapter):
     ###
     # Special bigquery adapter methods
     ###
-    @available.parse_none
-    def make_date_partitioned_table(self, relation):
-        return self.connections.create_date_partitioned_table(
-            database=relation.database,
-            schema=relation.schema,
-            table_name=relation.identifier
-        )
-
-    @available.parse(lambda *a, **k: '')
-    def execute_model(self, model, materialization, sql_override=None,
-                      decorator=None):
-
-        if sql_override is None:
-            sql_override = model.get('compiled_sql')
-
-        if materialization == 'view':
-            res = self._materialize_as_view(model)
-        elif materialization == 'table':
-            res = self._materialize_as_table(model, sql_override, decorator)
-        else:
-            msg = "Invalid relation type: '{}'".format(materialization)
-            raise dbt.exceptions.RuntimeException(msg, model)
-
-        return res
 
     def _partitions_match(
         self, table, conf_partition: Optional[PartitionConfig]

@@ -21,10 +21,11 @@ from google.oauth2 import (
 from dbt.adapters.bigquery import gcloud
 from dbt.utils import format_bytes, format_rows_number
 from dbt.clients import agate_helper
+from dbt.config.profile import INVALID_PROFILE_MESSAGE
 from dbt.tracking import active_user
 from dbt.contracts.connection import ConnectionState, AdapterResponse
 from dbt.exceptions import (
-    FailedToConnectException, RuntimeException, DatabaseException
+    FailedToConnectException, RuntimeException, DatabaseException, DbtProfileError
 )
 from dbt.adapters.base import BaseConnectionManager, Credentials
 from dbt.logger import GLOBAL_LOGGER as logger
@@ -58,7 +59,11 @@ def get_bigquery_defaults(scopes=None) -> Tuple[Any, Optional[str]]:
     project_id is returned available from the environment; otherwise None
     """
     # Cached, because the underlying implementation shells out, taking ~1s
-    return google.auth.default(scopes=scopes)
+    try:
+        credentials, _ = google.auth.default(scopes=scopes)
+        return credentials, _
+    except google.auth.exceptions.DefaultCredentialsError as e:
+        raise DbtProfileError(INVALID_PROFILE_MESSAGE.format(error_string=e))
 
 
 class Priority(StrEnum):
@@ -418,52 +423,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         _, iterator =\
             self.raw_execute(sql, fetch='fetch_result', use_legacy_sql=True)
         return self.get_table_from_response(iterator)
-
-    def create_bigquery_table(self, database, schema, table_name, callback,
-                              sql):
-        """Create a bigquery table. The caller must supply a callback
-        that takes one argument, a `google.cloud.bigquery.Table`, and mutates
-        it.
-        """
-        conn = self.get_thread_connection()
-        client = conn.handle
-
-        view_ref = self.table_ref(database, schema, table_name, conn)
-        view = google.cloud.bigquery.Table(view_ref)
-        callback(view)
-
-        def fn():
-            return client.create_table(view)
-        self._retry_and_handle(msg=sql, conn=conn, fn=fn)
-
-    def create_view(self, database, schema, table_name, sql):
-        def callback(table):
-            table.view_query = sql
-            table.view_use_legacy_sql = False
-
-        self.create_bigquery_table(database, schema, table_name, callback, sql)
-
-    def create_table(self, database, schema, table_name, sql):
-        conn = self.get_thread_connection()
-        client = conn.handle
-
-        table_ref = self.table_ref(database, schema, table_name, conn)
-        job_params = {'destination': table_ref,
-                      'write_disposition': WRITE_TRUNCATE}
-
-        timeout = self.get_timeout(conn)
-
-        def fn():
-            return self._query_and_results(client, sql, conn, job_params,
-                                           timeout=timeout)
-        self._retry_and_handle(msg=sql, conn=conn, fn=fn)
-
-    def create_date_partitioned_table(self, database, schema, table_name):
-        def callback(table):
-            table.partitioning_type = 'DAY'
-
-        self.create_bigquery_table(database, schema, table_name, callback,
-                                   'CREATE DAY PARTITIONED TABLE')
 
     def copy_bq_table(self, source, destination, write_disposition):
         conn = self.get_thread_connection()

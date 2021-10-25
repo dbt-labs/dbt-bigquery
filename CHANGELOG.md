@@ -9,12 +9,16 @@
 - Reimplement the `unique` test to handle column expressions and naming overlaps ([#33](https://github.com/dbt-labs/dbt-bigquery/issues/33), [#35](https://github.com/dbt-labs/dbt-bigquery/issues/35), [#10](https://github.com/dbt-labs/dbt-bigquery/pull/10))
 - Avoid error in `dbt deps` + `dbt clean` if default project is missing ([#27](https://github.com/dbt-labs/dbt-bigquery/issues/27), [#40](https://github.com/dbt-labs/dbt-bigquery/pull/40))
 
+### Under the hood
+- Replace `sample_profiles.yml` with `profile_template.yml`, for use with new `dbt init` ([#43](https://github.com/dbt-labs/dbt-bigquery/pull/43))
+
 ### Contributors
 
 - [@DigUpTheHatchet](https://github.com/DigUpTheHatchet) ([#10](https://github.com/dbt-labs/dbt-bigquery/pull/10))
 - [@jeremyyeo](https://github.com/jeremyyeo) ([#40](https://github.com/dbt-labs/dbt-bigquery/pull/40))
+- [@NiallRees](https://github.com/NiallRees) ([#43](https://github.com/dbt-labs/dbt-bigquery/pull/43))
 
 ## dbt-bigquery 1.0.0b1 (October 11, 2021)
 
 ### Under the hood
-First version as a separate repo.
+- Initial adapter split out

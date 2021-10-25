@@ -1,5 +1,7 @@
 ## dbt-bigquery 1.0.0 (Release TBD)
 
+## dbt-bigquery 1.0.0b2 (October 25, 2021)
+
 ### Features
 
 - Rework `_dbt_max_partition` logic in dynamic `insert_overwrite` incremental strategy. Make the default logic compatible with `on_schema_change`, and make it possible to disable or reimplement that logic by defining a custom macro `declare_dbt_max_partition` ([#17](https://github.com/dbt-labs/dbt-bigquery/issues/17), [#39](https://github.com/dbt-labs/dbt-bigquery/issues/39), [#41](https://github.com/dbt-labs/dbt-bigquery/pull/41))

@@ -380,7 +380,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             query_table = client.get_table(query_job.destination)
             code = 'CREATE TABLE'
             num_rows = query_table.num_rows
-            bytes_processed = query_job.total_bytes_processed
+            bytes_processed = query_job.total_bytes_processed or 0
             message = '{} ({} rows, {} processed)'.format(
                 code,
                 format_rows_number(num_rows),

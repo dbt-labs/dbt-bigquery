@@ -171,16 +171,25 @@
       {% set build_sql = create_table_as(False, target_relation, sql) %}
   
   {% else %}
+    {% set schema_changes_dict = {} %}
     {% set tmp_relation_exists = false %}
     {% if on_schema_change != 'ignore' %} {# Check first, since otherwise we may not build a temp table #}
       {% do run_query(
         declare_dbt_max_partition(this, partition_by, sql) + create_table_as(True, tmp_relation, sql)
       ) %}
       {% set tmp_relation_exists = true %}
-      {% do process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
+      {% set schema_changes_dict = process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
+      {% if on_schema_change == 'append_new_columns' %}
+        {#-- As we append new columns, destination columns are the ones from source --#}
+        {% set dest_columns = schema_changes_dict.get('source_columns', existing_columns) %}
+      {% else %}
+        {#-- Destination columns is the intersection of source and target table --#}
+        {% set dest_columns = schema_changes_dict.get('in_target_and_source', existing_columns) %}
+      {% endif %}
+     {% else %}
+      {% set dest_columns = adapter.get_columns_in_relation(existing_relation) %}
     {% endif %}
-    
-    {% set dest_columns = adapter.get_columns_in_relation(existing_relation) %}
+
     {% set build_sql = bq_generate_incremental_build_sql(
         strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists
     ) %}

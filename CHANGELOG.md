@@ -4,7 +4,7 @@
 N/A
 
 ### Fixes
-N/A
+- Capping `google-api-core` to version `1.31.3` due to `protobuf` dependency conflict ([#53](https://github.com/dbt-labs/dbt-bigquery/pull/53))
 
 ### Under the hood
 N/A

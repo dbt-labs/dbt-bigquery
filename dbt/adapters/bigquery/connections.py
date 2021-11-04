@@ -19,7 +19,6 @@ from google.oauth2 import (
 )
 
 from dbt.adapters.bigquery import gcloud
-from dbt.utils import format_bytes, format_rows_number
 from dbt.clients import agate_helper
 from dbt.config.profile import INVALID_PROFILE_MESSAGE
 from dbt.tracking import active_user
@@ -215,6 +214,28 @@ class BigQueryConnectionManager(BaseConnectionManager):
     def commit(self):
         pass
 
+    def format_bytes(self, num_bytes):
+        if num_bytes:
+            for unit in ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB']:
+                if abs(num_bytes) < 1024.0:
+                    return f"{num_bytes:3.1f} {unit}"
+                num_bytes /= 1024.0
+
+            num_bytes *= 1024.0
+            return f"{num_bytes:3.1f} {unit}"
+
+        else:
+            return num_bytes
+
+    def format_rows_number(self, rows_number):
+        for unit in ['', 'k', 'm', 'b', 't']:
+            if abs(rows_number) < 1000.0:
+                return f"{rows_number:3.1f}{unit}".strip()
+            rows_number /= 1000.0
+
+        rows_number *= 1000.0
+        return f"{rows_number:3.1f}{unit}".strip()
+
     @classmethod
     def get_bigquery_credentials(cls, profile_credentials):
         method = profile_credentials.method
@@ -380,27 +401,23 @@ class BigQueryConnectionManager(BaseConnectionManager):
             query_table = client.get_table(query_job.destination)
             code = 'CREATE TABLE'
             num_rows = query_table.num_rows
-            bytes_processed = query_job.total_bytes_processed or 0
-            message = '{} ({} rows, {} processed)'.format(
-                code,
-                format_rows_number(num_rows),
-                format_bytes(bytes_processed)
-            )
+            num_rows_formated = self.format_rows_number(num_rows)
+            bytes_processed = query_job.total_bytes_processed
+            processed_bytes = self.format_bytes(bytes_processed)
+            message = f'{code} ({num_rows_formated} rows, {processed_bytes} processed)'
 
         elif query_job.statement_type == 'SCRIPT':
             code = 'SCRIPT'
             bytes_processed = query_job.total_bytes_processed
-            message = f'{code} ({format_bytes(bytes_processed)} processed)'
+            message = f'{code} ({self.format_bytes(bytes_processed)} processed)'
 
         elif query_job.statement_type in ['INSERT', 'DELETE', 'MERGE']:
             code = query_job.statement_type
             num_rows = query_job.num_dml_affected_rows
+            num_rows_formated = self.format_rows_number(num_rows)
             bytes_processed = query_job.total_bytes_processed
-            message = '{} ({} rows, {} processed)'.format(
-                code,
-                format_rows_number(num_rows),
-                format_bytes(bytes_processed),
-            )
+            processed_bytes = self.format_bytes(bytes_processed)
+            message = f'{code} ({num_rows_formated} rows, {processed_bytes} processed)'
 
         response = BigQueryAdapterResponse(
             _message=message,

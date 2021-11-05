@@ -4,13 +4,14 @@
 N/A
 
 ### Fixes
-N/A
+- Fix problem with bytes proccessed return None value when the service account used to connect DBT in bigquery had a row policy access.
+([#47](https://github.com/dbt-labs/dbt-bigquery/issues/47), [#48](https://github.com/dbt-labs/dbt-bigquery/pull/48))
 
 ### Under the hood
 N/A
 
 ### Contributors
-N/A
+- [@imartynetz](https://github.com/imartynetz) ([#48](https://github.com/dbt-labs/dbt-bigquery/pull/48))
 
 ## dbt-bigquery 1.0.0b2 (October 25, 2021)
 
@@ -21,8 +22,6 @@ N/A
 ### Fixes
 - Reimplement the `unique` test to handle column expressions and naming overlaps ([#33](https://github.com/dbt-labs/dbt-bigquery/issues/33), [#35](https://github.com/dbt-labs/dbt-bigquery/issues/35), [#10](https://github.com/dbt-labs/dbt-bigquery/pull/10))
 - Avoid error in `dbt deps` + `dbt clean` if default project is missing ([#27](https://github.com/dbt-labs/dbt-bigquery/issues/27), [#40](https://github.com/dbt-labs/dbt-bigquery/pull/40))
-- Fix problem with bytes proccessed return None value when the service account used to connect DBT in bigquery had a row policy access.
-[#47](https://github.com/dbt-labs/dbt-bigquery/issues/47)
 
 ### Under the hood
 - Replace `sample_profiles.yml` with `profile_template.yml`, for use with new `dbt init` ([#43](https://github.com/dbt-labs/dbt-bigquery/pull/43))

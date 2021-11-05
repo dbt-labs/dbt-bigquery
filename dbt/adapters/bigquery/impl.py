@@ -14,7 +14,8 @@ from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery import BigQueryColumn
 from dbt.adapters.bigquery import BigQueryConnectionManager
 from dbt.contracts.graph.manifest import Manifest
-from dbt.logger import GLOBAL_LOGGER as logger, print_timestamped_line
+from dbt.logger import print_timestamped_line
+from dbt.events import AdapterLogger
 from dbt.utils import filter_null_values
 
 import google.auth
@@ -28,6 +29,8 @@ from google.cloud.bigquery import AccessEntry, SchemaField
 import time
 import agate
 import json
+
+logger = AdapterLogger("Bigquery")
 
 # Write dispositions for bigquery.
 WRITE_APPEND = google.cloud.bigquery.job.WriteDisposition.WRITE_APPEND

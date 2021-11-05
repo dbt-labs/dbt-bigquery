@@ -1,4 +1,4 @@
-from dbt.logger import GLOBAL_LOGGER as logger
+from dbt.events import AdapterLogger
 import dbt.exceptions
 from dbt.clients.system import run_cmd
 
@@ -8,6 +8,8 @@ Please download and install the SDK, or use a Service Account instead.
 
 https://cloud.google.com/sdk/
 """
+
+logger = AdapterLogger("Bigquery")
 
 
 def gcloud_installed():

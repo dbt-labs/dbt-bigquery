@@ -157,6 +157,10 @@ jobs:
           pip install tox
           pip --version
           tox --version
+          
+      - name: Install dbt-core latest
+        run: |
+          pip install "git+https://github.com/dbt-labs/dbt-core.git#egg=dbt-core&subdirectory=core"
 
       - name: Run tox (bigquery)
         if: matrix.adapter == 'bigquery'

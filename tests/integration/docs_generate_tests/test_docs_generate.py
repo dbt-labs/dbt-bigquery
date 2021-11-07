@@ -715,7 +715,7 @@ class TestDocsGenerate(DBTIntegrationTest):
         )
 
         return {
-            'dbt_schema_version': 'https://schemas.getdbt.com/dbt/manifest/v3.json',
+            'dbt_schema_version': 'https://schemas.getdbt.com/dbt/manifest/v4.json',
             'dbt_version': dbt.version.__version__,
             'nodes': {
                 'model.test.model': {
@@ -1300,7 +1300,7 @@ class TestDocsGenerate(DBTIntegrationTest):
         my_schema_name = self.unique_schema()
 
         return {
-            'dbt_schema_version': 'https://schemas.getdbt.com/dbt/manifest/v3.json',
+            'dbt_schema_version': 'https://schemas.getdbt.com/dbt/manifest/v4.json',
             'dbt_version': dbt.version.__version__,
             'nodes': {
                 'model.test.clustered': {
@@ -1820,7 +1820,7 @@ class TestDocsGenerate(DBTIntegrationTest):
             elif key == 'metadata':
                 metadata = manifest['metadata']
                 self.verify_metadata(
-                    metadata, 'https://schemas.getdbt.com/dbt/manifest/v3.json')
+                    metadata, 'https://schemas.getdbt.com/dbt/manifest/v4.json')
                 assert 'project_id' in metadata and metadata[
                     'project_id'] == '098f6bcd4621d373cade4e832627b4f6'
                 assert 'send_anonymous_usage_stats' in metadata and metadata[
@@ -1916,7 +1916,7 @@ class TestDocsGenerate(DBTIntegrationTest):
         run_results = _read_json('./target/run_results.json')
         assert 'metadata' in run_results
         self.verify_metadata(
-            run_results['metadata'], 'https://schemas.getdbt.com/dbt/run-results/v3.json')
+            run_results['metadata'], 'https://schemas.getdbt.com/dbt/run-results/v4.json')
         self.assertIn('elapsed_time', run_results)
         self.assertGreater(run_results['elapsed_time'], 0)
         self.assertTrue(

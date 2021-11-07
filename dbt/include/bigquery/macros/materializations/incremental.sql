@@ -178,14 +178,9 @@
         declare_dbt_max_partition(this, partition_by, sql) + create_table_as(True, tmp_relation, sql)
       ) %}
       {% set tmp_relation_exists = true %}
+      {#-- Process schema changes. Returns dict of changes if successful. Use source columns for upserting/merging --#}
       {% set schema_changes_dict = process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
-      {% if on_schema_change == 'append_new_columns' %}
-        {#-- As we append new columns, destination columns are the ones from source --#}
-        {% set dest_columns = schema_changes_dict.get('source_columns', existing_columns) %}
-      {% else %}
-        {#-- Destination columns is the intersection of source and target table --#}
-        {% set dest_columns = schema_changes_dict.get('in_target_and_source', existing_columns) %}
-      {% endif %}
+      {% set dest_columns = schema_changes_dict.get('source_columns', existing_columns) %}
      {% else %}
       {% set dest_columns = adapter.get_columns_in_relation(existing_relation) %}
     {% endif %}

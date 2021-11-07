@@ -171,7 +171,6 @@
       {% set build_sql = create_table_as(False, target_relation, sql) %}
   
   {% else %}
-    {% set schema_changes_dict = {} %}
     {% set tmp_relation_exists = false %}
     {% if on_schema_change != 'ignore' %} {# Check first, since otherwise we may not build a temp table #}
       {% do run_query(
@@ -179,12 +178,11 @@
       ) %}
       {% set tmp_relation_exists = true %}
       {#-- Process schema changes. Returns dict of changes if successful. Use source columns for upserting/merging --#}
-      {% set schema_changes_dict = process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
-      {% set dest_columns = schema_changes_dict.get('source_columns', existing_columns) %}
-     {% else %}
+      {% set dest_columns = process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
+    {% endif %}
+    {% if not dest_columns %}
       {% set dest_columns = adapter.get_columns_in_relation(existing_relation) %}
     {% endif %}
-
     {% set build_sql = bq_generate_incremental_build_sql(
         strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists
     ) %}

@@ -13,7 +13,7 @@ N/A
 
 ### Contributors
 - [@imartynetz](https://github.com/imartynetz) ([#48](https://github.com/dbt-labs/dbt-bigquery/pull/48))
-- [@Kayrnt](https://github.com/Kayrnt) ([51](https://github.com/dbt-labs/dbt-bigquery/pull/51))
+- [@Kayrnt](https://github.com/Kayrnt) ([#51](https://github.com/dbt-labs/dbt-bigquery/pull/51))
 
 ## dbt-bigquery 1.0.0b2 (October 25, 2021)
 

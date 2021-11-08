@@ -177,10 +177,12 @@
         declare_dbt_max_partition(this, partition_by, sql) + create_table_as(True, tmp_relation, sql)
       ) %}
       {% set tmp_relation_exists = true %}
-      {% do process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
+      {#-- Process schema changes. Returns dict of changes if successful. Use source columns for upserting/merging --#}
+      {% set dest_columns = process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
     {% endif %}
-    
-    {% set dest_columns = adapter.get_columns_in_relation(existing_relation) %}
+    {% if not dest_columns %}
+      {% set dest_columns = adapter.get_columns_in_relation(existing_relation) %}
+    {% endif %}
     {% set build_sql = bq_generate_incremental_build_sql(
         strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists
     ) %}

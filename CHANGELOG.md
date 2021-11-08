@@ -4,14 +4,16 @@
 N/A
 
 ### Fixes
-- Fix problem with bytes proccessed return None value when the service account used to connect DBT in bigquery had a row policy access.
+- Fix problem with bytes processed return None value when the service account used to connect DBT in bigquery had a row policy access.
 ([#47](https://github.com/dbt-labs/dbt-bigquery/issues/47), [#48](https://github.com/dbt-labs/dbt-bigquery/pull/48))
+- When on_schema_change is set, pass common columns as dest_columns in incremental merge macros ([#4144](https://github.com/dbt-labs/dbt-core/issues/4144))
 
 ### Under the hood
 - Capping `google-api-core` to version `1.31.3` due to `protobuf` dependency conflict ([#53](https://github.com/dbt-labs/dbt-bigquery/pull/53))
 
 ### Contributors
 - [@imartynetz](https://github.com/imartynetz) ([#48](https://github.com/dbt-labs/dbt-bigquery/pull/48))
+- [@Kayrnt](https://github.com/Kayrnt) ([#51](https://github.com/dbt-labs/dbt-bigquery/pull/51))
 
 ## dbt-bigquery 1.0.0b2 (October 25, 2021)
 

@@ -600,7 +600,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
 
     @patch('dbt.adapters.bigquery.impl.google.cloud.bigquery')
     def test_query_and_results(self, mock_bq):
-        self.connections.get_timeout = lambda x: 100.0
+        self.connections.get_job_execution_timeout_seconds = lambda x: 100.0
 
         self.connections._query_and_results(
           self.mock_client, 'sql', self.mock_connection,

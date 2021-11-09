@@ -1252,6 +1252,7 @@ class TestDocsGenerate(DBTIntegrationTest):
                     'tags': []
                 }
             },
+            'metrics': {},
             'selectors': {},
             'parent_map': {
                 'model.test.model': ['seed.test.seed'],
@@ -1728,6 +1729,7 @@ class TestDocsGenerate(DBTIntegrationTest):
             },
             'sources': {},
             'exposures': {},
+            'metrics': {},
             'selectors': {},
             'child_map': {
                 'model.test.clustered': [],

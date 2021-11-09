@@ -1252,6 +1252,7 @@ class TestDocsGenerate(DBTIntegrationTest):
                     'tags': []
                 }
             },
+            'metrics': {},
             'selectors': {},
             'parent_map': {
                 'model.test.model': ['seed.test.seed'],
@@ -1728,6 +1729,7 @@ class TestDocsGenerate(DBTIntegrationTest):
             },
             'sources': {},
             'exposures': {},
+            'metrics': {},
             'selectors': {},
             'child_map': {
                 'model.test.clustered': [],
@@ -1812,6 +1814,7 @@ class TestDocsGenerate(DBTIntegrationTest):
         manifest_keys = frozenset({
             'nodes', 'sources', 'macros', 'parent_map', 'child_map',
             'docs', 'metadata', 'docs', 'disabled', 'exposures', 'selectors',
+            'metrics',
         })
 
         self.assertEqual(frozenset(manifest), manifest_keys)

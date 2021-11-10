@@ -1,7 +1,6 @@
 ## dbt-bigquery 1.0.0 (Release TBD)
 
-### Features
-N/A
+## dbt-bigquery 1.0.0rc1 (November 10, 2021)
 
 ### Fixes
 - Fix problem with bytes processed return None value when the service account used to connect DBT in bigquery had a row policy access.

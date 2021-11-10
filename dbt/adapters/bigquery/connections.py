@@ -110,6 +110,12 @@ class BigQueryCredentials(Credentials):
     client_secret: Optional[str] = None
     token_uri: Optional[str] = None
 
+    scopes: Optional[Tuple[str, ...]] = (
+        'https://www.googleapis.com/auth/bigquery',
+        'https://www.googleapis.com/auth/cloud-platform',
+        'https://www.googleapis.com/auth/drive'
+    )
+
     _ALIASES = {
         'project': 'database',
         'dataset': 'schema',
@@ -147,10 +153,6 @@ class BigQueryCredentials(Credentials):
 
 class BigQueryConnectionManager(BaseConnectionManager):
     TYPE = 'bigquery'
-
-    SCOPE = ('https://www.googleapis.com/auth/bigquery',
-             'https://www.googleapis.com/auth/cloud-platform',
-             'https://www.googleapis.com/auth/drive')
 
     QUERY_TIMEOUT = 300
     RETRIES = 1
@@ -245,16 +247,16 @@ class BigQueryConnectionManager(BaseConnectionManager):
         creds = GoogleServiceAccountCredentials.Credentials
 
         if method == BigQueryConnectionMethod.OAUTH:
-            credentials, _ = get_bigquery_defaults(scopes=cls.SCOPE)
+            credentials, _ = get_bigquery_defaults(scopes=profile_credentials.scopes)
             return credentials
 
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT:
             keyfile = profile_credentials.keyfile
-            return creds.from_service_account_file(keyfile, scopes=cls.SCOPE)
+            return creds.from_service_account_file(keyfile, scopes=profile_credentials.scopes)
 
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON:
             details = profile_credentials.keyfile_json
-            return creds.from_service_account_info(details, scopes=cls.SCOPE)
+            return creds.from_service_account_info(details, scopes=profile_credentials.scopes)
 
         elif method == BigQueryConnectionMethod.OAUTH_SECRETS:
             return GoogleCredentials.Credentials(
@@ -263,7 +265,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 client_id=profile_credentials.client_id,
                 client_secret=profile_credentials.client_secret,
                 token_uri=profile_credentials.token_uri,
-                scopes=cls.SCOPE
+                scopes=profile_credentials.scopes
             )
 
         error = ('Invalid `method` in profile: "{}"'.format(method))
@@ -275,7 +277,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return impersonated_credentials.Credentials(
             source_credentials=source_credentials,
             target_principal=profile_credentials.impersonate_service_account,
-            target_scopes=list(cls.SCOPE),
+            target_scopes=list(profile_credentials.scopes),
             lifetime=profile_credentials.timeout_seconds,
         )
 

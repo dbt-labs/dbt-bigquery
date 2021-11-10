@@ -9,7 +9,7 @@ Please download and install the SDK, or use a Service Account instead.
 https://cloud.google.com/sdk/
 """
 
-logger = AdapterLogger("Bigquery")
+logger = AdapterLogger("BigQuery")
 
 
 def gcloud_installed():

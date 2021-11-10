@@ -12,6 +12,7 @@ N/A
 - Capping `google-api-core` to version `1.31.3` due to `protobuf` dependency conflict ([#53](https://github.com/dbt-labs/dbt-bigquery/pull/53))
 - Bump `google-cloud-core` and `google-api-core` upper bounds to `<3`, thereby removing `<1.31.3` limit on the latter. Remove explicit dependency on `six` ([#57](https://github.com/dbt-labs/dbt-bigquery/pull/57))
 - Remove official support for python 3.6, which is reaching end of life on December 23, 2021 ([dbt-core#4134](https://github.com/dbt-labs/dbt-core/issues/4134), [#59](https://github.com/dbt-labs/dbt-bigquery/pull/59))
+- Add support for structured logging [#55](https://github.com/dbt-labs/dbt-bigquery/pull/55)
 
 ### Contributors
 - [@imartynetz](https://github.com/imartynetz) ([#48](https://github.com/dbt-labs/dbt-bigquery/pull/48))

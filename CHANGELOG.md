@@ -7,6 +7,7 @@ N/A
 - Fix problem with bytes processed return None value when the service account used to connect DBT in bigquery had a row policy access.
 ([#47](https://github.com/dbt-labs/dbt-bigquery/issues/47), [#48](https://github.com/dbt-labs/dbt-bigquery/pull/48))
 - When on_schema_change is set, pass common columns as dest_columns in incremental merge macros ([#4144](https://github.com/dbt-labs/dbt-core/issues/4144))
+- Fix problem with the incremental model with the `insert_overwrite` strategy doesn't work due to the lack of partition filter for a temporary table. ([#64](https://github.com/dbt-labs/dbt-bigquery/issues/64)), ([#65](https://github.com/dbt-labs/dbt-bigquery/pull/65))
 
 ### Under the hood
 - Capping `google-api-core` to version `1.31.3` due to `protobuf` dependency conflict ([#53](https://github.com/dbt-labs/dbt-bigquery/pull/53))

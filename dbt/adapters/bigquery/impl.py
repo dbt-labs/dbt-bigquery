@@ -14,7 +14,7 @@ from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery import BigQueryColumn
 from dbt.adapters.bigquery import BigQueryConnectionManager
 from dbt.contracts.graph.manifest import Manifest
-from dbt.logger import GLOBAL_LOGGER as logger, print_timestamped_line
+from dbt.events import AdapterLogger
 from dbt.utils import filter_null_values
 
 import google.auth
@@ -28,6 +28,8 @@ from google.cloud.bigquery import AccessEntry, SchemaField
 import time
 import agate
 import json
+
+logger = AdapterLogger("BigQuery")
 
 # Write dispositions for bigquery.
 WRITE_APPEND = google.cloud.bigquery.job.WriteDisposition.WRITE_APPEND
@@ -481,9 +483,8 @@ class BigQueryAdapter(BaseAdapter):
     @classmethod
     def warning_on_hooks(hook_type):
         msg = "{} is not supported in bigquery and will be ignored"
-        print_timestamped_line(
-            msg.format(hook_type), ui.COLOR_FG_YELLOW
-        )
+        warn_msg = dbt.ui.color(msg, ui.COLOR_FG_YELLOW)
+        logger.info(warn_msg)
 
     @available
     def add_query(self, sql, auto_begin=True, bindings=None,

@@ -1,5 +1,5 @@
 ## dbt-bigquery 1.0.0 (Release TBD)
-
+- provide a fine-grained control of the timeout and retry of BigQuery query with four new dbt profile configs: `job_creation_timeout_seconds`, `job_execution_timeout_seconds`, `job_retry_deadline_seconds`, and `job_retries`. [#50](https://github.com/dbt-labs/dbt-bigquery/pull/50)
 ## dbt-bigquery 1.0.0rc1 (November 10, 2021)
 
 ### Fixes
@@ -16,6 +16,7 @@
 ### Contributors
 - [@imartynetz](https://github.com/imartynetz) ([#48](https://github.com/dbt-labs/dbt-bigquery/pull/48))
 - [@Kayrnt](https://github.com/Kayrnt) ([#51](https://github.com/dbt-labs/dbt-bigquery/pull/51))
+- [@hui-zheng](https://github.com/hui-zheng)([#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))
 
 ## dbt-bigquery 1.0.0b2 (October 25, 2021)
 

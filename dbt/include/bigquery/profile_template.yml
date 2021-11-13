@@ -1,7 +1,7 @@
 fixed:
   type: bigquery
   priority: interactive
-  fixed_retries: 1
+  job_retries: 1
 prompts:
   _choose_authentication_method:
     oauth:
@@ -17,7 +17,7 @@ prompts:
   threads:
     hint: '1 or more'
     type: 'int'
-  timeout_seconds:
+  job_execution_timeout_seconds:
     default: 300
     type: 'int'
   _choose_location:

@@ -118,8 +118,8 @@ class BigQueryCredentials(Credentials):
         'dataset': 'schema',
         'target_project': 'target_database',
         'target_dataset': 'target_schema',
-        'retries': 'job_retries',
-        'timeout_seconds': 'job_execution_timeout_seconds',
+        'job_retries': 'retries',
+        'job_execution_timeout_seconds': 'timeout_seconds',
     }
 
     @property

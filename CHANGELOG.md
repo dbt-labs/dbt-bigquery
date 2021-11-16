@@ -1,7 +1,7 @@
 ## dbt-bigquery 1.0.0 (Release TBD)
 
 ### Features
-N/A
+- Add optional `scopes` profile configuration argument to reduce the BigQuery OAuth scopes down to the minimal set needed. ([#23](https://github.com/dbt-labs/dbt-bigquery/issues/23), [#63](https://github.com/dbt-labs/dbt-bigquery/pull/63))
 
 ### Fixes
 - Fix problem with bytes processed return None value when the service account used to connect DBT in bigquery had a row policy access.
@@ -17,6 +17,7 @@ N/A
 ### Contributors
 - [@imartynetz](https://github.com/imartynetz) ([#48](https://github.com/dbt-labs/dbt-bigquery/pull/48))
 - [@Kayrnt](https://github.com/Kayrnt) ([#51](https://github.com/dbt-labs/dbt-bigquery/pull/51))
+- [@bborysenko](https://github.com/bborysenko) ([#63](https://github.com/dbt-labs/dbt-bigquery/pull/63))
 
 ## dbt-bigquery 1.0.0b2 (October 25, 2021)
 

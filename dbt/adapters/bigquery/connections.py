@@ -284,8 +284,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return impersonated_credentials.Credentials(
             source_credentials=source_credentials,
             target_principal=profile_credentials.impersonate_service_account,
-            target_scopes=list(cls.SCOPE),
-            lifetime=profile_credentials.job_execution_timeout_seconds,
             target_scopes=list(profile_credentials.scopes),
             lifetime=profile_credentials.job_execution_timeout_seconds,
         )

@@ -1,5 +1,13 @@
 ## dbt-bigquery 1.0.0 (Release TBD)
 
+### Fixes
+
+### Under the hood
+- Adding `execution_project` to `target` object ([#66](https://github.com/dbt-labs/dbt-bigquery/issues/66))
+
+### Contributors
+- [@pgoslatara](https://github.com/pgoslatara) ([#66](https://github.com/dbt-labs/dbt-bigquery/issues/66))
+
 ## dbt-bigquery 1.0.0rc1 (November 10, 2021)
 
 ### Fixes

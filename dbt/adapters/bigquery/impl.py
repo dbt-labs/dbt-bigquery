@@ -757,20 +757,22 @@ class BigQueryAdapter(BaseAdapter):
     ) -> Dict[str, Any]:
         opts = self.get_common_options(config, node, temporary)
 
-        if temporary:
-            expiration = 'TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 12 hour)'
-            opts['expiration_timestamp'] = expiration
-
         if config.get('kms_key_name') is not None:
             opts['kms_key_name'] = "'{}'".format(config.get('kms_key_name'))
 
-        if config.get('require_partition_filter'):
-            opts['require_partition_filter'] = config.get(
-                'require_partition_filter')
-
-        if config.get('partition_expiration_days') is not None:
-            opts['partition_expiration_days'] = config.get(
-                'partition_expiration_days')
+        if temporary:
+            expiration = 'TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 12 hour)'
+            opts['expiration_timestamp'] = expiration
+        else:
+            # It doesn't apply the `require_partition_filter` option for a temporary table
+            # so that we avoid the error by not specifying a partition with a temporary table
+            # in the incremental model.
+            if config.get('require_partition_filter') is not None:
+                opts['require_partition_filter'] = config.get(
+                    'require_partition_filter')
+            if config.get('partition_expiration_days') is not None:
+                opts['partition_expiration_days'] = config.get(
+                    'partition_expiration_days')
 
         return opts
 

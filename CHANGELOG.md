@@ -1,12 +1,14 @@
 ## dbt-bigquery 1.0.0 (Release TBD)
 
-### Fixes
+### Features
+- Add optional `scopes` profile configuration argument to reduce the BigQuery OAuth scopes down to the minimal set needed. ([#23](https://github.com/dbt-labs/dbt-bigquery/issues/23), [#63](https://github.com/dbt-labs/dbt-bigquery/pull/63))
 
 ### Under the hood
 - Adding `execution_project` to `target` object ([#66](https://github.com/dbt-labs/dbt-bigquery/issues/66))
 
 ### Contributors
 - [@pgoslatara](https://github.com/pgoslatara) ([#66](https://github.com/dbt-labs/dbt-bigquery/issues/66))
+- [@bborysenko](https://github.com/bborysenko) ([#63](https://github.com/dbt-labs/dbt-bigquery/pull/63))
 
 ## dbt-bigquery 1.0.0rc1 (November 10, 2021)
 

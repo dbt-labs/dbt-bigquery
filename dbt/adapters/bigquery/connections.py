@@ -27,11 +27,14 @@ from dbt.exceptions import (
     FailedToConnectException, RuntimeException, DatabaseException, DbtProfileError
 )
 from dbt.adapters.base import BaseConnectionManager, Credentials
-from dbt.logger import GLOBAL_LOGGER as logger
+from dbt.events import AdapterLogger
+from dbt.events.functions import fire_event
+from dbt.events.types import SQLQuery
 from dbt.version import __version__ as dbt_version
 
 from dbt.dataclass_schema import StrEnum
 
+logger = AdapterLogger("BigQuery")
 
 BQ_QUERY_JOB_SPLIT = '-----Query Job SQL Follows-----'
 
@@ -107,6 +110,12 @@ class BigQueryCredentials(Credentials):
     client_secret: Optional[str] = None
     token_uri: Optional[str] = None
 
+    scopes: Optional[Tuple[str, ...]] = (
+        'https://www.googleapis.com/auth/bigquery',
+        'https://www.googleapis.com/auth/cloud-platform',
+        'https://www.googleapis.com/auth/drive'
+    )
+
     _ALIASES = {
         'project': 'database',
         'dataset': 'schema',
@@ -124,7 +133,8 @@ class BigQueryCredentials(Credentials):
 
     def _connection_keys(self):
         return ('method', 'database', 'schema', 'location', 'priority',
-                'timeout_seconds', 'maximum_bytes_billed')
+                'timeout_seconds', 'maximum_bytes_billed',
+                'execution_project')
 
     @classmethod
     def __pre_deserialize__(cls, d: Dict[Any, Any]) -> Dict[Any, Any]:
@@ -144,10 +154,6 @@ class BigQueryCredentials(Credentials):
 
 class BigQueryConnectionManager(BaseConnectionManager):
     TYPE = 'bigquery'
-
-    SCOPE = ('https://www.googleapis.com/auth/bigquery',
-             'https://www.googleapis.com/auth/cloud-platform',
-             'https://www.googleapis.com/auth/drive')
 
     QUERY_TIMEOUT = 300
     RETRIES = 1
@@ -242,16 +248,16 @@ class BigQueryConnectionManager(BaseConnectionManager):
         creds = GoogleServiceAccountCredentials.Credentials
 
         if method == BigQueryConnectionMethod.OAUTH:
-            credentials, _ = get_bigquery_defaults(scopes=cls.SCOPE)
+            credentials, _ = get_bigquery_defaults(scopes=profile_credentials.scopes)
             return credentials
 
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT:
             keyfile = profile_credentials.keyfile
-            return creds.from_service_account_file(keyfile, scopes=cls.SCOPE)
+            return creds.from_service_account_file(keyfile, scopes=profile_credentials.scopes)
 
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON:
             details = profile_credentials.keyfile_json
-            return creds.from_service_account_info(details, scopes=cls.SCOPE)
+            return creds.from_service_account_info(details, scopes=profile_credentials.scopes)
 
         elif method == BigQueryConnectionMethod.OAUTH_SECRETS:
             return GoogleCredentials.Credentials(
@@ -260,7 +266,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 client_id=profile_credentials.client_id,
                 client_secret=profile_credentials.client_secret,
                 token_uri=profile_credentials.token_uri,
-                scopes=cls.SCOPE
+                scopes=profile_credentials.scopes
             )
 
         error = ('Invalid `method` in profile: "{}"'.format(method))
@@ -272,7 +278,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return impersonated_credentials.Credentials(
             source_credentials=source_credentials,
             target_principal=profile_credentials.impersonate_service_account,
-            target_scopes=list(cls.SCOPE),
+            target_scopes=list(profile_credentials.scopes),
             lifetime=profile_credentials.timeout_seconds,
         )
 
@@ -344,7 +350,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         conn = self.get_thread_connection()
         client = conn.handle
 
-        logger.debug('On {}: {}', conn.name, sql)
+        fire_event(SQLQuery(conn_name=conn.name, sql=sql))
 
         if self.profile.query_comment and self.profile.query_comment.job_label:
             query_comment = self.query_header.comment.query_comment
@@ -534,7 +540,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         """retry a function call within the context of exception_handler."""
         def reopen_conn_on_error(error):
             if isinstance(error, REOPENABLE_ERRORS):
-                logger.warning('Reopening connection after {!r}', error)
+                logger.warning('Reopening connection after {!r}'.format(error))
                 self.close(conn)
                 self.open(conn)
                 return
@@ -577,8 +583,9 @@ class _ErrorCounter(object):
         self.error_count += 1
         if _is_retryable(error) and self.error_count <= self.retries:
             logger.debug(
-                'Retry attempt {} of {} after error: {}',
-                self.error_count, self.retries, repr(error))
+                'Retry attempt {} of {} after error: {}'.format(
+                    self.error_count, self.retries, repr(error)
+                ))
             return True
         else:
             return False

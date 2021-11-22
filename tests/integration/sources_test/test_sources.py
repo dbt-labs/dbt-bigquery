@@ -24,7 +24,7 @@ class BaseSourcesTest(DBTIntegrationTest):
     def project_config(self):
         return {
             'config-version': 2,
-            'data-paths': ['data'],
+            'seed-paths': ['seeds'],
             'quoting': {'database': True, 'schema': True, 'identifier': True},
             'seeds': {
                 'quote_columns': True,
@@ -104,7 +104,7 @@ class TestSourceFreshness(SuccessfulSourcesTest):
         assert isinstance(data['elapsed_time'], float)
         self.assertBetween(data['metadata']['generated_at'],
                            self.freshness_start_time)
-        assert data['metadata']['dbt_schema_version'] == 'https://schemas.getdbt.com/dbt/sources/v2.json'
+        assert data['metadata']['dbt_schema_version'] == 'https://schemas.getdbt.com/dbt/sources/v3.json'
         assert data['metadata']['dbt_version'] == dbt.version.__version__
         assert data['metadata']['invocation_id'] == dbt.tracking.active_user.invocation_id
         key = 'key'

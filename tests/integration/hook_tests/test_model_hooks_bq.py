@@ -126,7 +126,7 @@ class TestBigqueryPrePostModelHooksOnSeeds(DBTIntegrationTest):
     def project_config(self):
         return {
             'config-version': 2,
-            'data-paths': ['data'],
+            'seed-paths': ['seeds'],
             'models': {},
             'seeds': {
                 'post-hook': [

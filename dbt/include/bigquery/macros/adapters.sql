@@ -168,8 +168,7 @@
 
 
 {% macro bigquery__alter_column_type(relation, column_name, new_column_type) -%}
-  {#
-    Changing a column's data type using a query requires you to scan the entire table.
+  {#-- Changing a column's data type using a query requires you to scan the entire table.
     The query charges can be significant if the table is very large.
 
     https://cloud.google.com/bigquery/docs/manually-changing-schemas#changing_a_columns_data_type
@@ -192,5 +191,26 @@
   {% call statement('alter_column_type') %}
     {{ create_table_as(False, relation, sql)}}
   {%- endcall %}
+
+{% endmacro %}
+
+
+{% macro bigquery__test_unique(model, column_name) %}
+
+with dbt_test__target as (
+  
+  select {{ column_name }} as unique_field
+  from {{ model }}
+  where {{ column_name }} is not null
+  
+)
+
+select
+    unique_field,
+    count(*) as n_records
+
+from dbt_test__target
+group by unique_field
+having count(*) > 1
 
 {% endmacro %}

@@ -4,7 +4,6 @@ from dbt.dataclass_schema import dbtClassMixin, ValidationError
 
 import dbt.deprecations
 import dbt.exceptions
-import dbt.clients.gcloud
 import dbt.clients.agate_helper
 
 from dbt import ui
@@ -15,7 +14,7 @@ from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery import BigQueryColumn
 from dbt.adapters.bigquery import BigQueryConnectionManager
 from dbt.contracts.graph.manifest import Manifest
-from dbt.logger import GLOBAL_LOGGER as logger, print_timestamped_line
+from dbt.events import AdapterLogger
 from dbt.utils import filter_null_values
 
 import google.auth
@@ -29,6 +28,8 @@ from google.cloud.bigquery import AccessEntry, SchemaField
 import time
 import agate
 import json
+
+logger = AdapterLogger("BigQuery")
 
 # Write dispositions for bigquery.
 WRITE_APPEND = google.cloud.bigquery.job.WriteDisposition.WRITE_APPEND
@@ -482,9 +483,8 @@ class BigQueryAdapter(BaseAdapter):
     @classmethod
     def warning_on_hooks(hook_type):
         msg = "{} is not supported in bigquery and will be ignored"
-        print_timestamped_line(
-            msg.format(hook_type), ui.COLOR_FG_YELLOW
-        )
+        warn_msg = dbt.ui.color(msg, ui.COLOR_FG_YELLOW)
+        logger.info(warn_msg)
 
     @available
     def add_query(self, sql, auto_begin=True, bindings=None,
@@ -498,30 +498,6 @@ class BigQueryAdapter(BaseAdapter):
     ###
     # Special bigquery adapter methods
     ###
-    @available.parse_none
-    def make_date_partitioned_table(self, relation):
-        return self.connections.create_date_partitioned_table(
-            database=relation.database,
-            schema=relation.schema,
-            table_name=relation.identifier
-        )
-
-    @available.parse(lambda *a, **k: '')
-    def execute_model(self, model, materialization, sql_override=None,
-                      decorator=None):
-
-        if sql_override is None:
-            sql_override = model.get('compiled_sql')
-
-        if materialization == 'view':
-            res = self._materialize_as_view(model)
-        elif materialization == 'table':
-            res = self._materialize_as_table(model, sql_override, decorator)
-        else:
-            msg = "Invalid relation type: '{}'".format(materialization)
-            raise dbt.exceptions.RuntimeException(msg, model)
-
-        return res
 
     def _partitions_match(
         self, table, conf_partition: Optional[PartitionConfig]
@@ -781,20 +757,22 @@ class BigQueryAdapter(BaseAdapter):
     ) -> Dict[str, Any]:
         opts = self.get_common_options(config, node, temporary)
 
-        if temporary:
-            expiration = 'TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 12 hour)'
-            opts['expiration_timestamp'] = expiration
-
         if config.get('kms_key_name') is not None:
             opts['kms_key_name'] = "'{}'".format(config.get('kms_key_name'))
 
-        if config.get('require_partition_filter'):
-            opts['require_partition_filter'] = config.get(
-                'require_partition_filter')
-
-        if config.get('partition_expiration_days') is not None:
-            opts['partition_expiration_days'] = config.get(
-                'partition_expiration_days')
+        if temporary:
+            expiration = 'TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 12 hour)'
+            opts['expiration_timestamp'] = expiration
+        else:
+            # It doesn't apply the `require_partition_filter` option for a temporary table
+            # so that we avoid the error by not specifying a partition with a temporary table
+            # in the incremental model.
+            if config.get('require_partition_filter') is not None:
+                opts['require_partition_filter'] = config.get(
+                    'require_partition_filter')
+            if config.get('partition_expiration_days') is not None:
+                opts['partition_expiration_days'] = config.get(
+                    'partition_expiration_days')
 
         return opts
 

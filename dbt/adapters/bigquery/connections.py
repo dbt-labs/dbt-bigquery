@@ -18,19 +18,23 @@ from google.oauth2 import (
     service_account as GoogleServiceAccountCredentials
 )
 
-from dbt.utils import format_bytes, format_rows_number
-from dbt.clients import agate_helper, gcloud
+from dbt.adapters.bigquery import gcloud
+from dbt.clients import agate_helper
+from dbt.config.profile import INVALID_PROFILE_MESSAGE
 from dbt.tracking import active_user
 from dbt.contracts.connection import ConnectionState, AdapterResponse
 from dbt.exceptions import (
-    FailedToConnectException, RuntimeException, DatabaseException
+    FailedToConnectException, RuntimeException, DatabaseException, DbtProfileError
 )
 from dbt.adapters.base import BaseConnectionManager, Credentials
-from dbt.logger import GLOBAL_LOGGER as logger
+from dbt.events import AdapterLogger
+from dbt.events.functions import fire_event
+from dbt.events.types import SQLQuery
 from dbt.version import __version__ as dbt_version
 
 from dbt.dataclass_schema import StrEnum
 
+logger = AdapterLogger("BigQuery")
 
 BQ_QUERY_JOB_SPLIT = '-----Query Job SQL Follows-----'
 
@@ -57,7 +61,11 @@ def get_bigquery_defaults(scopes=None) -> Tuple[Any, Optional[str]]:
     project_id is returned available from the environment; otherwise None
     """
     # Cached, because the underlying implementation shells out, taking ~1s
-    return google.auth.default(scopes=scopes)
+    try:
+        credentials, _ = google.auth.default(scopes=scopes)
+        return credentials, _
+    except google.auth.exceptions.DefaultCredentialsError as e:
+        raise DbtProfileError(INVALID_PROFILE_MESSAGE.format(error_string=e))
 
 
 class Priority(StrEnum):
@@ -102,6 +110,12 @@ class BigQueryCredentials(Credentials):
     client_secret: Optional[str] = None
     token_uri: Optional[str] = None
 
+    scopes: Optional[Tuple[str, ...]] = (
+        'https://www.googleapis.com/auth/bigquery',
+        'https://www.googleapis.com/auth/cloud-platform',
+        'https://www.googleapis.com/auth/drive'
+    )
+
     _ALIASES = {
         'project': 'database',
         'dataset': 'schema',
@@ -119,7 +133,8 @@ class BigQueryCredentials(Credentials):
 
     def _connection_keys(self):
         return ('method', 'database', 'schema', 'location', 'priority',
-                'timeout_seconds', 'maximum_bytes_billed')
+                'timeout_seconds', 'maximum_bytes_billed',
+                'execution_project')
 
     @classmethod
     def __pre_deserialize__(cls, d: Dict[Any, Any]) -> Dict[Any, Any]:
@@ -139,10 +154,6 @@ class BigQueryCredentials(Credentials):
 
 class BigQueryConnectionManager(BaseConnectionManager):
     TYPE = 'bigquery'
-
-    SCOPE = ('https://www.googleapis.com/auth/bigquery',
-             'https://www.googleapis.com/auth/cloud-platform',
-             'https://www.googleapis.com/auth/drive')
 
     QUERY_TIMEOUT = 300
     RETRIES = 1
@@ -209,22 +220,44 @@ class BigQueryConnectionManager(BaseConnectionManager):
     def commit(self):
         pass
 
+    def format_bytes(self, num_bytes):
+        if num_bytes:
+            for unit in ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB']:
+                if abs(num_bytes) < 1024.0:
+                    return f"{num_bytes:3.1f} {unit}"
+                num_bytes /= 1024.0
+
+            num_bytes *= 1024.0
+            return f"{num_bytes:3.1f} {unit}"
+
+        else:
+            return num_bytes
+
+    def format_rows_number(self, rows_number):
+        for unit in ['', 'k', 'm', 'b', 't']:
+            if abs(rows_number) < 1000.0:
+                return f"{rows_number:3.1f}{unit}".strip()
+            rows_number /= 1000.0
+
+        rows_number *= 1000.0
+        return f"{rows_number:3.1f}{unit}".strip()
+
     @classmethod
     def get_bigquery_credentials(cls, profile_credentials):
         method = profile_credentials.method
         creds = GoogleServiceAccountCredentials.Credentials
 
         if method == BigQueryConnectionMethod.OAUTH:
-            credentials, _ = get_bigquery_defaults(scopes=cls.SCOPE)
+            credentials, _ = get_bigquery_defaults(scopes=profile_credentials.scopes)
             return credentials
 
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT:
             keyfile = profile_credentials.keyfile
-            return creds.from_service_account_file(keyfile, scopes=cls.SCOPE)
+            return creds.from_service_account_file(keyfile, scopes=profile_credentials.scopes)
 
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON:
             details = profile_credentials.keyfile_json
-            return creds.from_service_account_info(details, scopes=cls.SCOPE)
+            return creds.from_service_account_info(details, scopes=profile_credentials.scopes)
 
         elif method == BigQueryConnectionMethod.OAUTH_SECRETS:
             return GoogleCredentials.Credentials(
@@ -233,7 +266,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 client_id=profile_credentials.client_id,
                 client_secret=profile_credentials.client_secret,
                 token_uri=profile_credentials.token_uri,
-                scopes=cls.SCOPE
+                scopes=profile_credentials.scopes
             )
 
         error = ('Invalid `method` in profile: "{}"'.format(method))
@@ -245,7 +278,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return impersonated_credentials.Credentials(
             source_credentials=source_credentials,
             target_principal=profile_credentials.impersonate_service_account,
-            target_scopes=list(cls.SCOPE),
+            target_scopes=list(profile_credentials.scopes),
             lifetime=profile_credentials.timeout_seconds,
         )
 
@@ -317,7 +350,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         conn = self.get_thread_connection()
         client = conn.handle
 
-        logger.debug('On {}: {}', conn.name, sql)
+        fire_event(SQLQuery(conn_name=conn.name, sql=sql))
 
         if self.profile.query_comment and self.profile.query_comment.job_label:
             query_comment = self.query_header.comment.query_comment
@@ -374,27 +407,23 @@ class BigQueryConnectionManager(BaseConnectionManager):
             query_table = client.get_table(query_job.destination)
             code = 'CREATE TABLE'
             num_rows = query_table.num_rows
+            num_rows_formated = self.format_rows_number(num_rows)
             bytes_processed = query_job.total_bytes_processed
-            message = '{} ({} rows, {} processed)'.format(
-                code,
-                format_rows_number(num_rows),
-                format_bytes(bytes_processed)
-            )
+            processed_bytes = self.format_bytes(bytes_processed)
+            message = f'{code} ({num_rows_formated} rows, {processed_bytes} processed)'
 
         elif query_job.statement_type == 'SCRIPT':
             code = 'SCRIPT'
             bytes_processed = query_job.total_bytes_processed
-            message = f'{code} ({format_bytes(bytes_processed)} processed)'
+            message = f'{code} ({self.format_bytes(bytes_processed)} processed)'
 
         elif query_job.statement_type in ['INSERT', 'DELETE', 'MERGE']:
             code = query_job.statement_type
             num_rows = query_job.num_dml_affected_rows
+            num_rows_formated = self.format_rows_number(num_rows)
             bytes_processed = query_job.total_bytes_processed
-            message = '{} ({} rows, {} processed)'.format(
-                code,
-                format_rows_number(num_rows),
-                format_bytes(bytes_processed),
-            )
+            processed_bytes = self.format_bytes(bytes_processed)
+            message = f'{code} ({num_rows_formated} rows, {processed_bytes} processed)'
 
         response = BigQueryAdapterResponse(
             _message=message,
@@ -417,52 +446,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         _, iterator =\
             self.raw_execute(sql, fetch='fetch_result', use_legacy_sql=True)
         return self.get_table_from_response(iterator)
-
-    def create_bigquery_table(self, database, schema, table_name, callback,
-                              sql):
-        """Create a bigquery table. The caller must supply a callback
-        that takes one argument, a `google.cloud.bigquery.Table`, and mutates
-        it.
-        """
-        conn = self.get_thread_connection()
-        client = conn.handle
-
-        view_ref = self.table_ref(database, schema, table_name, conn)
-        view = google.cloud.bigquery.Table(view_ref)
-        callback(view)
-
-        def fn():
-            return client.create_table(view)
-        self._retry_and_handle(msg=sql, conn=conn, fn=fn)
-
-    def create_view(self, database, schema, table_name, sql):
-        def callback(table):
-            table.view_query = sql
-            table.view_use_legacy_sql = False
-
-        self.create_bigquery_table(database, schema, table_name, callback, sql)
-
-    def create_table(self, database, schema, table_name, sql):
-        conn = self.get_thread_connection()
-        client = conn.handle
-
-        table_ref = self.table_ref(database, schema, table_name, conn)
-        job_params = {'destination': table_ref,
-                      'write_disposition': WRITE_TRUNCATE}
-
-        timeout = self.get_timeout(conn)
-
-        def fn():
-            return self._query_and_results(client, sql, conn, job_params,
-                                           timeout=timeout)
-        self._retry_and_handle(msg=sql, conn=conn, fn=fn)
-
-    def create_date_partitioned_table(self, database, schema, table_name):
-        def callback(table):
-            table.partitioning_type = 'DAY'
-
-        self.create_bigquery_table(database, schema, table_name, callback,
-                                   'CREATE DAY PARTITIONED TABLE')
 
     def copy_bq_table(self, source, destination, write_disposition):
         conn = self.get_thread_connection()
@@ -557,7 +540,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         """retry a function call within the context of exception_handler."""
         def reopen_conn_on_error(error):
             if isinstance(error, REOPENABLE_ERRORS):
-                logger.warning('Reopening connection after {!r}', error)
+                logger.warning('Reopening connection after {!r}'.format(error))
                 self.close(conn)
                 self.open(conn)
                 return
@@ -600,8 +583,9 @@ class _ErrorCounter(object):
         self.error_count += 1
         if _is_retryable(error) and self.error_count <= self.retries:
             logger.debug(
-                'Retry attempt {} of {} after error: {}',
-                self.error_count, self.retries, repr(error))
+                'Retry attempt {} of {} after error: {}'.format(
+                    self.error_count, self.retries, repr(error)
+                ))
             return True
         else:
             return False

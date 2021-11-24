@@ -1,5 +1,7 @@
 ## dbt-bigquery 1.0.0 (Release TBD)
 
+## dbt-bigquery 1.0.0rc2 (November 24, 2021)
+
 ### Features
 - Add optional `scopes` profile configuration argument to reduce the BigQuery OAuth scopes down to the minimal set needed. ([#23](https://github.com/dbt-labs/dbt-bigquery/issues/23), [#63](https://github.com/dbt-labs/dbt-bigquery/pull/63))
 

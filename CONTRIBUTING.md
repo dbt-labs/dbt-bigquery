@@ -62,6 +62,12 @@ To confirm you have correct version of `dbt-core` installed please run `dbt --ve
 cp test.env.sample test.env
 $EDITOR test.env
 ```
+if you have secrets of your own to provide please use 
+
+```
+cp test.env.example test.env
+```
+to create a blank test.env to fill in.
 
 > In general, it's most important to have successful unit and Postgres tests. Once you open a PR, `dbt-core` will automatically run integration tests for the other three core database adapters. Of course, if you are a BigQuery user, contributing a BigQuery-only feature, it's important to run BigQuery tests as well.
 

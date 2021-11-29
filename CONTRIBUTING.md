@@ -21,7 +21,7 @@ For those wishing to contribute we highly suggest reading the [dbt-core](https:/
 Please note that all contributors to `dbt-bigquery` must sign the [Contributor License Agreement](https://docs.getdbt.com/docs/contributor-license-agreements) to have their Pull Request merged into an `dbt-bigquery` codebase. If you are unable to sign the CLA, then the `dbt-bigquery` maintainers will unfortunately be unable to merge your Pull Request. You are, however, welcome to open issues and comment on existing ones.
 
 
-## Getting the code
+## Getting the code 
 
 You will need `git` in order to download and modify the `dbt-bigquery` source code. On macOS, the best way to download git is to just install [Xcode](https://developer.apple.com/support/xcode/).
 
@@ -54,7 +54,27 @@ When `dbt-bigquery` is installed this way, any changes you make to the `dbt-bigq
 
 To confirm you have correct version of `dbt-core` installed please run `dbt --version` and `which dbt`.
 
+## Initial Setup
+
+`dbt-bigquery` uses test credentials specified in a `test.env` file in the root of the repository for non-Postgres databases. This `test.env` file is git-ignored, but please be _extra_ careful to never check in credentials or other sensitive information when developing against `dbt-core`. To create your `test.env` file, copy the provided sample file, then supply your relevant credentials. This step is only required to use non-Postgres databases.
+
+```
+cp test.env.sample test.env
+$EDITOR test.env
+```
+
+> In general, it's most important to have successful unit and Postgres tests. Once you open a PR, `dbt-core` will automatically run integration tests for the other three core database adapters. Of course, if you are a BigQuery user, contributing a BigQuery-only feature, it's important to run BigQuery tests as well.
+
 ## Testing
+
+`dbt-core` uses test credentials specified in a `test.env` file in the root of the repository for non-Postgres databases. This `test.env` file is git-ignored, but please be _extra_ careful to never check in credentials or other sensitive information when developing against `dbt-core`. To create your `test.env` file, copy the provided sample file, then supply your relevant credentials. This step is only required to use non-Postgres databases.
+
+```
+cp test.env.sample test.env
+$EDITOR test.env
+```
+
+> In general, it's most important to have successful unit and Postgres tests. Once you open a PR, `dbt-core` will automatically run integration tests for the other three core database adapters. Of course, if you are a BigQuery user, contributing a BigQuery-only feature, it's important to run BigQuery tests as well.
 
 ### Test commands
 There are a few mehtods for running tests locally.

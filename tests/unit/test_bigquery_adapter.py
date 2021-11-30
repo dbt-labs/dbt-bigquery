@@ -601,13 +601,13 @@ class TestBigQueryConnectionManager(unittest.TestCase):
     @patch('dbt.adapters.bigquery.impl.google.cloud.bigquery')
     def test_query_and_results(self, mock_bq):
         self.connections._query_and_results(
-            self.mock_client, 'sql', self.mock_connection, {'job_param_1': 'blah'},
+            self.mock_client, 'sql', {'job_param_1': 'blah'},
             job_creation_timeout=15,
             job_execution_timeout=100)
 
         mock_bq.QueryJobConfig.assert_called_once()
         self.mock_client.query.assert_called_once_with(
-            'sql', job_config=mock_bq.QueryJobConfig(), timeout=15)
+            query='sql', job_config=mock_bq.QueryJobConfig(), timeout=15)
 
     def test_copy_bq_table_appends(self):
         self._copy_table(

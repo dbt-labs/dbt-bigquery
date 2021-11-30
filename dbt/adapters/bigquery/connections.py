@@ -391,7 +391,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         job_execution_timeout = self.get_job_execution_timeout_seconds(conn)
         def fn():
             return self._query_and_results(
-                client, sql, conn, job_params,
+                client, sql, job_params,
                 job_creation_timeout=job_creation_timeout,
                 job_execution_timeout=job_execution_timeout
             )

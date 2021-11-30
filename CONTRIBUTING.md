@@ -1,7 +1,3 @@
- <!-- 1.look to see if we can make it smaller, lots of duplicated reading from dbt-core
-      2.have correct examples of tests for each adapter
-      3.point to and succinctly describe a process for updating docs
-  -->
 # Contributing to `dbt-bigquery`
 
 1. [About this document](#about-this-document)
@@ -44,7 +40,7 @@ If you are a member of the `dbt Labs` GitHub organization, you will have push ac
 
 ### Installation
 
-First make sure that you set up your `virtualenv` as described in [Setting up an environment](#setting-up-an-environment).  Also ensure you have the latest version of pip installed with `pip install --upgrade pip`. Next, install `dbt-biguery` latest dependencies:
+First make sure that you set up your `virtualenv` as described in [Setting up an environment](https://github.com/dbt-labs/dbt-core/blob/HEAD/CONTRIBUTING.md#setting-up-an-environment).  Ensure you have the latest version of pip installed with `pip install --upgrade pip`. Next, install `dbt-bigquery` latest dependencies:
 
 ```sh
 pip install -e . -r dev-requirements.txt
@@ -54,42 +50,27 @@ When `dbt-bigquery` is installed this way, any changes you make to the `dbt-bigq
 
 To confirm you have correct version of `dbt-core` installed please run `dbt --version` and `which dbt`.
 
-## Initial Setup
-
-`dbt-bigquery` uses test credentials specified in a `test.env` file in the root of the repository for non-Postgres databases. This `test.env` file is git-ignored, but please be _extra_ careful to never check in credentials or other sensitive information when developing against `dbt-core`. To create your `test.env` file, copy the provided sample file, then supply your relevant credentials. This step is only required to use non-Postgres databases.
-
-```
-cp test.env.sample test.env
-$EDITOR test.env
-```
-if you have secrets of your own to provide please use 
-
-```
-cp test.env.example test.env
-```
-to create a blank test.env to fill in.
-
-> In general, it's most important to have successful unit and Postgres tests. Once you open a PR, `dbt-core` will automatically run integration tests for the other three core database adapters. Of course, if you are a BigQuery user, contributing a BigQuery-only feature, it's important to run BigQuery tests as well.
 
 ## Testing
 
-`dbt-core` uses test credentials specified in a `test.env` file in the root of the repository for non-Postgres databases. This `test.env` file is git-ignored, but please be _extra_ careful to never check in credentials or other sensitive information when developing against `dbt-core`. To create your `test.env` file, copy the provided sample file, then supply your relevant credentials. This step is only required to use non-Postgres databases.
+### Initial Setup
+
+`dbt-bigquery` uses test credentials specified in a `test.env` file in the root of the repository. This `test.env` file is git-ignored, but please be _extra_ careful to never check in credentials or other sensitive information when developing. To create your `test.env` file, copy the provided example file, then supply your relevant credentials.
 
 ```
-cp test.env.sample test.env
+cp test.env.example test.env
 $EDITOR test.env
 ```
 
-> In general, it's most important to have successful unit and Postgres tests. Once you open a PR, `dbt-core` will automatically run integration tests for the other three core database adapters. Of course, if you are a BigQuery user, contributing a BigQuery-only feature, it's important to run BigQuery tests as well.
-
 ### Test commands
-There are a few mehtods for running tests locally.
+There are a few methods for running tests locally.
 
-####`tox`
-`tox` takes care of managing virtualenvs and install dependencies in order to run tests. You can also run tests in parallel, for example you can run unit tests for Python 3.7, Python 3.8, Python 3.9 `flake8` checks in parallel with `tox -p`. Also you  can run unit tests for specific python versions with `tox -e py37`. The configuration of theses tests are located in `tox.ini`.
+#### `tox`
+`tox` takes care of managing Python virtualenvs and installing dependencies in order to run tests. You can also run tests in parallel, for example you can run unit tests for Python 3.7, Python 3.8, Python 3.9, and `flake8` checks in parallel with `tox -p`. Also, you can run unit tests for specific python versions with `tox -e py37`. The configuration of these tests are located in `tox.ini`.
 
-####`pyteest`
-Finally, you can also run  a specifiic test or group of tests using `pytest` directlly. With virtualenv activa and dev dependencies installed you can do things like:
+#### `pyteest`
+Finally, you can also run a specific test or group of tests using `pytest` directly. With a Python virtualenv active and dev dependencies installed you can do things like:
+
 ```sh
 # run specific postgres integration tests
 python -m pytest -m profile_bigquery test/integration/001_simple_copy_test
@@ -105,13 +86,13 @@ Many changes will require and update to the `dbt-bigquery` docs here are some us
 - Docs are [here](https://docs.getdbt.com/).
 - The docs repo for making changes is located [here]( https://github.com/dbt-labs/docs.getdbt.com).
 - The changes made are likely to impact one or both of [BigQuery profile](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile), or [BigQuery configs](https://docs.getdbt.com/reference/resource-configs/bigquery-configs).
-- We as every community member who makes a user-facing change to open and issue for their change in that repo.
-- If the contributor feels up to they should contribute to the PR for the docs update as well.
+- We ask every community member who makes a user-facing change to open an issue or PR regarding doc changes.
+
 
 
 ## Submitting a Pull Request
 
-dbt Labs provides a CI environment to test changes to  the `dbt-bigquery` adapter, and periodic maintenance checks of `dbt-core` through Github Actions. 
+dbt Labs provides a CI environment to test changes to the `dbt-bigquery` adapter, and periodic checks against the development version of `dbt-core` through Github Actions.  
 
 A `dbt-bigquery` maintainer will review your PR. They may suggest code revision for style or clarity, or request that you add unit or integration test(s). These are good things! We believe that, with a little bit of help, anyone can contribute high-quality code.
 

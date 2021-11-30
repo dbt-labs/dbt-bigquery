@@ -512,6 +512,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         credentials = Mock(BigQueryCredentials)
         profile = Mock(query_comment=None, credentials=credentials)
         self.connections = BigQueryConnectionManager(profile=profile)
+
         self.mock_client = Mock(
           dbt.adapters.bigquery.impl.google.cloud.bigquery.Client)
         self.mock_connection = MagicMock()
@@ -519,12 +520,14 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.mock_connection.handle = self.mock_client
 
         self.connections.get_thread_connection = lambda: self.mock_connection
+        self.connections.get_job_retry_deadline_seconds = lambda x: None
+        self.connections.get_job_retries = lambda x: 1
 
     @patch(
         'dbt.adapters.bigquery.connections._is_retryable', return_value=True)
     def test_retry_and_handle(self, is_retryable):
         self.connections.DEFAULT_MAXIMUM_DELAY = 2.0
-
+    
         @contextmanager
         def dummy_handler(msg):
             yield
@@ -587,9 +590,9 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.assertTrue(_is_retryable(rate_limit_error))
 
     def test_drop_dataset(self):
+
         mock_table = Mock()
         mock_table.reference = 'table1'
-
         self.mock_client.list_tables.return_value = [mock_table]
 
         self.connections.drop_dataset('project', 'dataset')

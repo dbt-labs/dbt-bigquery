@@ -1,8 +1,13 @@
 ## dbt-bigquery 1.0.0 (Release TBD)
 
+## dbt-bigquery 1.0.0rc2 (November 24, 2021)
+
 ### Features
 - Add optional `scopes` profile configuration argument to reduce the BigQuery OAuth scopes down to the minimal set needed. ([#23](https://github.com/dbt-labs/dbt-bigquery/issues/23), [#63](https://github.com/dbt-labs/dbt-bigquery/pull/63))
 - Provide a fine-grained control of the timeout and retry of BigQuery query with four new dbt profile configs: `job_creation_timeout_seconds`, `job_execution_timeout_seconds`, `job_retry_deadline_seconds`, and `job_retries` ([#45](https://github.com/dbt-labs/dbt-bigquery/issues/45), [#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))
+
+### Fixes
+- Don't apply `require_partition_filter` to temporary tables, thereby fixing `insert_overwrite` strategy when partition filter is required ([#64](https://github.com/dbt-labs/dbt-bigquery/issues/64)), ([#65](https://github.com/dbt-labs/dbt-bigquery/pull/65))
 
 ### Under the hood
 - Adding `execution_project` to `target` object ([#66](https://github.com/dbt-labs/dbt-bigquery/issues/66))
@@ -11,6 +16,7 @@
 - [@pgoslatara](https://github.com/pgoslatara) ([#66](https://github.com/dbt-labs/dbt-bigquery/issues/66))
 - [@bborysenko](https://github.com/bborysenko) ([#63](https://github.com/dbt-labs/dbt-bigquery/pull/63))
 - [@hui-zheng](https://github.com/hui-zheng)([#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))
+- [@yu-iskw](https://github.com/yu-iskw) ([#65](https://github.com/dbt-labs/dbt-bigquery/pull/65))
 
 ## dbt-bigquery 1.0.0rc1 (November 10, 2021)
 

@@ -57,7 +57,7 @@ def _get_dbt_core_version():
 
 
 package_name = "dbt-bigquery"
-package_version = _get_plugin_version()
+package_version = 1.0.0 #TODO remove old logic and add to versionBump script
 dbt_core_version = _get_dbt_core_version()
 description = """The BigQuery adapter plugin for dbt"""
 

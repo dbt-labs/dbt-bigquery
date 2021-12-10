@@ -120,12 +120,13 @@ class BigQueryCredentials(Credentials):
     )
 
     _ALIASES = {
+        # 'legacy_name': 'current_name'
         'project': 'database',
         'dataset': 'schema',
         'target_project': 'target_database',
         'target_dataset': 'target_schema',
-        'job_retries': 'retries',
-        'job_execution_timeout_seconds': 'timeout_seconds',
+        'retries': 'job_retries',
+        'timeout_seconds': 'job_execution_timeout_seconds',
     }
 
     @property

@@ -10,6 +10,9 @@
 {% macro bigquery__load_csv_rows(model, agate_table) %}
 
   {%- set column_override = model['config'].get('column_types', {}) -%}
+
+  {% do create_schema(api.Relation.create(model['database'], model['schema'])) %}
+  
   {{ adapter.load_dataframe(model['database'], model['schema'], model['alias'],
   							agate_table, column_override) }}
   {% if config.persist_relation_docs() and 'description' in model %}

@@ -1,5 +1,15 @@
 ## dbt-bigquery 1.0.0 (Release TBD)
 
+### Features
+
+### Fixes
+Ensuring dataset exists prior to loading seed ([#88](https://github.com/dbt-labs/dbt-bigquery/issues/88)), ([#89](https://github.com/dbt-labs/dbt-bigquery/pull/89))
+
+### Under the hood
+
+### Contributors
+- [@pgoslatara](https://github.com/pgoslatara) ([#66](https://github.com/dbt-labs/dbt-bigquery/pull/89))
+
 ## dbt-bigquery 1.0.0rc2 (November 24, 2021)
 
 ### Features

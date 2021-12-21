@@ -72,10 +72,10 @@ There are a few methods for running tests locally.
 Finally, you can also run a specific test or group of tests using `pytest` directly. With a Python virtualenv active and dev dependencies installed you can do things like:
 
 ```sh
-# run specific postgres integration tests
-python -m pytest -m profile_bigquery test/integration/001_simple_copy_test
+# run specific bigquery integration tests
+python -m pytest -m profile_bigquery tests/integration/simple_copy_test
 # run all unit tests in a file
-python -m pytest test/unit/test_bigquery_adapter.py
+python -m pytest tests/unit/test_bigquery_adapter.py
 # run a specific unit test
 python -m pytest test/unit/test_bigquery_adapter.py::TestBigQueryAdapter::test_copy_table_materialization_table
 ```
@@ -85,7 +85,7 @@ Many changes will require and update to the `dbt-bigquery` docs here are some us
 
 - Docs are [here](https://docs.getdbt.com/).
 - The docs repo for making changes is located [here]( https://github.com/dbt-labs/docs.getdbt.com).
-- The changes made are likely to impact one or both of [BigQuery profile](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile), or [BigQuery configs](https://docs.getdbt.com/reference/resource-configs/bigquery-configs).
+- The changes made are likely to impact one or both of [BigQuery Profile](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile), or [BigQuery Configs](https://docs.getdbt.com/reference/resource-configs/bigquery-configs).
 - We ask every community member who makes a user-facing change to open an issue or PR regarding doc changes.
 
 

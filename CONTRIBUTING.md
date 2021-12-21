@@ -77,7 +77,7 @@ python -m pytest -m profile_bigquery tests/integration/simple_copy_test
 # run all unit tests in a file
 python -m pytest tests/unit/test_bigquery_adapter.py
 # run a specific unit test
-python -m pytest test/unit/test_bigquery_adapter.py::TestBigQueryAdapter::test_copy_table_materialization_table
+python -m pytest tests/unit/test_bigquery_adapter.py::TestBigQueryAdapter::test_copy_table_materialization_table
 ```
 ## Updating Docs
 

@@ -1,4 +1,9 @@
-## dbt-bigquery 1.0.0 (Release TBD)
+## dbt-bigquery 1.1.0 (Release TBD)
+
+### Under the hood
+- Fix test related to preventing coercion of boolean values (True, False) to numeric values (0, 1) in query results ([#93](https://github.com/dbt-labs/dbt-bigquery/issues/93))
+
+## dbt-bigquery 1.0.0 (December 3, 2021)
 
 ## dbt-bigquery 1.0.0rc2 (November 24, 2021)
 
@@ -10,7 +15,6 @@
 
 ### Under the hood
 - Adding `execution_project` to `target` object ([#66](https://github.com/dbt-labs/dbt-bigquery/issues/66))
-- Fix test related to preventing coercion of boolean values (True, False) to numeric values (0, 1) in query results ([#93](https://github.com/dbt-labs/dbt-bigquery/issues/93))
 
 ### Contributors
 - [@pgoslatara](https://github.com/pgoslatara) ([#66](https://github.com/dbt-labs/dbt-bigquery/issues/66))

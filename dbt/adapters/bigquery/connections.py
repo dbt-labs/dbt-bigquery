@@ -436,7 +436,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             bytes_processed = query_job.total_bytes_processed
             processed_bytes = self.format_bytes(bytes_processed)
             message = f'{code} ({num_rows_formated} rows, {processed_bytes} processed)'
-            
+
         response = BigQueryAdapterResponse(
             _message=message,
             rows_affected=num_rows,

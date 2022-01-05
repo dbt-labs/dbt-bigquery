@@ -48,8 +48,7 @@ pip install -e . -r dev-requirements.txt
 
 When `dbt-bigquery` is installed this way, any changes you make to the `dbt-bigquery` source code will be reflected immediately in your next `dbt-bigquery` run.
 
-To confirm you have correct version of `dbt-core` installed please run `dbt --version` and `which dbt`.
-
+To confirm you have the correct version of `dbt-core` installed please run `dbt --version` and `which dbt`.
 
 ## Testing
 
@@ -96,4 +95,5 @@ dbt Labs provides a CI environment to test changes to the `dbt-bigquery` adapter
 
 A `dbt-bigquery` maintainer will review your PR. They may suggest code revision for style or clarity, or request that you add unit or integration test(s). These are good things! We believe that, with a little bit of help, anyone can contribute high-quality code.
 
-Once all tests are passing and your PR has been approved, a `dbt-bigquery` maintainer will merge your changes into the active development branch. And that's it! Happy developing :tada:
+
+Once all tests are passing, you have updated the changelog to reflect and tag your issue/pr for reference with a small description of the change, and your PR has been approved, a `dbt-bigquery` maintainer will merge your changes into the active development branch. And that's it! Happy developing :tada:

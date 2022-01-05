@@ -91,9 +91,8 @@ Many changes will require and update to the `dbt-bigquery` docs here are some us
 
 ## Submitting a Pull Request
 
-dbt Labs provides a CI environment to test changes to the `dbt-bigquery` adapter, and periodic checks against the development version of `dbt-core` through Github Actions.  
+dbt Labs provides a CI environment to test changes to the `dbt-bigquery` adapter and periodic checks against the development version of `dbt-core` through Github Actions.  
 
 A `dbt-bigquery` maintainer will review your PR. They may suggest code revision for style or clarity, or request that you add unit or integration test(s). These are good things! We believe that, with a little bit of help, anyone can contribute high-quality code.
-
 
 Once all tests are passing, you have updated the changelog to reflect and tag your issue/pr for reference with a small description of the change, and your PR has been approved, a `dbt-bigquery` maintainer will merge your changes into the active development branch. And that's it! Happy developing :tada:

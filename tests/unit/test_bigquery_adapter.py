@@ -603,8 +603,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.connections.get_timeout = lambda x: 100.0
 
         self.connections._query_and_results(
-          self.mock_client, 'sql', self.mock_connection,
-          {'description': 'blah'})
+          self.mock_client, 'sql', {'description': 'blah'})
 
         mock_bq.QueryJobConfig.assert_called_once()
         self.mock_client.query.assert_called_once_with(

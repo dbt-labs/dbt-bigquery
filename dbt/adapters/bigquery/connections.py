@@ -375,7 +375,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             job_params['maximum_bytes_billed'] = maximum_bytes_billed
 
         def fn():
-            return self._query_and_results(client, sql, conn, job_params)
+            return self._query_and_results(client, sql, job_params)
 
         query_job, iterator = self._retry_and_handle(msg=sql, conn=conn, fn=fn)
 
@@ -527,7 +527,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             return client.create_dataset(dataset, exists_ok=True)
         self._retry_and_handle(msg='create dataset', conn=conn, fn=fn)
 
-    def _query_and_results(self, client, sql, conn, job_params, timeout=None):
+    def _query_and_results(self, client, sql, job_params, timeout=None):
         """Query the client and wait for results."""
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)

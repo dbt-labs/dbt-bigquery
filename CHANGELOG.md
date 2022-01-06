@@ -5,6 +5,9 @@
 ### Fixes
 - Fix test related to preventing coercion of boolean values (True, False) to numeric values (0, 1) in query results ([#93](https://github.com/dbt-labs/dbt-bigquery/issues/93))
 
+### Contributors
+- [@hui-zheng](https://github.com/hui-zheng)([#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))
+
 ## dbt-bigquery 1.0.0 (December 3, 2021)
 
 ## dbt-bigquery 1.0.0rc2 (November 24, 2021)

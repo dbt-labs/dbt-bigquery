@@ -417,9 +417,21 @@ class BigQueryConnectionManager(BaseConnectionManager):
             bytes_processed = query_job.total_bytes_processed
             message = f'{code} ({self.format_bytes(bytes_processed)} processed)'
 
-        elif query_job.statement_type in ['INSERT', 'DELETE', 'MERGE']:
+        elif query_job.statement_type in ['INSERT', 'DELETE', 'MERGE', 'UPDATE']:
             code = query_job.statement_type
             num_rows = query_job.num_dml_affected_rows
+            num_rows_formated = self.format_rows_number(num_rows)
+            bytes_processed = query_job.total_bytes_processed
+            processed_bytes = self.format_bytes(bytes_processed)
+            message = f'{code} ({num_rows_formated} rows, {processed_bytes} processed)'
+
+        elif query_job.statement_type == 'SELECT':
+            conn = self.get_thread_connection()
+            client = conn.handle
+            # use anonymous table for num_rows
+            query_table = client.get_table(query_job.destination)
+            code = 'SELECT'
+            num_rows = query_table.num_rows
             num_rows_formated = self.format_rows_number(num_rows)
             bytes_processed = query_job.total_bytes_processed
             processed_bytes = self.format_bytes(bytes_processed)

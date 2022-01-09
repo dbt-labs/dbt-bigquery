@@ -101,7 +101,7 @@ class BigQueryCredentials(Credentials):
     job_retries: Optional[int] = 1
     job_creation_timeout_seconds: Optional[int] = None
     job_execution_timeout_seconds: Optional[int] = 300
-    
+
     # Keyfile json creds
     keyfile: Optional[str] = None
     keyfile_json: Optional[Dict[str, Any]] = None
@@ -390,6 +390,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         job_creation_timeout = self.get_job_creation_timeout_seconds(conn)
         job_execution_timeout = self.get_job_execution_timeout_seconds(conn)
+
         def fn():
             return self._query_and_results(
                 client, sql, job_params,
@@ -556,8 +557,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
         query_job = client.query(
-            query=sql, 
-            job_config=job_config, 
+            query=sql,
+            job_config=job_config,
             timeout=job_creation_timeout
         )
         iterator = query_job.result(timeout=job_execution_timeout)

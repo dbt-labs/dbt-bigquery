@@ -150,12 +150,9 @@ class BigQueryAdapter(BaseAdapter):
             self.cache_dropped(relation)
 
         conn = self.connections.get_thread_connection()
-        client = conn.handle
 
-        dataset = self.connections.dataset(relation.database, relation.schema,
-                                           conn)
-        relation_object = dataset.table(relation.identifier)
-        client.delete_table(relation_object)
+        table_ref = self.get_table_ref_from_relation(relation)
+        conn.handle.delete_table(table_ref)
 
     def truncate_relation(self, relation: BigQueryRelation) -> None:
         raise dbt.exceptions.NotImplementedException(
@@ -169,10 +166,7 @@ class BigQueryAdapter(BaseAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
-        from_table_ref = self.connections.table_ref(from_relation.database,
-                                                    from_relation.schema,
-                                                    from_relation.identifier,
-                                                    conn)
+        from_table_ref = self.get_table_ref_from_relation(from_relation)
         from_table = client.get_table(from_table_ref)
         if from_table.table_type == "VIEW" or \
                 from_relation.type == RelationType.View or \
@@ -181,10 +175,7 @@ class BigQueryAdapter(BaseAdapter):
                 'Renaming of views is not currently supported in BigQuery'
             )
 
-        to_table_ref = self.connections.table_ref(to_relation.database,
-                                                  to_relation.schema,
-                                                  to_relation.identifier,
-                                                  conn)
+        to_table_ref = self.get_table_ref_from_relation(to_relation)
 
         self.cache_renamed(from_relation, to_relation)
         client.copy_table(from_table_ref, to_table_ref)
@@ -212,15 +203,13 @@ class BigQueryAdapter(BaseAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
-        bigquery_dataset = self.connections.dataset(
-            database, schema, conn
-        )
+        dataset_ref = self.connections.dataset_ref(database, schema)
         # try to do things with the dataset. If it doesn't exist it will 404.
         # we have to do it this way to handle underscore-prefixed datasets,
         # which appear in neither the information_schema.schemata view nor the
         # list_datasets method.
         try:
-            next(iter(client.list_tables(bigquery_dataset, max_results=1)))
+            next(iter(client.list_tables(dataset_ref, max_results=1)))
         except StopIteration:
             pass
         except google.api_core.exceptions.NotFound:
@@ -262,12 +251,12 @@ class BigQueryAdapter(BaseAdapter):
         connection = self.connections.get_thread_connection()
         client = connection.handle
 
-        bigquery_dataset = self.connections.dataset(
-            schema_relation.database, schema_relation.schema, connection
+        dataset_ref = self.connections.dataset_ref(
+            schema_relation.database, schema_relation.schema
         )
 
         all_tables = client.list_tables(
-            bigquery_dataset,
+            dataset_ref,
             # BigQuery paginates tables by alphabetizing them, and using
             # the name of the last table on a page as the key for the
             # next page. If that key table gets dropped before we run
@@ -583,11 +572,10 @@ class BigQueryAdapter(BaseAdapter):
         """
         return PartitionConfig.parse(raw_partition_by)
 
-    def get_table_ref_from_relation(self, conn, relation):
-        return self.connections.table_ref(relation.database,
-                                          relation.schema,
-                                          relation.identifier,
-                                          conn)
+    def get_table_ref_from_relation(self, relation):
+        return self.connections.table_ref(
+            relation.database, relation.schema, relation.identifier
+        )
 
     def _update_column_dict(self, bq_column_dict, dbt_columns, parent=''):
         """
@@ -629,7 +617,7 @@ class BigQueryAdapter(BaseAdapter):
             return
 
         conn = self.connections.get_thread_connection()
-        table_ref = self.get_table_ref_from_relation(conn, relation)
+        table_ref = self.get_table_ref_from_relation(relation)
         table = conn.handle.get_table(table_ref)
 
         new_schema = []
@@ -651,12 +639,7 @@ class BigQueryAdapter(BaseAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
-        table_ref = self.connections.table_ref(
-            database,
-            schema,
-            identifier,
-            conn
-        )
+        table_ref = self.connections.table_ref(database, schema, identifier)
         table = client.get_table(table_ref)
         table.description = description
         client.update_table(table, ['description'])
@@ -670,9 +653,7 @@ class BigQueryAdapter(BaseAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
-        table_ref = self.connections.table_ref(relation.database,
-                                               relation.schema,
-                                               relation.identifier, conn)
+        table_ref = self.get_table_ref_from_relation(relation)
         table = client.get_table(table_ref)
 
         new_columns = [col.column_to_bq_schema() for col in columns]
@@ -688,14 +669,14 @@ class BigQueryAdapter(BaseAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
-        table = self.connections.table_ref(database, schema, table_name, conn)
+        table_ref = self.connections.table_ref(database, schema, table_name)
 
         load_config = google.cloud.bigquery.LoadJobConfig()
         load_config.skip_leading_rows = 1
         load_config.schema = bq_schema
 
         with open(agate_table.original_abspath, "rb") as f:
-            job = client.load_table_from_file(f, table, rewind=True,
+            job = client.load_table_from_file(f, table_ref, rewind=True,
                                               job_config=load_config)
 
         timeout = self.connections.get_job_execution_timeout_seconds(conn)
@@ -793,16 +774,11 @@ class BigQueryAdapter(BaseAdapter):
 
         GrantTarget.validate(grant_target_dict)
         grant_target = GrantTarget.from_dict(grant_target_dict)
-        dataset = client.get_dataset(
-            self.connections.dataset_from_id(grant_target.render())
-        )
+        dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
+        dataset = client.get_dataset(dataset_ref)
 
         if entity_type == 'view':
-            entity = self.connections.table_ref(
-                entity.database,
-                entity.schema,
-                entity.identifier,
-                conn).to_api_repr()
+            entity = self.get_table_ref_from_relation(entity).to_api_repr()
 
         access_entry = AccessEntry(role, entity_type, entity)
         access_entries = dataset.access_entries

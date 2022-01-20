@@ -92,12 +92,15 @@ class BigQueryCredentials(Credentials):
     # environment for the project
     database: Optional[str]
     execution_project: Optional[str] = None
-    timeout_seconds: Optional[int] = 300
     location: Optional[str] = None
     priority: Optional[Priority] = None
-    retries: Optional[int] = 1
     maximum_bytes_billed: Optional[int] = None
     impersonate_service_account: Optional[str] = None
+
+    job_retry_deadline_seconds: Optional[int] = None
+    job_retries: Optional[int] = 1
+    job_creation_timeout_seconds: Optional[int] = None
+    job_execution_timeout_seconds: Optional[int] = 300
 
     # Keyfile json creds
     keyfile: Optional[str] = None
@@ -117,10 +120,13 @@ class BigQueryCredentials(Credentials):
     )
 
     _ALIASES = {
+        # 'legacy_name': 'current_name'
         'project': 'database',
         'dataset': 'schema',
         'target_project': 'target_database',
         'target_dataset': 'target_schema',
+        'retries': 'job_retries',
+        'timeout_seconds': 'job_execution_timeout_seconds',
     }
 
     @property
@@ -133,8 +139,9 @@ class BigQueryCredentials(Credentials):
 
     def _connection_keys(self):
         return ('method', 'database', 'schema', 'location', 'priority',
-                'timeout_seconds', 'maximum_bytes_billed',
-                'execution_project')
+                'timeout_seconds', 'maximum_bytes_billed', 'execution_project',
+                'job_retry_deadline_seconds', 'job_retries',
+                'job_creation_timeout_seconds', 'job_execution_timeout_seconds')
 
     @classmethod
     def __pre_deserialize__(cls, d: Dict[Any, Any]) -> Dict[Any, Any]:
@@ -279,7 +286,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             source_credentials=source_credentials,
             target_principal=profile_credentials.impersonate_service_account,
             target_scopes=list(profile_credentials.scopes),
-            lifetime=profile_credentials.timeout_seconds,
+            lifetime=profile_credentials.job_execution_timeout_seconds,
         )
 
     @classmethod
@@ -329,17 +336,24 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return connection
 
     @classmethod
-    def get_timeout(cls, conn):
+    def get_job_execution_timeout_seconds(cls, conn):
         credentials = conn.credentials
-        return credentials.timeout_seconds
+        return credentials.job_execution_timeout_seconds
 
     @classmethod
-    def get_retries(cls, conn) -> int:
+    def get_job_retries(cls, conn) -> int:
         credentials = conn.credentials
-        if credentials.retries is not None:
-            return credentials.retries
-        else:
-            return 1
+        return credentials.job_retries
+
+    @classmethod
+    def get_job_creation_timeout_seconds(cls, conn):
+        credentials = conn.credentials
+        return credentials.job_creation_timeout_seconds
+
+    @classmethod
+    def get_job_retry_deadline_seconds(cls, conn):
+        credentials = conn.credentials
+        return credentials.job_retry_deadline_seconds
 
     @classmethod
     def get_table_from_response(cls, resp):
@@ -374,8 +388,15 @@ class BigQueryConnectionManager(BaseConnectionManager):
         if maximum_bytes_billed is not None and maximum_bytes_billed != 0:
             job_params['maximum_bytes_billed'] = maximum_bytes_billed
 
+        job_creation_timeout = self.get_job_creation_timeout_seconds(conn)
+        job_execution_timeout = self.get_job_execution_timeout_seconds(conn)
+
         def fn():
-            return self._query_and_results(client, sql, conn, job_params)
+            return self._query_and_results(
+                client, sql, job_params,
+                job_creation_timeout=job_creation_timeout,
+                job_execution_timeout=job_execution_timeout
+            )
 
         query_job, iterator = self._retry_and_handle(msg=sql, conn=conn, fn=fn)
 
@@ -417,9 +438,21 @@ class BigQueryConnectionManager(BaseConnectionManager):
             bytes_processed = query_job.total_bytes_processed
             message = f'{code} ({self.format_bytes(bytes_processed)} processed)'
 
-        elif query_job.statement_type in ['INSERT', 'DELETE', 'MERGE']:
+        elif query_job.statement_type in ['INSERT', 'DELETE', 'MERGE', 'UPDATE']:
             code = query_job.statement_type
             num_rows = query_job.num_dml_affected_rows
+            num_rows_formated = self.format_rows_number(num_rows)
+            bytes_processed = query_job.total_bytes_processed
+            processed_bytes = self.format_bytes(bytes_processed)
+            message = f'{code} ({num_rows_formated} rows, {processed_bytes} processed)'
+
+        elif query_job.statement_type == 'SELECT':
+            conn = self.get_thread_connection()
+            client = conn.handle
+            # use anonymous table for num_rows
+            query_table = client.get_table(query_job.destination)
+            code = 'SELECT'
+            num_rows = query_table.num_rows
             num_rows_formated = self.format_rows_number(num_rows)
             bytes_processed = query_job.total_bytes_processed
             processed_bytes = self.format_bytes(bytes_processed)
@@ -478,7 +511,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 write_disposition=write_disposition)
             copy_job = client.copy_table(
                 source_ref_array, destination_ref, job_config=job_config)
-            iterator = copy_job.result(timeout=self.get_timeout(conn))
+            iterator = copy_job.result(timeout=self.get_job_execution_timeout_seconds(conn))
             return copy_job, iterator
 
         self._retry_and_handle(
@@ -527,12 +560,20 @@ class BigQueryConnectionManager(BaseConnectionManager):
             return client.create_dataset(dataset, exists_ok=True)
         self._retry_and_handle(msg='create dataset', conn=conn, fn=fn)
 
-    def _query_and_results(self, client, sql, conn, job_params, timeout=None):
+    def _query_and_results(
+        self, client, sql, job_params,
+        job_creation_timeout=None,
+        job_execution_timeout=None
+    ):
         """Query the client and wait for results."""
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
-        query_job = client.query(sql, job_config=job_config)
-        iterator = query_job.result(timeout=timeout)
+        query_job = client.query(
+            query=sql,
+            job_config=job_config,
+            timeout=job_creation_timeout
+        )
+        iterator = query_job.result(timeout=job_execution_timeout)
 
         return query_job, iterator
 
@@ -548,9 +589,9 @@ class BigQueryConnectionManager(BaseConnectionManager):
         with self.exception_handler(msg):
             return retry.retry_target(
                 target=fn,
-                predicate=_ErrorCounter(self.get_retries(conn)).count_error,
+                predicate=_ErrorCounter(self.get_job_retries(conn)).count_error,
                 sleep_generator=self._retry_generator(),
-                deadline=None,
+                deadline=self.get_job_retry_deadline_seconds(conn),
                 on_error=reopen_conn_on_error)
 
     def _retry_generator(self):

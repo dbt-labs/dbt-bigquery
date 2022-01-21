@@ -10,7 +10,7 @@
 ## About this document
 This document is a guide intended for folks interested in contributing to `dbt-bigquery`. Below, we document the process by which members of the community should create issues and submit pull requests (PRs) in this repository. It is not intended as a guide for using `dbt-bigquery`, and it assumes a certain level of familiarity with Python concepts such as virtualenvs, `pip`, python modules, filesystems, and so on. This guide assumes you are using macOS or Linux and are comfortable with the command line.
 
-For those wishing to contribute we highly suggest reading the [dbt-core](https://github.com/dbt-labs/dbt-core/blob/main/CONTRIBUTING.md). if you haven't already. Almost all of the information there is applicable to contributing here, too!
+For those wishing to contribute we highly suggest reading the [dbt-core](https://github.com/dbt-labs/dbt-core/blob/main/CONTRIBUTING.md), if you haven't already. Almost all of the information there is applicable to contributing here, too!
 
 ### Signing the CLA
 
@@ -19,7 +19,7 @@ Please note that all contributors to `dbt-bigquery` must sign the [Contributor L
 
 ## Getting the code 
 
-You will need `git` in order to download and modify the `dbt-bigquery` source code. On macOS, the best way to download git is to just install [Xcode](https://developer.apple.com/support/xcode/).
+You will need `git` in order to download and modify the `dbt-bigquery` source code. You can find direction [here](https://github.com/git-guides/install-git) on how to install `git`.
 
 ### External contributors
 
@@ -54,7 +54,9 @@ To confirm you have the correct version of `dbt-core` installed please run `dbt 
 
 ### Initial Setup
 
-`dbt-bigquery` uses test credentials specified in a `test.env` file in the root of the repository. This `test.env` file is git-ignored, but please be _extra_ careful to never check in credentials or other sensitive information when developing. To create your `test.env` file, copy the provided example file, then supply your relevant credentials.
+`dbt-bigquery` contains [unit](https://github.com/dbt-labs/dbt-bigquery/tree/main/tests/unit) and [integration](https://github.com/dbt-labs/dbt-bigquery/tree/main/tests/integration) tests. Integration tests require testing against an actual BigQuery warehouse. We have CI set up to test against a BigQuery warehouse. In order to run integration tests locally, you will need a `test.env` file in the root of the repository that contains credentials for BigQuery.
+
+Note: This `test.env` file is git-ignored, but please be _extra_ careful to never check in credentials or other sensitive information when developing. To create your `test.env` file, copy the provided example file, then supply your relevant credentials.
 
 ```
 cp test.env.example test.env
@@ -67,7 +69,7 @@ There are a few methods for running tests locally.
 #### `tox`
 `tox` takes care of managing Python virtualenvs and installing dependencies in order to run tests. You can also run tests in parallel, for example you can run unit tests for Python 3.7, Python 3.8, Python 3.9, and `flake8` checks in parallel with `tox -p`. Also, you can run unit tests for specific python versions with `tox -e py37`. The configuration of these tests are located in `tox.ini`.
 
-#### `pyteest`
+#### `pytest`
 Finally, you can also run a specific test or group of tests using `pytest` directly. With a Python virtualenv active and dev dependencies installed you can do things like:
 
 ```sh

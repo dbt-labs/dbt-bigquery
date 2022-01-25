@@ -284,6 +284,9 @@ class BigQueryAdapter(BaseAdapter):
             return [self._bq_table_to_relation(table) for table in all_tables]
         except google.api_core.exceptions.NotFound:
             return []
+        except google.api_core.exceptions.Forbidden as exc:
+            logger.debug('list_relations_without_caching error: {}'.format(str(exc)))
+            return []
 
     def get_relation(
         self, database: str, schema: str, identifier: str

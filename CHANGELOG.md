@@ -8,6 +8,7 @@
 
 ### Contributors
 - [@hui-zheng](https://github.com/hui-zheng)([#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))
+- [@yu-iskw](https://github.com/yu-iskw)([#108](https://github.com/dbt-labs/dbt-bigquery/pull/108))
 
 ## dbt-bigquery 1.0.0 (December 3, 2021)
 

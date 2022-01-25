@@ -4,6 +4,7 @@
 
 ### Fixes
 - Fix test related to preventing coercion of boolean values (True, False) to numeric values (0, 1) in query results ([#93](https://github.com/dbt-labs/dbt-bigquery/issues/93))
+- Ignore errors of the lack of permissions in `list_relations_without_caching` ([#104](https://github.com/dbt-labs/dbt-bigquery/issues/104))
 
 ### Contributors
 - [@hui-zheng](https://github.com/hui-zheng)([#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))

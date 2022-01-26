@@ -4,6 +4,8 @@
 
 ### Fixes
 - Fix test related to preventing coercion of boolean values (True, False) to numeric values (0, 1) in query results ([#93](https://github.com/dbt-labs/dbt-bigquery/issues/93))
+- Add a check in `get_table_options` to check that the table has a `partition_by` in the config.
+This will prevent BigQuery from throwing an error since non-partitioned tables cannot have `require_partition_filter` ([#107](https://github.com/dbt-labs/dbt-bigquery/issues/107))
 
 ### Contributors
 - [@hui-zheng](https://github.com/hui-zheng)([#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))

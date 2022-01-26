@@ -767,7 +767,7 @@ class BigQueryAdapter(BaseAdapter):
             # It doesn't apply the `require_partition_filter` option for a temporary table
             # so that we avoid the error by not specifying a partition with a temporary table
             # in the incremental model.
-            if config.get('require_partition_filter') is not None:
+            if config.get('require_partition_filter') and config.get('partition_by') is not None:
                 opts['require_partition_filter'] = config.get(
                     'require_partition_filter')
             if config.get('partition_expiration_days') is not None:

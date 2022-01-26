@@ -9,6 +9,7 @@ This will prevent BigQuery from throwing an error since non-partitioned tables c
 
 ### Contributors
 - [@hui-zheng](https://github.com/hui-zheng)([#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))
+- [@oliverrmaa](https://github.com/oliverrmaa)([#](https://github.com/dbt-labs/dbt-bigquery/pull/109))
 
 ## dbt-bigquery 1.0.0 (December 3, 2021)
 

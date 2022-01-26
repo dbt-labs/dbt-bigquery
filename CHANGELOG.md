@@ -1,3 +1,8 @@
+## dbt-bigquery 1.0.2 (Release TBD)
+
+### Under the hood
+- Address BigQuery API deprecation warning and simplify usage of `TableReference` and `DatasetReference` objects ([#97](https://github.com/dbt-labs/dbt-bigquery/issues/97))
+
 ## dbt-bigquery 1.0.0 (December 3, 2021)
 
 ## dbt-bigquery 1.0.0rc2 (November 24, 2021)

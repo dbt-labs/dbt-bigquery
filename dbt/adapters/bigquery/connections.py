@@ -462,11 +462,13 @@ class BigQueryConnectionManager(BaseConnectionManager):
         if type(source) is not list:
             source = [source]
 
-        source_ref_array = [self.table_ref(
-            src_table.database, src_table.schema, src_table.table, conn)
-            for src_table in source]
+        source_ref_array = [
+            self.table_ref(src_table.database, src_table.schema, src_table.table)
+            for src_table in source
+        ]
         destination_ref = self.table_ref(
-            destination.database, destination.schema, destination.table, conn)
+            destination.database, destination.schema, destination.table
+        )
 
         logger.debug(
             'Copying table(s) "{}" to "{}" with disposition: "{}"',
@@ -488,32 +490,27 @@ class BigQueryConnectionManager(BaseConnectionManager):
             conn=conn, fn=copy_and_results)
 
     @staticmethod
-    def dataset(database, schema, conn):
-        dataset_ref = conn.handle.dataset(schema, database)
-        return google.cloud.bigquery.Dataset(dataset_ref)
+    def dataset_ref(database, schema):
+        return google.cloud.bigquery.DatasetReference(project=database, dataset_id=schema)
 
     @staticmethod
-    def dataset_from_id(dataset_id):
-        return google.cloud.bigquery.Dataset.from_string(dataset_id)
-
-    def table_ref(self, database, schema, table_name, conn):
-        dataset = self.dataset(database, schema, conn)
-        return dataset.table(table_name)
+    def table_ref(database, schema, table_name):
+        dataset_ref = google.cloud.bigquery.DatasetReference(database, schema)
+        return google.cloud.bigquery.TableReference(dataset_ref, table_name)
 
     def get_bq_table(self, database, schema, identifier):
         """Get a bigquery table for a schema/model."""
         conn = self.get_thread_connection()
-        table_ref = self.table_ref(database, schema, identifier, conn)
+        table_ref = self.table_ref(database, schema, identifier)
         return conn.handle.get_table(table_ref)
 
     def drop_dataset(self, database, schema):
         conn = self.get_thread_connection()
-        dataset = self.dataset(database, schema, conn)
+        dataset_ref = self.dataset_ref(database, schema)
         client = conn.handle
 
         def fn():
-            return client.delete_dataset(
-                dataset, delete_contents=True, not_found_ok=True)
+            return client.delete_dataset(dataset_ref, delete_contents=True, not_found_ok=True)
 
         self._retry_and_handle(
             msg='drop dataset', conn=conn, fn=fn)
@@ -521,10 +518,10 @@ class BigQueryConnectionManager(BaseConnectionManager):
     def create_dataset(self, database, schema):
         conn = self.get_thread_connection()
         client = conn.handle
-        dataset = self.dataset(database, schema, conn)
+        dataset_ref = self.dataset_ref(database, schema)
 
         def fn():
-            return client.create_dataset(dataset, exists_ok=True)
+            return client.create_dataset(dataset_ref, exists_ok=True)
         self._retry_and_handle(msg='create dataset', conn=conn, fn=fn)
 
     def _query_and_results(self, client, sql, conn, job_params, timeout=None):

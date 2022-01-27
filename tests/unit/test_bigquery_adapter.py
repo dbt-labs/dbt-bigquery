@@ -617,8 +617,8 @@ class TestBigQueryConnectionManager(unittest.TestCase):
             write_disposition=dbt.adapters.bigquery.impl.WRITE_APPEND)
         args, kwargs = self.mock_client.copy_table.call_args
         self.mock_client.copy_table.assert_called_once_with(
-            [self._table_ref('project', 'dataset', 'table1', None)],
-            self._table_ref('project', 'dataset', 'table2', None),
+            [self._table_ref('project', 'dataset', 'table1')],
+            self._table_ref('project', 'dataset', 'table2'),
             job_config=ANY)
         args, kwargs = self.mock_client.copy_table.call_args
         self.assertEqual(
@@ -630,8 +630,8 @@ class TestBigQueryConnectionManager(unittest.TestCase):
             write_disposition=dbt.adapters.bigquery.impl.WRITE_TRUNCATE)
         args, kwargs = self.mock_client.copy_table.call_args
         self.mock_client.copy_table.assert_called_once_with(
-            [self._table_ref('project', 'dataset', 'table1', None)],
-            self._table_ref('project', 'dataset', 'table2', None),
+            [self._table_ref('project', 'dataset', 'table1')],
+            self._table_ref('project', 'dataset', 'table2'),
             job_config=ANY)
         args, kwargs = self.mock_client.copy_table.call_args
         self.assertEqual(
@@ -647,12 +647,10 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         labels = self.connections._labels_from_query_comment("not json")
         self.assertEqual(labels, {"query_comment": "not_json"})
 
-    def _table_ref(self, proj, ds, table, conn):
-        return google.cloud.bigquery.table.TableReference.from_string(
-            '{}.{}.{}'.format(proj, ds, table))
+    def _table_ref(self, proj, ds, table):
+        return self.connections.table_ref(proj, ds, table)
 
     def _copy_table(self, write_disposition):
-        self.connections.table_ref = self._table_ref
         source = BigQueryRelation.create(
             database='project', schema='dataset', identifier='table1')
         destination = BigQueryRelation.create(

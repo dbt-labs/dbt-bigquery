@@ -92,9 +92,10 @@ class TestGrantAccess(DBTIntegrationTest):
         client = conn.handle
 
         grant_target = GrantTarget.from_dict(ae_grant_target_dict)
-        dataset = client.get_dataset(
-            self.adapter.connections.dataset_from_id(grant_target.render())
+        dataset_ref = self.adapter.connections.dataset_ref(
+            grant_target.project, grant_target.dataset
         )
+        dataset = client.get_dataset(dataset_ref)
 
         expected_access_entry = AccessEntry(ae_role, ae_entity_type, ae_entity)
         self.assertTrue(expected_access_entry in dataset.access_entries)

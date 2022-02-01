@@ -1,3 +1,4 @@
+from math import exp
 from tests.integration.base import DBTIntegrationTest, use_profile
 
 class TestNoAccess(DBTIntegrationTest):
@@ -10,10 +11,10 @@ class TestNoAccess(DBTIntegrationTest):
     def models(self):
         return "no-access-models"
     
-
     @use_profile('bigquery')
     def test_bigquery_no_access(self):
         results = self.run_dbt(['run','--exclude','model_1'])
         self.assertEqual(len(results), 1)
-        self.run_dbt(expect_pass=True)
-
+        results = self.run_dbt(['run','--select','model_2'])
+        self.assertEqual(len(results), 1)
+        

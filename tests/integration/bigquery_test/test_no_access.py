@@ -1,5 +1,5 @@
-from math import exp
 from tests.integration.base import DBTIntegrationTest, use_profile
+
 
 class TestNoAccess(DBTIntegrationTest):
 
@@ -17,4 +17,5 @@ class TestNoAccess(DBTIntegrationTest):
         self.assertEqual(len(results), 1)
         results = self.run_dbt(['run','--select','model_2'])
         self.assertEqual(len(results), 1)
+        
         

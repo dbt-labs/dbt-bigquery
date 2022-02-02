@@ -1,9 +1,6 @@
 from tests.integration.base import DBTIntegrationTest, use_profile
-import google.api_core
-from dbt.events import AdapterLogger
 import dbt.exceptions
 
-logger = AdapterLogger("BigQuery")
 
 class TestNoAccess(DBTIntegrationTest):
 
@@ -26,7 +23,5 @@ class TestNoAccess(DBTIntegrationTest):
         except dbt.exceptions.DatabaseException:
             is_false = True
             self.assertTrue(is_false)
-        
-        
-
-        
+            self.assertRaises(dbt.exceptions.DatabaseException)
+            

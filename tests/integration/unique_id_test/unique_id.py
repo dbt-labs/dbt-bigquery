@@ -22,10 +22,13 @@ class TestUniqueKey(DBTIntegrationTest):
             'config-version': 2,
             'seed-paths': ['seeds'],
         }
+        
 
     @use_profile('bigquery')
     def test_bigquery_unique_key(self):
-        seed = hashlib.sha256(self.run_dbt(['seed']))
-        expected = hashlib.sha256(self.run_dbt(['expected']))
-        self.assertCountEqual(list(seed), list(expected))
+        self.run_dbt(['seed'])
+        self.run_dbt()
+        hashed_result = hash('result')
+        hashed_expected = hash('expected')
+        self.assertEqual(hashed_result, hashed_expected)
         

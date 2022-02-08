@@ -23,11 +23,10 @@ class TestUniqueKey(DBTIntegrationTest):
             'seed-paths': ['seeds'],
         }
         
-
     @use_profile('bigquery')
     def test_bigquery_unique_key(self):
         self.run_dbt(['seed'])
-        self.run_dbt()
+        self.run_dbt(['run'])
         hashed_result = hash('result')
         hashed_expected = hash('expected')
         self.assertEqual(hashed_result, hashed_expected)

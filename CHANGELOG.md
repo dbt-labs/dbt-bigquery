@@ -10,11 +10,12 @@ This will prevent BigQuery from throwing an error since non-partitioned tables c
 
 ### Under the hood
 - Address BigQuery API deprecation warning and simplify usage of `TableReference` and `DatasetReference` objects ([#97](https://github.com/dbt-labs/dbt-bigquery/issues/97))
+- Specify the version of dbt-core for tests ([#117](https://github.com/dbt-labs/dbt-bigquery/issues/117))
 
 ### Contributors
 - [@hui-zheng](https://github.com/hui-zheng)([#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))
 - [@oliverrmaa](https://github.com/oliverrmaa)([#109](https://github.com/dbt-labs/dbt-bigquery/pull/109))
-- [@yu-iskw](https://github.com/yu-iskw)([#108](https://github.com/dbt-labs/dbt-bigquery/pull/108))
+- [@yu-iskw](https://github.com/yu-iskw)([#108](https://github.com/dbt-labs/dbt-bigquery/pull/108), [#118](https://github.com/dbt-labs/dbt-bigquery/pull/118))
 
 ## dbt-bigquery 1.0.0 (December 3, 2021)
 

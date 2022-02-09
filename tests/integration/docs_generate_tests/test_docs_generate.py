@@ -532,6 +532,7 @@ class TestDocsGenerate(DBTIntegrationTest):
             'full_refresh': None,
             'on_schema_change': 'ignore',
             'meta': {},
+            'unique_key': None,
         }
         result.update(updates)
         return result
@@ -555,7 +556,8 @@ class TestDocsGenerate(DBTIntegrationTest):
             'database': None,
             'schema': None,
             'alias': None,
-            'meta': {},    
+            'meta': {},
+            'unique_key': None,
         }
         result.update(updates)
         return result

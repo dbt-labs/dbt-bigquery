@@ -27,5 +27,6 @@ class TestUniqueKey(DBTIntegrationTest):
     def test_bigquery_unique_key(self):
         self.run_dbt(['seed'])
         self.run_dbt(['run'])
-        self.assertTablesEqual("result", "expected")
+        self.assertTablesEqual("list_result", "list_expected")
+        self.assertTablesEqual('single_result', 'single_expected')
         

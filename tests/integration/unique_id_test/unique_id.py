@@ -27,7 +27,5 @@ class TestUniqueKey(DBTIntegrationTest):
     def test_bigquery_unique_key(self):
         self.run_dbt(['seed'])
         self.run_dbt(['run'])
-        hashed_result = hashlib.md5('result')
-        hashed_expected = hashlib.md5('expected')
-        self.assertEqual(hashed_result, hashed_expected)
+        self.assertTablesEqual("result", "expected")
         

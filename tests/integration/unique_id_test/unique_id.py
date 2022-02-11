@@ -1,5 +1,5 @@
 from tests.integration.base import DBTIntegrationTest, use_profile
-import hashlib
+
 
 
 class TestUniqueKey(DBTIntegrationTest):

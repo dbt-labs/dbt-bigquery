@@ -3,5 +3,5 @@ select
     'Austin' as city
 union all 
 select
-    'Texas',
-    'Dallas'
+    'California',
+    'San Diego'

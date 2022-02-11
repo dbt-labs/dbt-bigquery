@@ -11,7 +11,6 @@ class TestUniqueKey(DBTIntegrationTest):
     def models(self):
         return 'models'
 
-
     @property
     def schema(self):
         return 'unique_id'
@@ -29,4 +28,6 @@ class TestUniqueKey(DBTIntegrationTest):
         self.run_dbt(['run'])
         self.assertTablesEqual("list_result", "list_expected")
         self.assertTablesEqual('single_result', 'single_expected')
+        # used to test against mismatch (might be unneeded, first fail condition we produce)
+        # self.assertTablesEqual('single_result','list_expected')
         

@@ -684,7 +684,7 @@ class BigQueryAdapter(BaseAdapter):
             self.poll_until_job_completes(job, timeout)
 
     @available.parse_none
-    def upload_file(self, local_file_path: str, database: str, table_schema: str, 
+    def upload_file(self, local_file_path: str, database: str, table_schema: str,
                     table_name: str, **kwargs) -> None:
         conn = self.connections.get_thread_connection()
         client = conn.handle
@@ -705,7 +705,7 @@ class BigQueryAdapter(BaseAdapter):
         timeout = self.connections.get_timeout(conn)
         with self.connections.exception_handler("LOAD TABLE"):
             self.poll_until_job_completes(job, timeout)
-    
+
     @classmethod
     def _catalog_filter_table(
         cls, table: agate.Table, manifest: Manifest

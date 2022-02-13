@@ -683,6 +683,29 @@ class BigQueryAdapter(BaseAdapter):
         with self.connections.exception_handler("LOAD TABLE"):
             self.poll_until_job_completes(job, timeout)
 
+    @available.parse_none
+    def upload_file(self, local_file_path: str, database: str, table_schema: str, 
+                    table_name: str, **kwargs) -> None:
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        table_ref = self.connections.table_ref(database, table_schema, table_name, conn)
+
+        load_config = google.cloud.bigquery.LoadJobConfig()
+        for k, v in kwargs['kwargs'].items():
+            if k == "schema":
+                setattr(load_config, k, json.loads(v))
+            else:
+                setattr(load_config, k, v)
+
+        with open(local_file_path, "rb") as f:
+            job = client.load_table_from_file(f, table_ref, rewind=True,
+                                              job_config=load_config)
+
+        timeout = self.connections.get_timeout(conn)
+        with self.connections.exception_handler("LOAD TABLE"):
+            self.poll_until_job_completes(job, timeout)
+    
     @classmethod
     def _catalog_filter_table(
         cls, table: agate.Table, manifest: Manifest

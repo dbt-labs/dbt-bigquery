@@ -54,6 +54,22 @@ class TestSelectionExpansion(DBTIntegrationTest):
         assert sorted(tests_run) == sorted(expected_tests)
         self.assertTablesEqual(compare_source, compare_target)
 
+
+    def run_dbt_and_assert(
+        self, include, compare_source, compare_target
+    ):
+
+        run_args = ['run']
+        if include:
+            run_args.extend(('--models', include))
+        results_one = self.run_dbt(run_args)
+        results_two = self.run_dbt(run_args)
+
+        self.assertEqual(len(results_one), 3)
+        self.assertEqual(len(results_two), 3)
+
+        self.assertTablesEqual(compare_source, compare_target)
+
     def run_incremental_ignore(self):
         select = 'model_a incremental_ignore incremental_ignore_target'
         compare_source = 'incremental_ignore'
@@ -140,3 +156,14 @@ class TestSelectionExpansion(DBTIntegrationTest):
     @use_profile('bigquery')
     def test__bigquery__run_incremental_fail_on_schema_change(self):
         self.run_incremental_fail_on_schema_change()
+
+    @use_profile('bigquery')
+    def test__bigquery__run_incremental_unique_key_list(self):
+        
+        select = 'model_b incremental_unique_key_list incremental_unique_key_list_target'
+        compare_source = 'incremental_unique_key_list'
+        compare_target = 'incremental_unique_key_list_target'
+
+        self.run_dbt_and_assert(select, compare_source, compare_target)
+
+        

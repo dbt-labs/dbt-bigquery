@@ -1,7 +1,6 @@
 from tests.integration.base import DBTIntegrationTest, use_profile
 
 
-
 class TestUniqueKey(DBTIntegrationTest):
 
     def setUp(self):

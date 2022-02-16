@@ -23,10 +23,10 @@ class TestUniqueKey(DBTIntegrationTest):
         
     @use_profile('bigquery')
     def test_bigquery_unique_key(self):
+        """"""
         self.run_dbt(['seed'])
         self.run_dbt(['run'])
+        # self.run_dbt(['run'])
         self.assertTablesEqual("list_result", "list_expected")
-        self.assertTablesEqual('single_result', 'single_expected')
-        # used to test against mismatch (might be unneeded, first fail condition we produce)
-        # self.assertTablesEqual('single_result','list_expected')
+        # self.assertTablesEqual('single_result', 'single_expected')
         

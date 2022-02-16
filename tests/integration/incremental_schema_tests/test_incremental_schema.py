@@ -58,6 +58,7 @@ class TestSelectionExpansion(DBTIntegrationTest):
     def run_dbt_and_assert(
         self, include, compare_source, compare_target
     ):
+        """runs dbt twice to test incremental models."""
 
         run_args = ['run']
         if include:
@@ -67,7 +68,7 @@ class TestSelectionExpansion(DBTIntegrationTest):
 
         self.assertEqual(len(results_one), 3)
         self.assertEqual(len(results_two), 3)
-
+        # Asserts that tables after second dbt run are the same.
         self.assertTablesEqual(compare_source, compare_target)
 
     def run_incremental_ignore(self):
@@ -159,11 +160,13 @@ class TestSelectionExpansion(DBTIntegrationTest):
 
     @use_profile('bigquery')
     def test__bigquery__run_incremental_unique_key_list(self):
-        
+        """tests that lists are a accepted values for unique_key. see model_b for source of test."""
+        # picks which models to run for the tests from models folder
         select = 'model_b incremental_unique_key_list incremental_unique_key_list_target'
+        # assigns correct model to variable as source comparision
         compare_source = 'incremental_unique_key_list'
+        # assigns incremental model as an expected value to be in a end result.
         compare_target = 'incremental_unique_key_list_target'
-
         self.run_dbt_and_assert(select, compare_source, compare_target)
 
         

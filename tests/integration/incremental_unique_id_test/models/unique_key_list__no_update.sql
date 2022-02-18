@@ -5,10 +5,10 @@
 }}
 
 select
-    'CT'::varchar(2) as state,
-    'Hartford'::varchar(12) as county,
-    'Hartford'::varchar(12) as city,
-    '2022-02-14'::date as last_visit_date
+    'CT' as state,
+    'Hartford' as county,
+    'Hartford' as city,
+    '2022-02-14' as last_visit_date
 union all
 select 'MA','Suffolk','Boston','2020-02-12'
 union all

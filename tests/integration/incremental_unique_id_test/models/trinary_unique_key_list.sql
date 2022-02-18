@@ -8,10 +8,10 @@
 }}
 
 select
-    state::varchar(2) as state,
-    county::varchar(12) as county,
-    city::varchar(12) as city,
-    last_visit_date::date as last_visit_date
+    state as state,
+    county as county,
+    city as city,
+    cast(last_visit_date as date) as last_visit_date
 from {{ ref('seed') }}
 
 {% if is_incremental() %}

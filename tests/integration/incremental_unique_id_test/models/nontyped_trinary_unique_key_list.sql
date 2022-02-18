@@ -11,7 +11,7 @@ select
     state as state,
     county as county,
     city as city,
-    last_visit_date as last_visit_date
+    cast(last_visit_date as date) as last_visit_date
 from {{ ref('seed') }}
 
 {% if is_incremental() %}

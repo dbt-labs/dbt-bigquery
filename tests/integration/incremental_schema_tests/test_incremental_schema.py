@@ -140,4 +140,3 @@ class TestSelectionExpansion(DBTIntegrationTest):
     @use_profile('bigquery')
     def test__bigquery__run_incremental_fail_on_schema_change(self):
         self.run_incremental_fail_on_schema_change()
-     

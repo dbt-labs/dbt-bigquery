@@ -55,11 +55,11 @@ jobs:
           pip install --user --upgrade pip
           pip install pre-commit
           pip install mypy==0.782
-          
+
           pip --version
           pre-commit --version
           mypy --version
-          
+
       - name: Run pre-comit hooks
         run: pre=commit run --all-files --show-diff-on-failure
 
@@ -94,7 +94,7 @@ jobs:
           pip install tox
           pip --version
           tox --version
-          
+
       - name: Install dbt-core latest
         run: |
           pip install "git+https://github.com/dbt-labs/dbt-core.git#egg=dbt-core&subdirectory=core"

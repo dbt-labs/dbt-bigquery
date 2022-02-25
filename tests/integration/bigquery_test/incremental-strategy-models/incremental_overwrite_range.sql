@@ -18,23 +18,23 @@
 
 
 with data as (
-    
+
     {% if not is_incremental() %}
-    
+
         select 1 as id, 20200101 as date_int union all
         select 2 as id, 20200101 as date_int union all
         select 3 as id, 20200101 as date_int union all
         select 4 as id, 20200101 as date_int
 
     {% else %}
-        
+
         -- we want to overwrite the 4 records in the 20200101 partition
         -- with the 2 records below, but add two more in the 20200102 partition
         select 10 as id, 20200101 as date_int union all
         select 20 as id, 20200101 as date_int union all
         select 30 as id, 20200102 as date_int union all
         select 40 as id, 20200102 as date_int
-    
+
     {% endif %}
 
 )

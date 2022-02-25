@@ -2,7 +2,6 @@ from tests.integration.base import DBTIntegrationTest, use_profile
 
 
 class TestStatementsBigquery(DBTIntegrationTest):
-
     @property
     def schema(self):
         return "statements"
@@ -18,10 +17,10 @@ class TestStatementsBigquery(DBTIntegrationTest):
     @property
     def project_config(self):
         return {
-            'config-version': 2,
-            'seeds': {
-                'quote_columns': False,
-            }
+            "config-version": 2,
+            "seeds": {
+                "quote_columns": False,
+            },
         }
 
     @use_profile("bigquery")

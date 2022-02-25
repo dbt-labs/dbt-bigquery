@@ -78,4 +78,3 @@ select
     updated_at as dbt_updated_at,
     to_hex(md5(concat(cast(id as string), '-', first_name, '|', cast(updated_at as string)))) as dbt_scd_id
 from {database}.{schema}.seed;
-

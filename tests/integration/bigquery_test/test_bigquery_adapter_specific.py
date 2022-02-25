@@ -1,5 +1,4 @@
 """"Test adapter specific config options."""
-from pprint import pprint
 
 from tests.integration.base import DBTIntegrationTest, use_profile
 import textwrap
@@ -7,7 +6,6 @@ import yaml
 
 
 class TestBigqueryAdapterSpecific(DBTIntegrationTest):
-
     @property
     def schema(self):
         return "bigquery_test"
@@ -22,19 +20,23 @@ class TestBigqueryAdapterSpecific(DBTIntegrationTest):
 
     @property
     def project_config(self):
-        return yaml.safe_load(textwrap.dedent('''\
+        return yaml.safe_load(
+            textwrap.dedent(
+                """\
         config-version: 2
         models:
             test:
                 materialized: table
                 expiring_table:
-                    hours_to_expiration: 4    
-        '''))
+                    hours_to_expiration: 4
+        """
+            )
+        )
 
-    @use_profile('bigquery')
+    @use_profile("bigquery")
     def test_bigquery_hours_to_expiration(self):
-        _, stdout = self.run_dbt_and_capture(['--debug', 'run'])
+        _, stdout = self.run_dbt_and_capture(["--debug", "run"])
 
         self.assertIn(
-            'expiration_timestamp=TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL '
-            '4 hour)', stdout)
+            "expiration_timestamp=TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL " "4 hour)", stdout
+        )

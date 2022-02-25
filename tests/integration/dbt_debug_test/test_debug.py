@@ -1,7 +1,5 @@
-from tests.integration.base import DBTIntegrationTest,  use_profile
+from tests.integration.base import DBTIntegrationTest, use_profile
 import os
-import re
-import yaml
 
 import pytest
 
@@ -9,7 +7,7 @@ import pytest
 class TestDebug(DBTIntegrationTest):
     @property
     def schema(self):
-        return 'dbt_debug'
+        return "dbt_debug"
 
     @staticmethod
     def dir(value):
@@ -17,21 +15,19 @@ class TestDebug(DBTIntegrationTest):
 
     @property
     def models(self):
-        return self.dir('models')
+        return self.dir("models")
 
     @pytest.fixture(autouse=True)
     def capsys(self, capsys):
         self.capsys = capsys
 
-    @use_profile('bigquery')
+    @use_profile("bigquery")
     def test_bigquery_ok(self):
-        self.run_dbt(['debug'])
-        self.assertNotIn('ERROR', self.capsys.readouterr().out)
+        self.run_dbt(["debug"])
+        self.assertNotIn("ERROR", self.capsys.readouterr().out)
+
 
 class TestDebugProfileVariable(TestDebug):
     @property
     def project_config(self):
-        return {
-            'config-version': 2,
-            'profile': '{{ "te" ~ "st" }}'
-        }
+        return {"config-version": 2, "profile": '{{ "te" ~ "st" }}'}

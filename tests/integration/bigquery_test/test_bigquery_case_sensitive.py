@@ -10,7 +10,7 @@ class TestCaseSensitiveModelBigQueryRun(DBTIntegrationTest):
     def models(self):
         return "case-sensitive-models"
 
-    @use_profile('bigquery')
+    @use_profile("bigquery")
     def test__bigquery_double_run_fails(self):
         results = self.run_dbt()
         self.assertEqual(len(results), 1)

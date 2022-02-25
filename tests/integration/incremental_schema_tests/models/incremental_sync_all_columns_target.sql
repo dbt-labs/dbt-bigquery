@@ -1,5 +1,5 @@
-{{ 
-    config(materialized='table') 
+{{
+    config(materialized='table')
 }}
 
 with source_data as (
@@ -17,4 +17,4 @@ select id
        ,cast(case when id <= 3 then null else field4 end as {{string_type}}) as field4
 
 from source_data
-order by id 
+order by id

@@ -40,5 +40,3 @@ models:
         description: The user's IP address
       - name: updated_at
         description: When the user was updated
-
-

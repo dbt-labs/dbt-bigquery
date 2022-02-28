@@ -80,7 +80,7 @@ class TestIncrementalUniqueKey(DBTIntegrationTest):
         """should pass back error state when trying build an incremental
         model whose unique key or keylist includes a column missing
         from the incremental model"""
-        self.run_dbt(["seed", "--select", "seed", "--full-refresh"])
+        seed_count = len(self.run_dbt(["seed", "--select", "seed", "--full-refresh"]))
         # unique keys are not applied on first run, so two are needed
         self.run_dbt(
             ["run", "--select", incremental_model_name, "--full-refresh"], expect_pass=True

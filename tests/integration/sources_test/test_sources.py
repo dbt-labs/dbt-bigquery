@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 import yaml
 
+from dbt.exceptions import CompilationException
 import dbt.tracking
 import dbt.version
 from tests.integration.base import DBTIntegrationTest, use_profile, AnyFloat, AnyStringWith

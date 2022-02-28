@@ -12,6 +12,7 @@ from unittest.mock import patch, MagicMock, Mock, create_autospec, ANY
 
 import dbt.dataclass_schema
 
+import dbt.flags as flags
 
 from dbt.adapters.bigquery import BigQueryCredentials
 from dbt.adapters.bigquery import BigQueryAdapter
@@ -25,6 +26,7 @@ import dbt.exceptions
 from dbt.logger import GLOBAL_LOGGER as logger  # noqa
 from dbt.context.providers import RuntimeConfigObject
 
+import google.cloud.bigquery
 
 from .utils import config_from_parts_or_dicts, inject_adapter, TestAdapterConversions
 
@@ -161,6 +163,9 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         except dbt.exceptions.ValidationException as e:
             self.fail("got ValidationException: {}".format(str(e)))
 
+        except BaseException as e:
+            raise
+
         mock_open_connection.assert_not_called()
         connection.handle
         mock_open_connection.assert_called_once()
@@ -174,6 +179,9 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
 
         except dbt.exceptions.ValidationException as e:
             self.fail("got ValidationException: {}".format(str(e)))
+
+        except BaseException as e:
+            raise
 
         mock_open_connection.assert_not_called()
         connection.handle
@@ -189,6 +197,9 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         except dbt.exceptions.ValidationException as e:
             self.fail("got ValidationException: {}".format(str(e)))
 
+        except BaseException as e:
+            raise
+
         mock_open_connection.assert_not_called()
         connection.handle
         mock_open_connection.assert_called_once()
@@ -203,6 +214,9 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         except dbt.exceptions.ValidationException as e:
             self.fail("got ValidationException: {}".format(str(e)))
 
+        except BaseException as e:
+            raise
+
         mock_open_connection.assert_not_called()
         connection.handle
         mock_open_connection.assert_called_once()
@@ -216,6 +230,9 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
 
         except dbt.exceptions.ValidationException as e:
             self.fail("got ValidationException: {}".format(str(e)))
+
+        except BaseException as e:
+            raise
 
         mock_open_connection.assert_not_called()
         connection.handle
@@ -232,6 +249,9 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
 
         except dbt.exceptions.ValidationException as e:
             self.fail("got ValidationException: {}".format(str(e)))
+
+        except BaseException as e:
+            raise
 
         mock_open_connection.assert_not_called()
         connection.handle

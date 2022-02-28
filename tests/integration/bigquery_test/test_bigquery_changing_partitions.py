@@ -1,4 +1,4 @@
-from tests.integration.base import DBTIntegrationTest, use_profile
+from tests.integration.base import DBTIntegrationTest, FakeArgs, use_profile
 import json
 
 
@@ -99,7 +99,7 @@ class TestChangingPartitions(DBTIntegrationTest):
         self.test_partitions({"expected": 1})
 
     @use_profile("bigquery")
-    def test_bigquery_change_partition_hour(self):
+    def test_bigquery_add_partition_hour(self):
         before = {
             "partition_by": {"field": "cur_time", "data_type": "timestamp", "granularity": "day"},
             "cluster_by": None,

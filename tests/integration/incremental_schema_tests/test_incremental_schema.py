@@ -117,7 +117,7 @@ class TestSelectionExpansion(DBTIntegrationTest):
 
     def run_incremental_fail_on_schema_change(self):
         select = "model_a incremental_fail"
-        self.run_dbt(["run", "--models", select, "--full-refresh"])
+        results_one = self.run_dbt(["run", "--models", select, "--full-refresh"])
         results_two = self.run_dbt(["run", "--models", select], expect_pass=False)
         self.assertIn("Compilation Error", results_two[1].message)
 

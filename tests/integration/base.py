@@ -1,5 +1,6 @@
 import json
 import os
+import io
 import random
 import shutil
 import sys
@@ -24,6 +25,7 @@ from dbt.context import providers
 from dbt.logger import log_manager
 from dbt.events.functions import (
     capture_stdout_logs,
+    fire_event,
     setup_event_logger,
     stop_capture_stdout_logs,
 )
@@ -239,7 +241,7 @@ class DBTIntegrationTest(unittest.TestCase):
         os.chdir(self.test_root_dir)
         try:
             self._symlink_test_folders()
-        except Exception:
+        except Exception as exc:
             msg = "\n\t".join(
                 (
                     "Failed to symlink test folders!",
@@ -769,6 +771,8 @@ class DBTIntegrationTest(unittest.TestCase):
         table_a_result = self.get_relation_columns(relation_a)
         table_b_result = self.get_relation_columns(relation_b)
 
+        text_types = {"text", "character varying", "character", "varchar"}
+
         self.assertEqual(len(table_a_result), len(table_b_result))
         for a_column, b_column in zip(table_a_result, table_b_result):
             a_name, a_type, a_size = a_column
@@ -874,6 +878,14 @@ class AnyStringWith:
 
     def __repr__(self):
         return "AnyStringWith<{!r}>".format(self.contains)
+
+
+def bigquery_rate_limiter(err, *args):
+    msg = str(err)
+    if "too many table update operations for this table" in msg:
+        time.sleep(1)
+        return True
+    return False
 
 
 def get_manifest():

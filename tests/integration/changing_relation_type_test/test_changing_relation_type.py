@@ -1,4 +1,5 @@
-from tests.integration.base import DBTIntegrationTest, use_profile
+from pytest import mark
+from tests.integration.base import DBTIntegrationTest, use_profile, bigquery_rate_limiter
 
 
 class TestChangingRelationType(DBTIntegrationTest):
@@ -14,6 +15,7 @@ class TestChangingRelationType(DBTIntegrationTest):
     def models(self):
         return self.dir("models")
 
+    @mark.flaky(rerun_filter=bigquery_rate_limiter, max_runs=3)
     @use_profile("bigquery")
     def test__bigquery__switch_materialization(self):
         # BQ has a weird check that prevents the dropping of tables in the view materialization

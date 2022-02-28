@@ -2,6 +2,8 @@ from tests.integration.base import DBTIntegrationTest, FakeArgs, use_profile
 import os
 
 from dbt.task.test import TestTask
+from dbt.exceptions import CompilationException
+from dbt.contracts.results import TestStatus
 
 
 class TestBQSchemaTests(DBTIntegrationTest):

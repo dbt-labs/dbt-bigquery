@@ -1,5 +1,7 @@
 from tests.integration.base import DBTIntegrationTest, use_profile
 
+import os
+
 
 class BaseOverrideDatabase(DBTIntegrationTest):
     setup_alternate_db = True
@@ -35,8 +37,7 @@ class BaseOverrideDatabase(DBTIntegrationTest):
 
 class TestModelOverride(BaseOverrideDatabase):
     def run_database_override(self):
-        def func(x):
-            return x
+        func = lambda x: x
 
         self.run_dbt(["seed"])
 
@@ -75,8 +76,7 @@ class BaseTestProjectModelOverride(BaseOverrideDatabase):
         self.assertExpectedRelations()
 
     def assertExpectedRelations(self):
-        def func(x):
-            return x
+        func = lambda x: x
 
         self.assertManyRelationsEqual(
             [
@@ -106,6 +106,9 @@ class TestProjectModelOverride(BaseTestProjectModelOverride):
                 },
             },
             "seed-paths": ["seeds"],
+            "vars": {
+                "alternate_db": self.alternative_database,
+            },
             "quoting": {
                 "database": True,
             },
@@ -136,6 +139,9 @@ class TestProjectModelAliasOverride(BaseTestProjectModelOverride):
                 },
             },
             "seed-paths": ["seeds"],
+            "vars": {
+                "alternate_db": self.alternative_database,
+            },
             "quoting": {
                 "database": True,
             },
@@ -151,8 +157,7 @@ class TestProjectModelAliasOverride(BaseTestProjectModelOverride):
 
 class TestProjectSeedOverride(BaseOverrideDatabase):
     def run_database_override(self):
-        def func(x):
-            return x
+        func = lambda x: x
 
         self.use_default_project(
             {

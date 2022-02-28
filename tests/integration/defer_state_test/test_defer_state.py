@@ -4,6 +4,8 @@ import json
 import os
 import shutil
 
+import pytest
+
 
 class TestDeferState(DBTIntegrationTest):
     @property

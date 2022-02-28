@@ -2,10 +2,13 @@ import hashlib
 import json
 import os
 import random
+import shutil
+import tempfile
 import time
 from datetime import datetime
-from unittest.mock import ANY
+from unittest.mock import ANY, patch
 
+from pytest import mark
 from tests.integration.base import (
     DBTIntegrationTest,
     use_profile,
@@ -18,6 +21,7 @@ from tests.integration.base import (
 
 import dbt.tracking
 import dbt.version
+from dbt.exceptions import CompilationException
 
 
 def _read_file(path):

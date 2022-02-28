@@ -1,4 +1,5 @@
 """"Test adapter specific config options."""
+from pprint import pprint
 
 from tests.integration.base import DBTIntegrationTest, use_profile
 import textwrap

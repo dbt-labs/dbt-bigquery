@@ -41,20 +41,19 @@ MODEL_POST_HOOK = """
    )
 """
 
-
 class TestBigqueryPrePostModelHooks(DBTIntegrationTest):
     def setUp(self):
         DBTIntegrationTest.setUp(self)
         self.run_sql_file("seed_model_bigquery.sql")
 
         self.fields = [
-            "state",
-            "target_name",
-            "target_schema",
-            "target_threads",
-            "target_type",
-            "run_started_at",
-            "invocation_id",
+            'state',
+            'target_name',
+            'target_schema',
+            'target_threads',
+            'target_type',
+            'run_started_at',
+            'invocation_id'
         ]
 
     @property
@@ -64,20 +63,20 @@ class TestBigqueryPrePostModelHooks(DBTIntegrationTest):
     @property
     def profile_config(self):
         profile = self.bigquery_profile()
-        profile["test"]["outputs"]["default2"]["threads"] = 3
+        profile['test']['outputs']['default2']['threads'] = 3
         return profile
 
     @property
     def project_config(self):
         return {
-            "config-version": 2,
-            "macro-paths": ["macros"],
-            "models": {
-                "test": {
-                    "pre-hook": [MODEL_PRE_HOOK],
-                    "post-hook": [MODEL_POST_HOOK],
+            'config-version': 2,
+            'macro-paths': ['macros'],
+            'models': {
+                'test': {
+                    'pre-hook': [MODEL_PRE_HOOK],
+                    'post-hook':[MODEL_POST_HOOK],
                 }
-            },
+            }
         }
 
     @property
@@ -86,13 +85,11 @@ class TestBigqueryPrePostModelHooks(DBTIntegrationTest):
 
     def get_ctx_vars(self, state):
         field_list = ", ".join(self.fields)
-        query = "select {field_list} from `{schema}.on_model_hook` where state = '{state}'".format(
-            field_list=field_list, schema=self.unique_schema(), state=state
-        )
+        query = "select {field_list} from `{schema}.on_model_hook` where state = '{state}'".format(field_list=field_list, schema=self.unique_schema(), state=state)
 
-        vals = self.run_sql(query, fetch="all")
-        self.assertFalse(len(vals) == 0, "nothing inserted into hooks table")
-        self.assertFalse(len(vals) > 1, "too many rows in hooks table")
+        vals = self.run_sql(query, fetch='all')
+        self.assertFalse(len(vals) == 0, 'nothing inserted into hooks table')
+        self.assertFalse(len(vals) > 1, 'too many rows in hooks table')
         ctx = dict(zip(self.fields, vals[0]))
 
         return ctx
@@ -100,26 +97,20 @@ class TestBigqueryPrePostModelHooks(DBTIntegrationTest):
     def check_hooks(self, state):
         ctx = self.get_ctx_vars(state)
 
-        self.assertEqual(ctx["state"], state)
-        self.assertEqual(ctx["target_name"], "default2")
-        self.assertEqual(ctx["target_schema"], self.unique_schema())
-        self.assertEqual(ctx["target_threads"], 3)
-        self.assertEqual(ctx["target_type"], "bigquery")
-        self.assertTrue(
-            ctx["run_started_at"] is not None and len(ctx["run_started_at"]) > 0,
-            "run_started_at was not set",
-        )
-        self.assertTrue(
-            ctx["invocation_id"] is not None and len(ctx["invocation_id"]) > 0,
-            "invocation_id was not set",
-        )
+        self.assertEqual(ctx['state'], state)
+        self.assertEqual(ctx['target_name'], 'default2')
+        self.assertEqual(ctx['target_schema'], self.unique_schema())
+        self.assertEqual(ctx['target_threads'], 3)
+        self.assertEqual(ctx['target_type'], 'bigquery')
+        self.assertTrue(ctx['run_started_at'] is not None and len(ctx['run_started_at']) > 0, 'run_started_at was not set')
+        self.assertTrue(ctx['invocation_id'] is not None and len(ctx['invocation_id']) > 0, 'invocation_id was not set')
 
-    @use_profile("bigquery")
+    @use_profile('bigquery')
     def test_pre_and_post_model_hooks_bigquery(self):
-        self.run_dbt(["run"])
+        self.run_dbt(['run'])
 
-        self.check_hooks("start")
-        self.check_hooks("end")
+        self.check_hooks('start')
+        self.check_hooks('end')
 
 
 class TestBigqueryPrePostModelHooksOnSeeds(DBTIntegrationTest):
@@ -134,25 +125,26 @@ class TestBigqueryPrePostModelHooksOnSeeds(DBTIntegrationTest):
     @property
     def project_config(self):
         return {
-            "config-version": 2,
-            "seed-paths": ["seeds"],
-            "models": {},
-            "seeds": {
-                "post-hook": [
-                    "insert into {{ this }} (a, b, c) VALUES (10, 11, 12)",
+            'config-version': 2,
+            'seed-paths': ['seeds'],
+            'models': {},
+            'seeds': {
+                'post-hook': [
+                    'insert into {{ this }} (a, b, c) VALUES (10, 11, 12)',
                 ],
-                "quote_columns": False,
+                'quote_columns': False,
             },
         }
 
-    @use_profile("bigquery")
+    @use_profile('bigquery')
     def test_hooks_on_seeds_bigquery(self):
-        res = self.run_dbt(["seed"])
-        self.assertEqual(len(res), 1, "Expected exactly one item")
-        res = self.run_dbt(["test"])
-        self.assertEqual(len(res), 1, "Expected exactly one item")
+        res = self.run_dbt(['seed'])
+        self.assertEqual(len(res), 1, 'Expected exactly one item')
+        res = self.run_dbt(['test'])
+        self.assertEqual(len(res), 1, 'Expected exactly one item')
         result = self.run_sql(
-            "select a, b, c from `{schema}`.`example_seed` where a = 10", fetch="all"
+            'select a, b, c from `{schema}`.`example_seed` where a = 10',
+            fetch='all'
         )
-        self.assertFalse(len(result) == 0, "nothing inserted into table by hook")
-        self.assertFalse(len(result) > 1, "too many rows in table")
+        self.assertFalse(len(result) == 0, 'nothing inserted into table by hook')
+        self.assertFalse(len(result) > 1, 'too many rows in table')

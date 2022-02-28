@@ -4,6 +4,7 @@ import yaml
 
 
 class TestBigqueryCopyTable(DBTIntegrationTest):
+
     @property
     def schema(self):
         return "bigquery_test"
@@ -18,9 +19,7 @@ class TestBigqueryCopyTable(DBTIntegrationTest):
 
     @property
     def project_config(self):
-        return yaml.safe_load(
-            textwrap.dedent(
-                """\
+        return yaml.safe_load(textwrap.dedent('''\
         config-version: 2
         models:
             test:
@@ -34,11 +33,9 @@ class TestBigqueryCopyTable(DBTIntegrationTest):
                     materialized: copy
                 copy_as_incremental:
                     materialized: copy
-        """
-            )
-        )
+        '''))
 
-    @use_profile("bigquery")
+    @use_profile('bigquery')
     def test__bigquery_copy_table(self):
         results = self.run_dbt()
         self.assertEqual(len(results), 5)

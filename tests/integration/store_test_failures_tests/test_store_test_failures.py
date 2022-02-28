@@ -8,7 +8,7 @@ class TestStoreTestFailures(DBTIntegrationTest):
 
     def tearDown(self):
         test_audit_schema = self.unique_schema() + "_dbt_test__audit"
-        with self.adapter.connection_named("__test"):
+        with self.adapter.connection_named('__test'):
             self._drop_schema_named(self.default_database, test_audit_schema)
 
         super().tearDown()
@@ -24,7 +24,9 @@ class TestStoreTestFailures(DBTIntegrationTest):
             "test-paths": ["tests"],
             "seeds": {
                 "quote_columns": False,
-                "test": {"expected": self.column_type_overrides()},
+                "test": {
+                    "expected": self.column_type_overrides()
+                },
             },
         }
 
@@ -42,38 +44,17 @@ class TestStoreTestFailures(DBTIntegrationTest):
 
         # compare test results
         actual = [(r.status, r.failures) for r in results]
-        expected = [
-            ("pass", 0),
-            ("pass", 0),
-            ("pass", 0),
-            ("pass", 0),
-            ("fail", 2),
-            ("fail", 2),
-            ("fail", 2),
-            ("fail", 10),
-        ]
+        expected = [('pass', 0), ('pass', 0), ('pass', 0), ('pass', 0),
+                    ('fail', 2), ('fail', 2), ('fail', 2), ('fail', 10)]
         self.assertEqual(sorted(actual), sorted(expected))
 
         # compare test results stored in database
         self.assertTablesEqual("failing_test", "expected_failing_test", test_audit_schema)
-        self.assertTablesEqual(
-            "not_null_problematic_model_id",
-            "expected_not_null_problematic_model_id",
-            test_audit_schema,
-        )
-        self.assertTablesEqual(
-            "unique_problematic_model_id",
-            "expected_unique_problematic_model_id",
-            test_audit_schema,
-        )
-        self.assertTablesEqual(
-            "accepted_values_problematic_mo_c533ab4ca65c1a9dbf14f79ded49b628",
-            "expected_accepted_values",
-            test_audit_schema,
-        )
-
+        self.assertTablesEqual("not_null_problematic_model_id", "expected_not_null_problematic_model_id", test_audit_schema)
+        self.assertTablesEqual("unique_problematic_model_id", "expected_unique_problematic_model_id", test_audit_schema)
+        self.assertTablesEqual("accepted_values_problematic_mo_c533ab4ca65c1a9dbf14f79ded49b628", "expected_accepted_values", test_audit_schema)
 
 class BigQueryTestStoreTestFailures(TestStoreTestFailures):
-    @use_profile("bigquery")
+    @use_profile('bigquery')
     def test__bigquery__store_and_assert(self):
         self.run_tests_store_failures_and_assert()

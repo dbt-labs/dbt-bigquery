@@ -15,26 +15,26 @@ class TestSimpleSnapshotFiles(DBTIntegrationTest):
     @property
     def project_config(self):
         return {
-            "config-version": 2,
-            "snapshot-paths": ["check-snapshots"],
-            "test-paths": ["check-snapshots-expected"],
+            'config-version': 2,
+            "snapshot-paths": ['check-snapshots'],
+            "test-paths": ['check-snapshots-expected'],
             "model-paths": [],
         }
 
     def test_snapshot_check_cols_cycle(self):
-        results = self.run_dbt(["snapshot", "--vars", "version: 1"])
+        results = self.run_dbt(["snapshot", '--vars', 'version: 1'])
         self.assertEqual(len(results), 1)
 
-        results = self.run_dbt(["snapshot", "--vars", "version: 2"])
+        results = self.run_dbt(["snapshot", '--vars', 'version: 2'])
         self.assertEqual(len(results), 1)
 
-        results = self.run_dbt(["snapshot", "--vars", "version: 3"])
+        results = self.run_dbt(["snapshot", '--vars', 'version: 3'])
         self.assertEqual(len(results), 1)
 
     def assert_expected(self):
-        self.run_dbt(["test", "--select", "test_type:singular", "--vars", "version: 3"])
+        self.run_dbt(['test', '--select', 'test_type:singular', '--vars', 'version: 3'])
 
-    @use_profile("bigquery")
+    @use_profile('bigquery')
     def test__bigquery__simple_snapshot(self):
         self.test_snapshot_check_cols_cycle()
         self.assert_expected()

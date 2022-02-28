@@ -12,7 +12,7 @@ class BaseTestSimpleCopy(DBTIntegrationTest):
 
     @staticmethod
     def dir(path):
-        return path.lstrip("/")
+        return path.lstrip('/')
 
     @property
     def models(self):
@@ -20,20 +20,23 @@ class BaseTestSimpleCopy(DBTIntegrationTest):
 
     @property
     def project_config(self):
-        return self.seed_quote_cfg_with({"profile": '{{ "tes" ~ "t" }}'})
+        return self.seed_quote_cfg_with({
+            'profile': '{{ "tes" ~ "t" }}'
+        })
 
     def seed_quote_cfg_with(self, extra):
         cfg = {
-            "config-version": 2,
-            "seeds": {
-                "quote_columns": False,
-            },
+            'config-version': 2,
+            'seeds': {
+                'quote_columns': False,
+            }
         }
         cfg.update(extra)
         return cfg
 
 
 class TestSimpleCopy(BaseTestSimpleCopy):
+
     @property
     def project_config(self):
         return self.seed_quote_cfg_with({"seed-paths": [self.dir("seed-initial")]})
@@ -41,9 +44,9 @@ class TestSimpleCopy(BaseTestSimpleCopy):
     @use_profile("bigquery")
     def test__bigquery__simple_copy(self):
         results = self.run_dbt(["seed"])
-        self.assertEqual(len(results), 1)
+        self.assertEqual(len(results),  1)
         results = self.run_dbt()
-        self.assertEqual(len(results), 7)
+        self.assertEqual(len(results),  7)
 
         self.assertTablesEqual("seed", "view_model")
         self.assertTablesEqual("seed", "incremental")
@@ -53,9 +56,9 @@ class TestSimpleCopy(BaseTestSimpleCopy):
         self.use_default_project({"seed-paths": [self.dir("seed-update")]})
 
         results = self.run_dbt(["seed"])
-        self.assertEqual(len(results), 1)
+        self.assertEqual(len(results),  1)
         results = self.run_dbt()
-        self.assertEqual(len(results), 7)
+        self.assertEqual(len(results),  7)
 
         self.assertTablesEqual("seed", "view_model")
         self.assertTablesEqual("seed", "incremental")
@@ -70,7 +73,11 @@ class TestIncrementalMergeColumns(BaseTestSimpleCopy):
 
     @property
     def project_config(self):
-        return {"seeds": {"quote_columns": False}}
+        return {
+            "seeds": {
+                "quote_columns": False
+            }
+        }
 
     def seed_and_run(self):
         self.run_dbt(["seed"])
@@ -78,8 +85,12 @@ class TestIncrementalMergeColumns(BaseTestSimpleCopy):
 
     @use_profile("bigquery")
     def test__bigquery__incremental_merge_columns(self):
-        self.use_default_project({"seed-paths": ["seeds-merge-cols-initial"]})
+        self.use_default_project({
+            "seed-paths": ["seeds-merge-cols-initial"]
+        })
         self.seed_and_run()
-        self.use_default_project({"seed-paths": ["seeds-merge-cols-update"]})
+        self.use_default_project({
+            "seed-paths": ["seeds-merge-cols-update"]
+        })
         self.seed_and_run()
         self.assertTablesEqual("incremental_update_cols", "expected_result")

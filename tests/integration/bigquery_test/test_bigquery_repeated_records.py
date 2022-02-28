@@ -1,8 +1,8 @@
 from tests.integration.base import DBTIntegrationTest, use_profile
 import json
 
-
 class TestBaseBigQueryRun(DBTIntegrationTest):
+
     @property
     def schema(self):
         return "bigquery_test"
@@ -14,11 +14,11 @@ class TestBaseBigQueryRun(DBTIntegrationTest):
     @property
     def project_config(self):
         return {
-            "config-version": 2,
-            "macro-paths": ["macros"],
+            'config-version': 2,
+            'macro-paths': ['macros'],
         }
 
-    @use_profile("bigquery")
+    @use_profile('bigquery')
     def test__bigquery_fetch_nested_records(self):
         sql = """
         select
@@ -44,6 +44,7 @@ class TestBaseBigQueryRun(DBTIntegrationTest):
           ] as val
         """
 
+
         status, res = self.adapter.execute(sql, fetch=True)
 
         self.assertEqual(len(res), 2, "incorrect row count")
@@ -51,12 +52,12 @@ class TestBaseBigQueryRun(DBTIntegrationTest):
         expected = {
             "user": [
                 '{"fname": "Michael", "lname": "Stonebreaker"}',
-                '{"fname": "Johnny", "lname": "Brickmaker"}',
+                '{"fname": "Johnny", "lname": "Brickmaker"}'
             ],
             "val": [
                 '[{"val_1": 1, "val_2": 2.12}, {"val_1": 3, "val_2": 4.83}]',
-                '[{"val_1": 7, "val_2": 8}, {"val_1": 9, "val_2": null}]',
-            ],
+                '[{"val_1": 7, "val_2": 8}, {"val_1": 9, "val_2": null}]'
+            ]
         }
 
         for i, key in enumerate(expected):

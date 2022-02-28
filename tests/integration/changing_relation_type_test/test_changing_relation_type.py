@@ -3,6 +3,7 @@ from tests.integration.base import DBTIntegrationTest, use_profile, bigquery_rat
 
 
 class TestChangingRelationType(DBTIntegrationTest):
+
     @property
     def schema(self):
         return "changing_relation_type"
@@ -23,22 +24,22 @@ class TestChangingRelationType(DBTIntegrationTest):
         # table with a view if a model config is accidently changed. We should probably remove that check
         # and then remove these bq-specific tests
 
-        results = self.run_dbt(["run", "--vars", "materialized: view"])
-        self.assertEqual(results[0].node.config.materialized, "view")
-        self.assertEqual(len(results), 1)
+        results = self.run_dbt(['run', '--vars', 'materialized: view'])
+        self.assertEqual(results[0].node.config.materialized, 'view')
+        self.assertEqual(len(results),  1)
 
-        results = self.run_dbt(["run", "--vars", "materialized: table"])
-        self.assertEqual(results[0].node.config.materialized, "table")
-        self.assertEqual(len(results), 1)
+        results = self.run_dbt(['run', '--vars', 'materialized: table'])
+        self.assertEqual(results[0].node.config.materialized, 'table')
+        self.assertEqual(len(results),  1)
 
-        results = self.run_dbt(["run", "--vars", "materialized: view", "--full-refresh"])
-        self.assertEqual(results[0].node.config.materialized, "view")
-        self.assertEqual(len(results), 1)
+        results = self.run_dbt(['run', '--vars', 'materialized: view', "--full-refresh"])
+        self.assertEqual(results[0].node.config.materialized, 'view')
+        self.assertEqual(len(results),  1)
 
-        results = self.run_dbt(["run", "--vars", "materialized: incremental"])
-        self.assertEqual(results[0].node.config.materialized, "incremental")
-        self.assertEqual(len(results), 1)
+        results = self.run_dbt(['run', '--vars', 'materialized: incremental'])
+        self.assertEqual(results[0].node.config.materialized, 'incremental')
+        self.assertEqual(len(results),  1)
 
-        results = self.run_dbt(["run", "--vars", "materialized: view", "--full-refresh"])
-        self.assertEqual(results[0].node.config.materialized, "view")
-        self.assertEqual(len(results), 1)
+        results = self.run_dbt(['run', '--vars', 'materialized: view', "--full-refresh"])
+        self.assertEqual(results[0].node.config.materialized, 'view')
+        self.assertEqual(len(results),  1)

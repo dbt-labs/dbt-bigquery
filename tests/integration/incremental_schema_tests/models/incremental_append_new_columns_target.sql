@@ -1,5 +1,5 @@
-{{
-    config(materialized='table')
+{{ 
+    config(materialized='table') 
 }}
 
 {% set string_type = 'string' %}

@@ -1,3 +1,5 @@
+exclude: ^test
+
 default_language_version:
   python: python3.8
 
@@ -30,9 +32,7 @@ repos:
   rev: 4.0.1
   hooks:
   - id: flake8
-    exclude: ^tests/
   - id: flake8
-    exclude: ^tests/
     alias: flake8-check
     stages: [manual]
 - repo: https://github.com/pre-commit/mirrors-mypy

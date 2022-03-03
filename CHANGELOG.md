@@ -1,6 +1,7 @@
 ## dbt-bigquery 1.1.0 (Release TBD)
 ### Features
 - Provide a fine-grained control of the timeout and retry of BigQuery query with four new dbt profile configs: `job_creation_timeout_seconds`, `job_execution_timeout_seconds`, `job_retry_deadline_seconds`, and `job_retries` ([#45](https://github.com/dbt-labs/dbt-bigquery/issues/45), [#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))
+- Adds new integration test to check against new ability to allow unique_key to be a list. [#112](https://github.com/dbt-labs/dbt-bigquery/issues/112)
 
 ### Fixes
 - Fix test related to preventing coercion of boolean values (True, False) to numeric values (0, 1) in query results ([#93](https://github.com/dbt-labs/dbt-bigquery/issues/93))

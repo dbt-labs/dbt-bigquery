@@ -61,7 +61,7 @@ jobs:
           mypy --version
 
       - name: Run pre-comit hooks
-        run: pre=commit run --all-files --show-diff-on-failure
+        run: pre-commit run --all-files --show-diff-on-failure
 
   unit:
     name: unit test / python ${{ matrix.python-version }}

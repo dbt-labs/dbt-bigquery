@@ -692,7 +692,7 @@ class BigQueryAdapter(BaseAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
-        table_ref = self.connections.table_ref(database, table_schema, table_name, conn)
+        table_ref = self.connections.table_ref(database, table_schema, table_name)
 
         load_config = google.cloud.bigquery.LoadJobConfig()
         for k, v in kwargs['kwargs'].items():

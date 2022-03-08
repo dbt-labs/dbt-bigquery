@@ -8,6 +8,7 @@
 - Add a check in `get_table_options` to check that the table has a `partition_by` in the config.
 This will prevent BigQuery from throwing an error since non-partitioned tables cannot have `require_partition_filter` ([#107](https://github.com/dbt-labs/dbt-bigquery/issues/107))
 - Ignore errors of the lack of permissions in `list_relations_without_caching` ([#104](https://github.com/dbt-labs/dbt-bigquery/issues/104))
+- Pass authorization scopes from credentials to the command that runs when gcloud credentials are first set up ([#129](https://github.com/dbt-labs/dbt-bigquery/pull/129)). 
 
 ### Under the hood
 - Address BigQuery API deprecation warning and simplify usage of `TableReference` and `DatasetReference` objects ([#97](https://github.com/dbt-labs/dbt-bigquery/issues/97))
@@ -16,6 +17,8 @@ This will prevent BigQuery from throwing an error since non-partitioned tables c
 - [@hui-zheng](https://github.com/hui-zheng)([#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))
 - [@oliverrmaa](https://github.com/oliverrmaa)([#109](https://github.com/dbt-labs/dbt-bigquery/pull/109))
 - [@yu-iskw](https://github.com/yu-iskw)([#108](https://github.com/dbt-labs/dbt-bigquery/pull/108))
+- [@twindebank](https://github.com/twindebank)([#129](https://github.com/dbt-labs/dbt-bigquery/pull/129))
+
 
 ## dbt-bigquery 1.0.0 (December 3, 2021)
 

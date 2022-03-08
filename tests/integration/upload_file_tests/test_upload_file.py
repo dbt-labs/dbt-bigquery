@@ -5,7 +5,7 @@ import yaml
 class TestUploadFileCSV(DBTIntegrationTest):
     @property
     def schema(self):
-        return "adapter_methods_caching"
+        return "upload_file"
 
     @property
     def models(self):
@@ -29,7 +29,7 @@ class TestUploadFileCSV(DBTIntegrationTest):
 class TestUploadFileNDJSON(DBTIntegrationTest):
     @property
     def schema(self):
-        return "adapter_methods_caching"
+        return "upload_file"
 
     @property
     def models(self):
@@ -53,7 +53,7 @@ class TestUploadFileNDJSON(DBTIntegrationTest):
 class TestUploadFileParquet(DBTIntegrationTest):
     @property
     def schema(self):
-        return "adapter_methods_caching"
+        return "upload_file"
 
     @property
     def models(self):

@@ -45,3 +45,9 @@ seeds:
     tests:
     - column_type:
         type: STRING
+
+- name: seed_labels
+  config:
+    labels:
+      contains_pii: 'yes'
+      contains_pie: 'no'

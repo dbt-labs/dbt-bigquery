@@ -46,8 +46,9 @@ seeds:
     - column_type:
         type: STRING
 
-- name: seed_labels
+- name: seed_configs
   config:
+    hours_to_expiration: 2
     labels:
       contains_pii: 'yes'
       contains_pie: 'no'

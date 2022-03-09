@@ -1,7 +1,7 @@
 from tests.integration.base import DBTIntegrationTest, use_profile
 
-
-class TestSimpleSeed(DBTIntegrationTest):
+class TestSimpleSeedConfigs(DBTIntegrationTest):
+    run_once = False
 
     @property
     def schema(self):
@@ -29,12 +29,16 @@ class TestSimpleSeed(DBTIntegrationTest):
                         'enabled': True,
                         '+column_types': self.seed_tricky_types(),
                     },
-                    'seed_labels': {
+                    'seed_configs': {
                         'enabled': True,
                     },
                 },
             },
         }
+
+    @property
+    def profile_config(self):
+        return self.bigquery_profile()
 
     def seed_enabled_types(self):
         return {
@@ -48,23 +52,13 @@ class TestSimpleSeed(DBTIntegrationTest):
             'looks_like_a_bool': 'STRING',
             'looks_like_a_date': 'STRING',
         }
-
-    @property
-    def profile_config(self):
-        return self.bigquery_profile()
-
-
-class TestSimpleSeedColumnOverrideBQ(TestSimpleSeed):
-
-    @use_profile('bigquery')
-    def test_bigquery_simple_seed_with_column_override_bigquery(self):
+    
+    def seed_data(self):
+        if self.run_once:
+            return
         results = self.run_dbt(["seed", "--show"])
         self.assertEqual(len(results),  3)
-        results = self.run_dbt(["test"])
-        self.assertEqual(len(results),  10)
-
-
-class TestSimpleSeedConfigLabelsBQ(TestSimpleSeed):
+        self.run_once = True
 
     @property
     def table_labels(self):
@@ -74,15 +68,23 @@ class TestSimpleSeedConfigLabelsBQ(TestSimpleSeed):
         }
 
     @use_profile('bigquery')
-    def test__bigquery_seed_table_with_labels(self):
-        _ = self.run_dbt(["seed", "--show"])
+    def test__bigquery_simple_seed_with_column_override_bigquery(self):
+        self.seed_data()
+        results = self.run_dbt(["test"])
+        self.assertEqual(len(results),  10)
+
+    @use_profile('bigquery')
+    def test__bigquery_seed_table_with_labels_config_bigquery(self):
+        self.seed_data()
         with self.get_connection() as conn:
             client = conn.handle
 
             table = client.get_table(
                 self.adapter.connections.get_bq_table(
-                    self.default_database, self.unique_schema(), 'seed_labels')
+                    self.default_database, self.unique_schema(), 'seed_configs')
             )
 
             self.assertTrue(table.labels)
             self.assertEquals(table.labels, self.table_labels)
+            self.assertTrue(table.expires)
+

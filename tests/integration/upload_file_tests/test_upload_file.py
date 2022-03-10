@@ -3,7 +3,7 @@ import datetime
 import yaml
 
 
-class TestUploadFileCSV(DBTIntegrationTest):
+class TestUploadFile(DBTIntegrationTest):
     @property
     def schema(self):
         return "upload_file"

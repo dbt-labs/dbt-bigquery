@@ -2,6 +2,7 @@
 ### Features
 - Provide a fine-grained control of the timeout and retry of BigQuery query with four new dbt profile configs: `job_creation_timeout_seconds`, `job_execution_timeout_seconds`, `job_retry_deadline_seconds`, and `job_retries` ([#45](https://github.com/dbt-labs/dbt-bigquery/issues/45), [#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))
 - Adds new integration test to check against new ability to allow unique_key to be a list. [#112](https://github.com/dbt-labs/dbt-bigquery/issues/112)
+- Added upload_file macro to upload a local file to a table. [#102](https://github.com/dbt-labs/dbt-bigquery/issues/102)
 - Support BigQuery 'labels' and 'hours_to_expiration' configs for seeds. [#125](https://github.com/dbt-labs/dbt-bigquery/issues/125)
 
 ### Fixes
@@ -17,6 +18,7 @@ This will prevent BigQuery from throwing an error since non-partitioned tables c
 - [@hui-zheng](https://github.com/hui-zheng)([#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))
 - [@oliverrmaa](https://github.com/oliverrmaa)([#109](https://github.com/dbt-labs/dbt-bigquery/pull/109))
 - [@yu-iskw](https://github.com/yu-iskw)([#108](https://github.com/dbt-labs/dbt-bigquery/pull/108))
+- [@pgoslatara](https://github.com/pgoslatara) ([#66](https://github.com/dbt-labs/dbt-bigquery/pull/121))
 - [@darrylng](https://github.com/darrylng)([#133](https://github.com/dbt-labs/dbt-bigquery/pull/133))
 
 ## dbt-bigquery 1.0.0 (December 3, 2021)

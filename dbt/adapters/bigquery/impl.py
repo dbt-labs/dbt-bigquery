@@ -6,7 +6,7 @@ import dbt.deprecations
 import dbt.exceptions
 import dbt.clients.agate_helper
 
-from dbt import ui
+from dbt import ui  # type: ignore
 from dbt.adapters.base import BaseAdapter, available, RelationType, SchemaSearchMap, AdapterConfig
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery import BigQueryColumn
@@ -61,7 +61,7 @@ class PartitionConfig(dbtClassMixin):
             return f"{self.data_type}_trunc({column}, {self.granularity})"
 
     @classmethod
-    def parse(cls, raw_partition_by) -> Optional["PartitionConfig"]:
+    def parse(cls, raw_partition_by) -> Optional["PartitionConfig"]:  # type: ignore[return]
         if raw_partition_by is None:
             return None
         try:
@@ -629,23 +629,23 @@ class BigQueryAdapter(BaseAdapter):
             self.poll_until_job_completes(job, timeout)
 
     @available.parse_none
-    def upload_file(self, local_file_path: str, database: str, table_schema: str,
-                    table_name: str, **kwargs) -> None:
+    def upload_file(
+        self, local_file_path: str, database: str, table_schema: str, table_name: str, **kwargs
+    ) -> None:
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
         table_ref = self.connections.table_ref(database, table_schema, table_name)
 
         load_config = google.cloud.bigquery.LoadJobConfig()
-        for k, v in kwargs['kwargs'].items():
+        for k, v in kwargs["kwargs"].items():
             if k == "schema":
                 setattr(load_config, k, json.loads(v))
             else:
                 setattr(load_config, k, v)
 
         with open(local_file_path, "rb") as f:
-            job = client.load_table_from_file(f, table_ref, rewind=True,
-                                              job_config=load_config)
+            job = client.load_table_from_file(f, table_ref, rewind=True, job_config=load_config)
 
         timeout = self.connections.get_job_execution_timeout_seconds(conn)
         with self.connections.exception_handler("LOAD TABLE"):
@@ -689,13 +689,13 @@ class BigQueryAdapter(BaseAdapter):
             )
             opts["expiration_timestamp"] = expiration
 
-        if config.persist_relation_docs() and "description" in node:
+        if config.persist_relation_docs() and "description" in node:  # type: ignore[attr-defined]
             description = sql_escape(node["description"])
             opts["description"] = '"""{}"""'.format(description)
 
         if config.get("labels"):
             labels = config.get("labels", {})
-            opts["labels"] = list(labels.items())
+            opts["labels"] = list(labels.items())  # type: ignore[assignment]
 
         return opts
 

@@ -17,7 +17,7 @@ class BigQueryColumn(Column):
         "INTEGER": "INT64",
         "RECORD": "RECORD",
     }
-    fields: List[Self]
+    fields: List[Self]  # type: ignore[valid-type]
     mode: str
 
     def __init__(
@@ -51,16 +51,16 @@ class BigQueryColumn(Column):
     @classmethod
     def _flatten_recursive(cls: Type[Self], col: Self, prefix: Optional[str] = None) -> List[Self]:
         if prefix is None:
-            prefix = []
+            prefix = []  # type: ignore[assignment]
 
         if len(col.fields) == 0:
-            prefixed_name = ".".join(prefix + [col.column])
+            prefixed_name = ".".join(prefix + [col.column])  # type: ignore[operator]
             new_col = cls(prefixed_name, col.dtype, col.fields, col.mode)
             return [new_col]
 
         new_fields = []
         for field in col.fields:
-            new_prefix = prefix + [col.column]
+            new_prefix = prefix + [col.column]  # type: ignore[operator]
             new_fields.extend(cls._flatten_recursive(field, new_prefix))
 
         return new_fields
@@ -78,7 +78,7 @@ class BigQueryColumn(Column):
     @property
     def data_type(self) -> str:
         if self.dtype.upper() == "RECORD":
-            subcols = ["{} {}".format(col.name, col.data_type) for col in self.fields]
+            subcols = ["{} {}".format(col.name, col.data_type) for col in self.fields]  # type: ignore[attr-defined]
             field_type = "STRUCT<{}>".format(", ".join(subcols))
 
         else:
@@ -113,7 +113,7 @@ class BigQueryColumn(Column):
         """Convert a column to a bigquery schema object."""
         kwargs = {}
         if len(self.fields) > 0:
-            fields = [field.column_to_bq_schema() for field in self.fields]
+            fields = [field.column_to_bq_schema() for field in self.fields]  # type: ignore[attr-defined]
             kwargs = {"fields": fields}
 
         return SchemaField(self.name, self.dtype, self.mode, **kwargs)

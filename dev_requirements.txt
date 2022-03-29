@@ -2,7 +2,7 @@
 # TODO: how to automate switching from develop to version branches?
 git+https://github.com/dbt-labs/dbt.git#egg=dbt-core&subdirectory=core
 
-black==21.12b0
+black==22.3.0
 bumpversion
 flake8
 flaky

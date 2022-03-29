@@ -849,3 +849,18 @@ class BigQueryAdapter(BaseAdapter):
             raise dbt.exceptions.RuntimeException(
                 f'Got an unexpected location value of "{location}"'
             )
+
+    # This is used by the test suite
+    def run_sql_for_tests(self, sql, fetch, conn=None):
+        """ For the testing framework.
+        Run an SQL query on a bigquery adapter. No cursors, transactions,
+        etc. to worry about"""
+
+        do_fetch = fetch != 'None'
+        _, res = self.execute(sql, fetch=do_fetch)
+
+        # convert dataframe to matrix-ish repr
+        if fetch == 'one':
+            return res[0]
+        else:
+            return list(res)

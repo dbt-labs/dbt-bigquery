@@ -24,6 +24,7 @@ repos:
     - "--line-length=99"
     - "--target-version=py38"
   - id: black
+    additoinal_dependencies: ["click==8.0.4"]
     alias: black-check
     stages: [manual]
     args:

@@ -1,3 +1,8 @@
+## dbt-bigquery 1.1.0 (TBD)
+
+### Under the hood
+- Use dbt.tests.adapter.basic in tests (new test framework) ([#135](https://github.com/dbt-labs/dbt-bigquery/issues/135), [#142](https://github.com/dbt-labs/dbt-bigquery/pull/142))
+
 ## dbt-bigquery 1.1.0b1 (March 23, 2022)
 ### Features
 - Provide a fine-grained control of the timeout and retry of BigQuery query with four new dbt profile configs: `job_creation_timeout_seconds`, `job_execution_timeout_seconds`, `job_retry_deadline_seconds`, and `job_retries` ([#45](https://github.com/dbt-labs/dbt-bigquery/issues/45), [#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))

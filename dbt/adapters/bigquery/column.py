@@ -5,17 +5,17 @@ from dbt.adapters.base.column import Column
 
 from google.cloud.bigquery import SchemaField
 
-Self = TypeVar('Self', bound='BigQueryColumn')
+Self = TypeVar("Self", bound="BigQueryColumn")
 
 
 @dataclass(init=False)
 class BigQueryColumn(Column):
     TYPE_LABELS = {
-        'STRING': 'STRING',
-        'TIMESTAMP': 'TIMESTAMP',
-        'FLOAT': 'FLOAT64',
-        'INTEGER': 'INT64',
-        'RECORD': 'RECORD',
+        "STRING": "STRING",
+        "TIMESTAMP": "TIMESTAMP",
+        "FLOAT": "FLOAT64",
+        "INTEGER": "INT64",
+        "RECORD": "RECORD",
     }
     fields: List[Self]  # type: ignore[valid-type]
     mode: str
@@ -25,7 +25,7 @@ class BigQueryColumn(Column):
         column: str,
         dtype: str,
         fields: Optional[Iterable[SchemaField]] = None,
-        mode: str = 'NULLABLE',
+        mode: str = "NULLABLE",
     ) -> None:
         super().__init__(column, dtype)
 
@@ -36,9 +36,7 @@ class BigQueryColumn(Column):
         self.mode = mode
 
     @classmethod
-    def wrap_subfields(
-        cls: Type[Self], fields: Iterable[SchemaField]
-    ) -> List[Self]:
+    def wrap_subfields(cls: Type[Self], fields: Iterable[SchemaField]) -> List[Self]:
         return [cls.create_from_field(field) for field in fields]
 
     @classmethod
@@ -51,20 +49,18 @@ class BigQueryColumn(Column):
         )
 
     @classmethod
-    def _flatten_recursive(
-        cls: Type[Self], col: Self, prefix: Optional[str] = None
-    ) -> List[Self]:
+    def _flatten_recursive(cls: Type[Self], col: Self, prefix: Optional[str] = None) -> List[Self]:
         if prefix is None:
-            prefix = [] # type: ignore[assignment]
+            prefix = []  # type: ignore[assignment]
 
         if len(col.fields) == 0:
-            prefixed_name = ".".join(prefix + [col.column]) # type: ignore[operator]
+            prefixed_name = ".".join(prefix + [col.column])  # type: ignore[operator]
             new_col = cls(prefixed_name, col.dtype, col.fields, col.mode)
             return [new_col]
 
         new_fields = []
         for field in col.fields:
-            new_prefix = prefix + [col.column] # type: ignore[operator]
+            new_prefix = prefix + [col.column]  # type: ignore[operator]
             new_fields.extend(cls._flatten_recursive(field, new_prefix))
 
         return new_fields
@@ -74,54 +70,52 @@ class BigQueryColumn(Column):
 
     @property
     def quoted(self):
-        return '`{}`'.format(self.column)
+        return "`{}`".format(self.column)
 
     def literal(self, value):
         return "cast({} as {})".format(value, self.dtype)
 
     @property
     def data_type(self) -> str:
-        if self.dtype.upper() == 'RECORD':
+        if self.dtype.upper() == "RECORD":
             subcols = [
-                "{} {}".format(col.name, col.data_type) for col in self.fields
-            ] # type: ignore[attr-defined]
-            field_type = 'STRUCT<{}>'.format(", ".join(subcols))
+                "{} {}".format(col.name, col.data_type) for col in self.fields  # type: ignore[attr-defined]
+            ]
+            field_type = "STRUCT<{}>".format(", ".join(subcols))
 
         else:
             field_type = self.dtype
 
-        if self.mode.upper() == 'REPEATED':
-            return 'ARRAY<{}>'.format(field_type)
+        if self.mode.upper() == "REPEATED":
+            return "ARRAY<{}>".format(field_type)
 
         else:
             return field_type
 
     def is_string(self) -> bool:
-        return self.dtype.lower() == 'string'
+        return self.dtype.lower() == "string"
 
     def is_integer(self) -> bool:
-        return self.dtype.lower() == 'int64'
+        return self.dtype.lower() == "int64"
 
     def is_numeric(self) -> bool:
-        return self.dtype.lower() == 'numeric'
+        return self.dtype.lower() == "numeric"
 
     def is_float(self):
-        return self.dtype.lower() == 'float64'
+        return self.dtype.lower() == "float64"
 
     def can_expand_to(self: Self, other_column: Self) -> bool:
         """returns True if both columns are strings"""
         return self.is_string() and other_column.is_string()
 
     def __repr__(self) -> str:
-        return "<BigQueryColumn {} ({}, {})>".format(self.name, self.data_type,
-                                                     self.mode)
+        return "<BigQueryColumn {} ({}, {})>".format(self.name, self.data_type, self.mode)
 
     def column_to_bq_schema(self) -> SchemaField:
-        """Convert a column to a bigquery schema object.
-        """
+        """Convert a column to a bigquery schema object."""
         kwargs = {}
         if len(self.fields) > 0:
-            fields = [field.column_to_bq_schema() for field in self.fields] # type: ignore[attr-defined]
+            fields = [field.column_to_bq_schema() for field in self.fields]  # type: ignore[attr-defined]
             kwargs = {"fields": fields}
 
         return SchemaField(self.name, self.dtype, self.mode, **kwargs)

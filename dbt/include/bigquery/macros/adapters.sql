@@ -136,14 +136,14 @@
 {% endmacro %}
 
 {% macro bigquery__alter_relation_add_columns(relation, add_columns) %}
-  
+
   {% set sql -%}
-     
+
      alter {{ relation.type }} {{ relation }}
         {% for column in add_columns %}
           add column {{ column.name }} {{ column.data_type }}{{ ',' if not loop.last }}
         {% endfor %}
-  
+
   {%- endset -%}
 
   {{ return(run_query(sql)) }}
@@ -151,17 +151,17 @@
 {% endmacro %}
 
 {% macro bigquery__alter_relation_drop_columns(relation, drop_columns) %}
-  
+
   {% set sql -%}
-     
+
      alter {{ relation.type }} {{ relation }}
 
         {% for column in drop_columns %}
           drop column {{ column.name }}{{ ',' if not loop.last }}
         {% endfor %}
-  
+
   {%- endset -%}
-  
+
   {{ return(run_query(sql)) }}
 
 {% endmacro %}
@@ -198,11 +198,11 @@
 {% macro bigquery__test_unique(model, column_name) %}
 
 with dbt_test__target as (
-  
+
   select {{ column_name }} as unique_field
   from {{ model }}
   where {{ column_name }} is not null
-  
+
 )
 
 select

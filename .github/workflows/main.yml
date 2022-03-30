@@ -37,18 +37,9 @@ defaults:
 
 jobs:
   code-quality:
-    name: ${{ matrix.toxenv }}
+    name: code-quality
 
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        toxenv: [flake8]
-
-    env:
-      TOXENV: ${{ matrix.toxenv }}
-      PYTEST_ADDOPTS: "-v --color=yes"
 
     steps:
       - name: Check out the repository
@@ -62,12 +53,15 @@ jobs:
       - name: Install python dependencies
         run: |
           pip install --user --upgrade pip
-          pip install tox
+          pip install pre-commit
+          pip install mypy==0.782
+          pip install -r dev_requirements.txt
           pip --version
-          tox --version
-
-      - name: Run tox
-        run: tox
+          pre-commit --version
+          mypy --version
+          dbt --version
+      - name: Run pre-comit hooks
+        run: pre-commit run --all-files --show-diff-on-failure
 
   unit:
     name: unit test / python ${{ matrix.python-version }}
@@ -100,11 +94,9 @@ jobs:
           pip install tox
           pip --version
           tox --version
-          
       - name: Install dbt-core latest
         run: |
           pip install "git+https://github.com/dbt-labs/dbt-core.git#egg=dbt-core&subdirectory=core"
-
       - name: Run tox
         run: tox
 
@@ -140,7 +132,6 @@ jobs:
           pip install --user --upgrade pip
           pip install --upgrade setuptools wheel twine check-wheel-contents
           pip --version
-
       - name: Build distributions
         run: ./scripts/build-dist.sh
 
@@ -150,11 +141,9 @@ jobs:
       - name: Check distribution descriptions
         run: |
           twine check dist/*
-
       - name: Check wheel contents
         run: |
           check-wheel-contents dist/*.whl --ignore W007,W008
-
       - uses: actions/upload-artifact@v2
         with:
           name: dist
@@ -184,7 +173,6 @@ jobs:
           pip install --user --upgrade pip
           pip install --upgrade wheel
           pip --version
-
       - uses: actions/download-artifact@v2
         with:
           name: dist
@@ -196,15 +184,12 @@ jobs:
       - name: Install wheel distributions
         run: |
           find ./dist/*.whl -maxdepth 1 -type f | xargs pip install --force-reinstall --find-links=dist/
-
       - name: Check wheel distributions
         run: |
           dbt --version
-
       - name: Install source distributions
         run: |
           find ./dist/*.gz -maxdepth 1 -type f | xargs pip install --force-reinstall --find-links=dist/
-
       - name: Check source distributions
         run: |
           dbt --version

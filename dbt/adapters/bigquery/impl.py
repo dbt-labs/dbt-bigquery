@@ -66,7 +66,7 @@ class PartitionConfig(dbtClassMixin):
             return f'{self.data_type}_trunc({column}, {self.granularity})'
 
     @classmethod
-    def parse(cls, raw_partition_by) -> Optional['PartitionConfig']:
+    def parse(cls, raw_partition_by) -> Optional['PartitionConfig']: # type: ignore [return]
         if raw_partition_by is None:
             return None
         try:
@@ -748,13 +748,13 @@ class BigQueryAdapter(BaseAdapter):
                 '{} hour)').format(config.get('hours_to_expiration'))
             opts['expiration_timestamp'] = expiration
 
-        if config.persist_relation_docs() and 'description' in node:
+        if config.persist_relation_docs() and 'description' in node: # type: ignore[attr-defined]
             description = sql_escape(node['description'])
             opts['description'] = '"""{}"""'.format(description)
 
         if config.get('labels'):
             labels = config.get('labels', {})
-            opts['labels'] = list(labels.items())
+            opts['labels'] = list(labels.items()) # type: ignore[assignment]
 
         return opts
 

@@ -28,6 +28,7 @@ from google.cloud.bigquery import AccessEntry, SchemaField
 import time
 import agate
 import json
+from bigquery_schema_generator.generate_schema import SchemaGenerator
 
 logger = AdapterLogger("BigQuery")
 
@@ -708,6 +709,35 @@ class BigQueryAdapter(BaseAdapter):
         timeout = self.connections.get_job_execution_timeout_seconds(conn)
         with self.connections.exception_handler("LOAD TABLE"):
             self.poll_until_job_completes(job, timeout)
+
+    @available.parse_none
+    def upload_run_results(self, local_file_path: str, database: str, table_schema: str,
+                           table_name: str, **kwargs) -> None:
+        run_results_json = json.load(open(local_file_path, "r"))
+
+        # Extract schema from JSON object
+        generator = SchemaGenerator(
+            input_format="dict",
+            keep_nulls=True,
+            ignore_invalid_lines=False,
+        )
+        schema_map, _ = generator.deduce_schema(
+            [run_results_json]
+        )
+
+        self.upload_file(
+            local_file_path,
+            database,
+            table_schema,
+            table_name,
+            kwargs={
+                **{
+                    "schema": json.dumps(generator.flatten_schema(schema_map)),
+                    "source_format": "NEWLINE_DELIMITED_JSON"
+                },
+                **kwargs["kwargs"]
+            }
+        )
 
     @classmethod
     def _catalog_filter_table(

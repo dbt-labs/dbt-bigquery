@@ -22,6 +22,7 @@ This will prevent BigQuery from throwing an error since non-partitioned tables c
 - Add stale messaging workflow to Github Actions [#103](https://github.com/dbt-labs/dbt-bigquery/pull/103)
 - Add unique_key to go in parity with unique_key as a list chagnes made in core [#119](https://github.com/dbt-labs/dbt-bigquery/pull/119/files)
 - Adding new Enviornment variable for integration testing puproses [#116](https://github.com/dbt-labs/dbt-bigquery/pull/116)
+- Convert unique id as a list tests to new pytest format ([#150](https://github.com/dbt-labs/dbt-bigquery/pull/150))
 
 ### Contributors
 - [@hui-zheng](https://github.com/hui-zheng)([#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))

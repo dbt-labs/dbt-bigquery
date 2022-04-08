@@ -2,6 +2,8 @@
 
 ### Under the hood
 - Use dbt.tests.adapter.basic in tests (new test framework) ([#135](https://github.com/dbt-labs/dbt-bigquery/issues/135), [#142](https://github.com/dbt-labs/dbt-bigquery/pull/142))
+- Adding pre-commit and black formatter hooks ([#147](https://github.com/dbt-labs/dbt-bigquery/pull/147))
+- Adding pre-commit code changes ([#148](https://github.com/dbt-labs/dbt-bigquery/pull/148))
 
 ## dbt-bigquery 1.1.0b1 (March 23, 2022)
 ### Features

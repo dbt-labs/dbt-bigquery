@@ -157,7 +157,7 @@ jobs:
           pip install tox
           pip --version
           tox --version
-          
+
       - name: Install dbt-core latest
         run: |
           pip install "git+https://github.com/dbt-labs/dbt-core.git#egg=dbt-core&subdirectory=core"
@@ -212,7 +212,7 @@ jobs:
 
   post-failure:
     runs-on: ubuntu-latest
-    needs: test 
+    needs: test
     if: ${{ failure() }}
 
     steps:

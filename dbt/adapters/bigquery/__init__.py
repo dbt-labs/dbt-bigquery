@@ -8,5 +8,5 @@ from dbt.adapters.base import AdapterPlugin
 from dbt.include import bigquery
 
 Plugin = AdapterPlugin(
-    adapter=BigQueryAdapter, credentials=BigQueryCredentials, include_path=bigquery.PACKAGE_PATH
+    adapter=BigQueryAdapter, credentials=BigQueryCredentials, include_path=bigquery.PACKAGE_PATH  # type: ignore[arg-type]
 )

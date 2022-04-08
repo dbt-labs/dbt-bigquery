@@ -93,7 +93,7 @@ class BigQueryCredentials(Credentials):
     method: BigQueryConnectionMethod
     # BigQuery allows an empty database / project, where it defers to the
     # environment for the project
-    database: Optional[str]
+    database: Optional[str]  # type: ignore
     execution_project: Optional[str] = None
     location: Optional[str] = None
     priority: Optional[Priority] = None

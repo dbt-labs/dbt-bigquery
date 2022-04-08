@@ -134,7 +134,7 @@ class BigQueryAdapter(BaseAdapter):
         return False
 
     def drop_relation(self, relation: BigQueryRelation) -> None:
-        is_cached = self._schema_is_cached(relation.database, relation.schema)
+        is_cached = self._schema_is_cached(relation.database, relation.schema)  # type: ignore[arg-type]
         if is_cached:
             self.cache_dropped(relation)
 
@@ -217,7 +217,7 @@ class BigQueryAdapter(BaseAdapter):
             logger.debug("get_columns_in_relation error: {}".format(e))
             return []
 
-    def expand_column_types(self, goal: BigQueryRelation, current: BigQueryRelation) -> None:
+    def expand_column_types(self, goal: BigQueryRelation, current: BigQueryRelation) -> None:  # type: ignore[override]
         # This is a no-op on BigQuery
         pass
 
@@ -666,8 +666,8 @@ class BigQueryAdapter(BaseAdapter):
         for candidate, schemas in candidates.items():
             database = candidate.database
             if database not in db_schemas:
-                db_schemas[database] = set(self.list_schemas(database))
-            if candidate.schema in db_schemas[database]:
+                db_schemas[database] = set(self.list_schemas(database))  # type: ignore[index]
+            if candidate.schema in db_schemas[database]:  # type: ignore[index]
                 result[candidate] = schemas
             else:
                 logger.debug(
@@ -757,7 +757,7 @@ class BigQueryAdapter(BaseAdapter):
         dataset.access_entries = access_entries
         client.update_dataset(dataset, ["access_entries"])
 
-    def get_rows_different_sql(
+    def get_rows_different_sql(  # type: ignore[override]
         self,
         relation_a: BigQueryRelation,
         relation_b: BigQueryRelation,

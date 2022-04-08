@@ -17,8 +17,8 @@ class BigQueryColumn(Column):
         "INTEGER": "INT64",
         "RECORD": "RECORD",
     }
-    fields: List[Self]  # type: ignore[valid-type]
-    mode: str
+    fields: List[Self]  # type: ignore
+    mode: str  # type: ignore
 
     def __init__(
         self,
@@ -104,7 +104,7 @@ class BigQueryColumn(Column):
     def is_float(self):
         return self.dtype.lower() == "float64"
 
-    def can_expand_to(self: Self, other_column: Self) -> bool:
+    def can_expand_to(self: Self, other_column: Self) -> bool:  # type: ignore
         """returns True if both columns are strings"""
         return self.is_string() and other_column.is_string()
 

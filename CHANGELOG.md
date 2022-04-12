@@ -1,7 +1,16 @@
-## dbt-bigquery 1.1.0 (Release TBD)
+## dbt-bigquery 1.1.0 (TBD)
+
+### Under the hood
+- Use dbt.tests.adapter.basic in tests (new test framework) ([#135](https://github.com/dbt-labs/dbt-bigquery/issues/135), [#142](https://github.com/dbt-labs/dbt-bigquery/pull/142))
+- Adding pre-commit and black formatter hooks ([#147](https://github.com/dbt-labs/dbt-bigquery/pull/147))
+- Adding pre-commit code changes ([#148](https://github.com/dbt-labs/dbt-bigquery/pull/148))
+
+## dbt-bigquery 1.1.0b1 (March 23, 2022)
 ### Features
 - Provide a fine-grained control of the timeout and retry of BigQuery query with four new dbt profile configs: `job_creation_timeout_seconds`, `job_execution_timeout_seconds`, `job_retry_deadline_seconds`, and `job_retries` ([#45](https://github.com/dbt-labs/dbt-bigquery/issues/45), [#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))
 - Adds new integration test to check against new ability to allow unique_key to be a list. [#112](https://github.com/dbt-labs/dbt-bigquery/issues/112)
+- Added upload_file macro to upload a local file to a table. [#102](https://github.com/dbt-labs/dbt-bigquery/issues/102)
+- Add logic to BigQueryConnectionManager to add fuctionality for UPDATE and SELECT statements. [#79](https://github.com/dbt-labs/dbt-bigquery/pull/79)
 
 ### Fixes
 - Fix test related to preventing coercion of boolean values (True, False) to numeric values (0, 1) in query results ([#93](https://github.com/dbt-labs/dbt-bigquery/issues/93))
@@ -11,14 +20,20 @@ This will prevent BigQuery from throwing an error since non-partitioned tables c
 - Pass authorization scopes from credentials to the command that runs when gcloud credentials are first set up ([#129](https://github.com/dbt-labs/dbt-bigquery/pull/129)). 
 
 ### Under the hood
-- Address BigQuery API deprecation warning and simplify usage of `TableReference` and `DatasetReference` objects ([#97](https://github.com/dbt-labs/dbt-bigquery/issues/97))
+- Address BigQuery API deprecation warning and simplify usage of `TableReference` and `DatasetReference` objects ([#97](https://github.com/dbt-labs/dbt-bigquery/issues/97)),([#98](https://github.com/dbt-labs/dbt-bigquery/pull/98))
+- Add contributing.md file for adapter repo [#73](https://github.com/dbt-labs/dbt-bigquery/pull/73)
+- Add stale messaging workflow to Github Actions [#103](https://github.com/dbt-labs/dbt-bigquery/pull/103)
+- Add unique_key to go in parity with unique_key as a list chagnes made in core [#119](https://github.com/dbt-labs/dbt-bigquery/pull/119/files)
+- Adding new Enviornment variable for integration testing puproses [#116](https://github.com/dbt-labs/dbt-bigquery/pull/116)
 
 ### Contributors
 - [@hui-zheng](https://github.com/hui-zheng)([#50](https://github.com/dbt-labs/dbt-bigquery/pull/50))
 - [@oliverrmaa](https://github.com/oliverrmaa)([#109](https://github.com/dbt-labs/dbt-bigquery/pull/109))
 - [@yu-iskw](https://github.com/yu-iskw)([#108](https://github.com/dbt-labs/dbt-bigquery/pull/108))
+- [@pgoslatara](https://github.com/pgoslatara) ([#66](https://github.com/dbt-labs/dbt-bigquery/pull/121))
+- [@drewmcdonald](https://github.com/drewmcdonald)([#98](https://github.com/dbt-labs/dbt-bigquery/pull/98))
+- [@rjh336](https://github.com/rjh336)([#79](https://github.com/dbt-labs/dbt-bigquery/pull/79))
 - [@twindebank](https://github.com/twindebank)([#129](https://github.com/dbt-labs/dbt-bigquery/pull/129))
-
 
 ## dbt-bigquery 1.0.0 (December 3, 2021)
 

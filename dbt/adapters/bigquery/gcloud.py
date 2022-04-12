@@ -16,7 +16,7 @@ logger = AdapterLogger("BigQuery")
 
 def gcloud_installed():
     try:
-        system.run_cmd('.', ['gcloud', '--version'])
+        system.run_cmd(".", ["gcloud", "--version"])
         return True
     except OSError as e:
         logger.debug(e)

@@ -113,6 +113,9 @@ jobs:
     name: build packages
 
     runs-on: ubuntu-latest
+    
+    outputs:
+      is_alpha: ${{ steps.check-is-alpha.outputs.is_alpha }}
 
     steps:
       - name: Check out the repository
@@ -130,6 +133,7 @@ jobs:
           pip install --user --upgrade pip
           pip install --upgrade setuptools wheel twine check-wheel-contents
           pip --version
+      
       - name: Build distributions
         run: ./scripts/build-dist.sh
 
@@ -139,9 +143,18 @@ jobs:
       - name: Check distribution descriptions
         run: |
           twine check dist/*
+      
       - name: Check wheel contents
         run: |
           check-wheel-contents dist/*.whl --ignore W007,W008
+          
+      - name: Check if this is an alpha version
+        id: check-is-alpha
+        run: |
+          export is_alpha=0
+          if [[ "$(ls -lh dist/)" == *"a1"* ]]; then export is_alpha=1; fi
+          echo "::set-output name=is_alpha::$is_alpha"
+      
       - uses: actions/upload-artifact@v2
         with:
           name: dist
@@ -149,6 +162,8 @@ jobs:
 
   test-build:
     name: verify packages / python ${{ matrix.python-version }} / ${{ matrix.os }}
+
+    if: needs.build.outputs.is_alpha == 0
 
     needs: build
 

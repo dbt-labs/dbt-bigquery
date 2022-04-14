@@ -403,7 +403,7 @@ class BigQueryAdapter(BaseAdapter):
 
     @classmethod
     def poll_until_job_completes(cls, job, timeout):
-        retry_count = timeout
+        retry_count = timeout or 300
 
         while retry_count > 0 and job.state != "DONE":
             retry_count -= 1

@@ -301,7 +301,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             source_credentials=source_credentials,
             target_principal=profile_credentials.impersonate_service_account,
             target_scopes=list(profile_credentials.scopes),
-            lifetime=profile_credentials.job_execution_timeout_seconds,
+            lifetime=(profile_credentials.job_execution_timeout_seconds or 300),
         )
 
     @classmethod
@@ -524,7 +524,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
         def copy_and_results():
             job_config = google.cloud.bigquery.CopyJobConfig(write_disposition=write_disposition)
             copy_job = client.copy_table(source_ref_array, destination_ref, job_config=job_config)
-            iterator = copy_job.result(timeout=self.get_job_execution_timeout_seconds(conn))
+            timeout = self.get_job_execution_timeout_seconds(conn) or 300
+            iterator = copy_job.result(timeout=timeout)
             return copy_job, iterator
 
         self._retry_and_handle(

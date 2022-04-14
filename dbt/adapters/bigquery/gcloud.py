@@ -1,7 +1,7 @@
 from typing import Optional, Tuple
 
 import dbt.exceptions
-from dbt.clients import system
+from dbt.clients.system import run_cmd
 from dbt.events import AdapterLogger
 
 NOT_INSTALLED_MSG = """
@@ -16,7 +16,7 @@ logger = AdapterLogger("BigQuery")
 
 def gcloud_installed():
     try:
-        system.run_cmd(".", ["gcloud", "--version"])
+        run_cmd(".", ["gcloud", "--version"])
         return True
     except OSError as e:
         logger.debug(e)
@@ -24,8 +24,8 @@ def gcloud_installed():
 
 
 def setup_default_credentials(scopes: Optional[Tuple[str, ...]] = None):
-    scopes_args = ['--scopes', ','.join(scopes)] if scopes else []
+    scopes_args = ["--scopes", ",".join(scopes)] if scopes else []
     if gcloud_installed():
-        system.run_cmd('.', ["gcloud", "auth", "application-default", "login"] + scopes_args)
+        run_cmd(".", ["gcloud", "auth", "application-default", "login"] + scopes_args)
     else:
         raise dbt.exceptions.RuntimeException(NOT_INSTALLED_MSG)

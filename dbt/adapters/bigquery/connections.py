@@ -103,7 +103,7 @@ class BigQueryCredentials(Credentials):
     job_retry_deadline_seconds: Optional[int] = None
     job_retries: Optional[int] = 1
     job_creation_timeout_seconds: Optional[int] = None
-    job_execution_timeout_seconds: Optional[int] = 300
+    job_execution_timeout_seconds: Optional[int] = None
 
     # Keyfile json creds
     keyfile: Optional[str] = None

@@ -403,7 +403,7 @@ class BigQueryAdapter(BaseAdapter):
 
     @classmethod
     def poll_until_job_completes(cls, job, timeout):
-        retry_count = timeout or 300
+        retry_count = timeout
 
         while retry_count > 0 and job.state != "DONE":
             retry_count -= 1
@@ -624,7 +624,7 @@ class BigQueryAdapter(BaseAdapter):
         with open(agate_table.original_abspath, "rb") as f:
             job = client.load_table_from_file(f, table_ref, rewind=True, job_config=load_config)
 
-        timeout = self.connections.get_job_execution_timeout_seconds(conn)
+        timeout = self.connections.get_job_execution_timeout_seconds(conn) or 300
         with self.connections.exception_handler("LOAD TABLE"):
             self.poll_until_job_completes(job, timeout)
 
@@ -647,7 +647,7 @@ class BigQueryAdapter(BaseAdapter):
         with open(local_file_path, "rb") as f:
             job = client.load_table_from_file(f, table_ref, rewind=True, job_config=load_config)
 
-        timeout = self.connections.get_job_execution_timeout_seconds(conn)
+        timeout = self.connections.get_job_execution_timeout_seconds(conn) or 300
         with self.connections.exception_handler("LOAD TABLE"):
             self.poll_until_job_completes(job, timeout)
 

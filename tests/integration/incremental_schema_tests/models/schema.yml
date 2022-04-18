@@ -63,6 +63,18 @@ models:
         tags: [column_leveL_tag]
         tests:
           - unique
-  
 
-  
+  - name: incremental_time_ingestion_partitioning
+    columns:
+      - name: id
+        tags: [column_level_tag]
+        tests:
+          - unique
+
+  - name: incremental_time_ingestion_partitioning_target
+    columns:
+      - name: id
+        tags: [column_level_tag]
+        tests:
+          - unique
+

@@ -691,7 +691,8 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "day"
+                "granularity": "day",
+                "time_ingestion_partitioning": False
             }
         )
 
@@ -702,7 +703,8 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "day"
+                "granularity": "day",
+                "time_ingestion_partitioning": False
             }
         )
 
@@ -715,7 +717,8 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "MONTH"
+                "granularity": "MONTH",
+                "time_ingestion_partitioning": False
             }
         )
         
@@ -728,7 +731,8 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "YEAR"
+                "granularity": "YEAR",
+                "time_ingestion_partitioning": False
             }
         )
 
@@ -741,7 +745,8 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "timestamp",
-                "granularity": "HOUR"
+                "granularity": "HOUR",
+                "time_ingestion_partitioning": False
             }
         )
 
@@ -755,7 +760,8 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                 ), {
                 "field": "ts",
                 "data_type": "timestamp",
-                "granularity": "MONTH"
+                "granularity": "MONTH",
+                "time_ingestion_partitioning": False
             }
         )
 
@@ -768,7 +774,8 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "timestamp",
-                "granularity": "YEAR"
+                "granularity": "YEAR",
+                "time_ingestion_partitioning": False
             }
         )
 
@@ -781,7 +788,8 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "datetime",
-                "granularity": "HOUR"
+                "granularity": "HOUR",
+                "time_ingestion_partitioning": False
             }
         )
 
@@ -794,7 +802,8 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "datetime",
-                "granularity": "MONTH"
+                "granularity": "MONTH",
+                "time_ingestion_partitioning": False
             }
         )
 
@@ -807,7 +816,21 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "datetime",
-                "granularity": "YEAR"
+                "granularity": "YEAR",
+                "time_ingestion_partitioning": False
+            }
+        )
+
+        self.assertEqual(
+            adapter.parse_partition_by({
+                "field": "ts",
+                "time_ingestion_partitioning": True
+
+            }).to_dict(omit_none=True), {
+                "field": "ts",
+                "data_type": "date",
+                "granularity": "day",
+                "time_ingestion_partitioning": True
             }
         )
 
@@ -834,7 +857,8 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                     "start": 1,
                     "end": 100,
                     "interval": 20
-                }
+                },
+                "time_ingestion_partitioning": False
             }
         )
 

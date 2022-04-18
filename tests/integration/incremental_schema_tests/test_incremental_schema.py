@@ -124,6 +124,22 @@ class TestSelectionExpansion(DBTIntegrationTest):
         results_two = self.run_dbt(['run', '--models', select], expect_pass = False)
         self.assertIn('Compilation Error', results_two[1].message)
 
+    def run_incremental_time_ingestion_partitioning(self):
+        select = 'model_a incremental_time_ingestion_partitioning incremental_time_ingestion_partitioning_target'
+        compare_source = 'incremental_time_ingestion_partitioning'
+        compare_target = 'incremental_time_ingestion_partitioning_target'
+        exclude = None
+        expected = [
+            'select_from_a',
+            'select_from_incremental_time_ingestion_partitioning',
+            'select_from_incremental_time_ingestion_partitioning_target',
+            'unique_model_a_id',
+            'unique_incremental_time_ingestion_partitioning_id',
+            'unique_incremental_time_ingestion_partitioning_target_id'
+        ]
+        self.list_tests_and_assert(select, exclude, expected)
+        self.run_tests_and_assert(select, exclude, expected, compare_source, compare_target)
+
     @use_profile('bigquery')
     def test__bigquery__run_incremental_ignore(self):
         self.run_incremental_ignore()
@@ -140,3 +156,7 @@ class TestSelectionExpansion(DBTIntegrationTest):
     @use_profile('bigquery')
     def test__bigquery__run_incremental_fail_on_schema_change(self):
         self.run_incremental_fail_on_schema_change()
+
+    @use_profile('bigquery')
+    def test__bigquery__run_incremental_time_ingestion_partitioning(self):
+        self.run_incremental_time_ingestion_partitioning()

@@ -24,13 +24,13 @@
 {% endmacro %}
 
 {% macro bq_generate_incremental_build_sql(
-    strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists
+    strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
 ) %}
   {#-- if partitioned, use BQ scripting to get the range of partition values to be updated --#}
   {% if strategy == 'insert_overwrite' %}
 
     {% set build_sql = bq_generate_incremental_insert_overwrite_build_sql(
-        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, on_schema_change
+        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, on_schema_change, copy_partitions
     ) %}
 
   {% else %} {# strategy == 'merge' #}
@@ -66,7 +66,13 @@
 
   {{ run_hooks(pre_hooks) }}
 
-  {% if existing_relation is none %}
+  {% if partition_by.copy_partitions is true and strategy != 'insert_overwrite' %} {#-- We can't copy partitions with merge strategy --#}
+      {% set wrong_strategy_msg -%}
+      The 'copy_partitions' option requires the 'incremental_strategy' option to be set to 'insert_overwrite'.
+      {%- endset %}
+      {% do exceptions.raise_compiler_error(wrong_strategy_msg) %}
+
+  {% elif existing_relation is none %}
       {% set build_sql = bq_create_table_as(partition_by.time_ingestion_partitioning, False, target_relation, sql) %}
 
   {% elif existing_relation.is_view %}
@@ -99,7 +105,7 @@
       {% set dest_columns = adapter.add_time_ingestion_partition_column(dest_columns) %}
     {% endif %}
     {% set build_sql = bq_generate_incremental_build_sql(
-        strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists
+        strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, partition_by.copy_partitions
     ) %}
 
   {% endif %}

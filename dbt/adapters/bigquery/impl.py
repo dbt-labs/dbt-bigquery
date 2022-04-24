@@ -632,8 +632,8 @@ class BigQueryAdapter(BaseAdapter):
             self.poll_until_job_completes(job, timeout)
 
     def upload_file(
-            self, file_object: StringIO, database: str, table_schema: str, table_name: str, **kwargs
-        ) -> None:
+        self, file_object: StringIO, database: str, table_schema: str, table_name: str, **kwargs
+    ) -> None:
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
@@ -649,10 +649,7 @@ class BigQueryAdapter(BaseAdapter):
                 setattr(load_config, k, v)
 
         job = client.load_table_from_file(
-            file_object,
-            table_ref,
-            rewind=True,
-            job_config=load_config
+            file_object, table_ref, rewind=True, job_config=load_config
         )
 
         timeout = self.connections.get_job_execution_timeout_seconds(conn) or 300
@@ -660,15 +657,22 @@ class BigQueryAdapter(BaseAdapter):
             self.poll_until_job_completes(job, timeout)
 
     @available.parse_none
-    def upload_json_artifacts(self, artifacts_directory_path: str, database: str,
-                              table_schema: str, replacement_string: str, **kwargs) -> None:
+    def upload_json_artifacts(
+        self,
+        artifacts_directory_path: str,
+        database: str,
+        table_schema: str,
+        replacement_string: str,
+        **kwargs,
+    ) -> None:
         def alter_dict_keys(obj, replacement_string):
             """
-                BigQuery does not support "." or "-" characters in column names. Replace
-                these characters with "__" or provided replacement_string value.
+            BigQuery does not support "." or "-" characters in column names. Replace
+            these characters with "__" or provided replacement_string value.
             """
+
             def convert(k, replacement_string):
-                return k.replace('.', replacement_string).replace('-', replacement_string)
+                return k.replace(".", replacement_string).replace("-", replacement_string)
 
             if isinstance(obj, (str, int, float)):
                 return obj
@@ -688,11 +692,12 @@ class BigQueryAdapter(BaseAdapter):
             "catalog.json",
             "manifest.json",
             "run_results.json",
-            "sources.json"
+            "sources.json",
         ]
 
         found_artifacts = [
-            artifact for artifact in valid_artifact_file_names
+            artifact
+            for artifact in valid_artifact_file_names
             if os.path.isfile(f"{artifacts_directory_path}/{artifact}")
         ]
 
@@ -718,9 +723,7 @@ class BigQueryAdapter(BaseAdapter):
                 keep_nulls=True,
                 ignore_invalid_lines=False,
             )
-            schema_map, _ = generator.deduce_schema(
-                [artifact_json]
-            )
+            schema_map, _ = generator.deduce_schema([artifact_json])
 
             self.upload_file(
                 StringIO(json.dumps(artifact_json)),
@@ -730,10 +733,10 @@ class BigQueryAdapter(BaseAdapter):
                 kwargs={
                     **{
                         "schema": json.dumps(generator.flatten_schema(schema_map)),
-                        "source_format": "NEWLINE_DELIMITED_JSON"
+                        "source_format": "NEWLINE_DELIMITED_JSON",
                     },
-                    **kwargs["kwargs"]
-                }
+                    **kwargs["kwargs"],
+                },
             )
 
     @classmethod

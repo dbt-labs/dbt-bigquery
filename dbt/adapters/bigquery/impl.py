@@ -28,6 +28,7 @@ from google.cloud.bigquery import AccessEntry, SchemaField
 import time
 import agate
 import json
+import os.path
 from bigquery_schema_generator.generate_schema import SchemaGenerator
 from io import StringIO
 
@@ -736,12 +737,18 @@ class BigQueryAdapter(BaseAdapter):
 
             return new
 
-        for artifact in [
+        valid_artifact_file_names = [
             "catalog.json",
             "manifest.json",
             "run_results.json",
             "sources.json"
-        ]:
+        ]
+        
+        found_artifacts = [artifact for artifact in valid_artifact_file_names if os.path.isfile(f"{artifacts_directory_path}/{artifact}")]
+
+        logger.debug(f"The following artifact files were detected: {found_artifacts}")
+
+        for artifact in found_artifacts:
             artifact_json = json.load(open(f"{artifacts_directory_path}/{artifact}", "r"))
 
             # bigquery_schema_generator cannot handle a list inside a list, better to remove nesting where desired

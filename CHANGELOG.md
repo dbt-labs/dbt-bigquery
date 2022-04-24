@@ -1,7 +1,7 @@
 ## dbt-bigquery 1.1.0 (TBD)
 
 ### Features
-- Added upload_run_results macro to upload run_results.json to a table. [#152](https://github.com/dbt-labs/dbt-bigquery/issues/152)
+- Added upload_json_artifacts macro to upload json artifacts to a table. [#152](https://github.com/dbt-labs/dbt-bigquery/issues/152)
 
 ### Under the hood
 - Use dbt.tests.adapter.basic in tests (new test framework) ([#135](https://github.com/dbt-labs/dbt-bigquery/issues/135), [#142](https://github.com/dbt-labs/dbt-bigquery/pull/142))

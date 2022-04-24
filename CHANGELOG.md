@@ -1,10 +1,17 @@
-## dbt-bigquery 1.1.0 (TBD)
+## dbt-bigquery 1.1.0 (Release TBD)
+
+### Fixes
+- Restore default behavior for query timeout. Set default `job_execution_timeout` to `None` by default. Keep 300 seconds as query timeout where previously used.
+
+## dbt-bigquery 1.1.0rc1 (April 13, 2022)
 
 ### Features
 - Added upload_json_artifacts macro to upload json artifacts to a table. [#152](https://github.com/dbt-labs/dbt-bigquery/issues/152)
 
 ### Under the hood
 - Use dbt.tests.adapter.basic in tests (new test framework) ([#135](https://github.com/dbt-labs/dbt-bigquery/issues/135), [#142](https://github.com/dbt-labs/dbt-bigquery/pull/142))
+- Adding pre-commit and black formatter hooks ([#147](https://github.com/dbt-labs/dbt-bigquery/pull/147))
+- Adding pre-commit code changes ([#148](https://github.com/dbt-labs/dbt-bigquery/pull/148))
 
 ### Contributors
 - [@pgoslatara](https://github.com/pgoslatara) ([#153](https://github.com/dbt-labs/dbt-bigquery/pull/153))

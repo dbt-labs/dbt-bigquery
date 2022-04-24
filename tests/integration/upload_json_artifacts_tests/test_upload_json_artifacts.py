@@ -88,7 +88,7 @@ class TestUploadJsonArtifacts(DBTIntegrationTest):
     def test_bigquery_upload_json_artifacts(self):
         # Create a table from an uploaded run_results.json file
         upload_args = yaml.safe_dump({
-            'local_file_path': './artifacts',
+            'artifacts_directory_path': './artifacts',
             'database': self.default_database,
             'table_schema': self.unique_schema(),
             'write_disposition': 'WRITE_TRUNCATE'

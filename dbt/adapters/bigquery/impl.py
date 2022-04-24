@@ -712,7 +712,7 @@ class BigQueryAdapter(BaseAdapter):
             self.poll_until_job_completes(job, timeout)
 
     @available.parse_none
-    def upload_json_artifacts(self, local_file_path: str, database: str, table_schema: str,
+    def upload_json_artifacts(self, artifacts_directory_path: str, database: str, table_schema: str,
                            replacement_string: str, **kwargs) -> None:
         def alter_dict_keys(obj, replacement_string):
             """
@@ -742,7 +742,7 @@ class BigQueryAdapter(BaseAdapter):
             "run_results.json",
             "sources.json"
         ]:
-            artifact_json = json.load(open(f"{local_file_path}/{artifact}", "r"))
+            artifact_json = json.load(open(f"{artifacts_directory_path}/{artifact}", "r"))
 
             # bigquery_schema_generator cannot handle a list inside a list, better to remove nesting where desired
             if artifact_json.get("nodes"):

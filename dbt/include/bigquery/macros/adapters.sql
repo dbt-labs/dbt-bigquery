@@ -215,8 +215,8 @@ having count(*) > 1
 
 {% endmacro %}
 
-{% macro bigquery__upload_json_artifacts(local_file_path, database, table_schema, replacement_string="__") %}
+{% macro bigquery__upload_json_artifacts(artifacts_directory_path, database, table_schema, replacement_string="__") %}
 
-  {% do adapter.upload_json_artifacts(local_file_path, database, table_schema, replacement_string, kwargs=kwargs) %}
+  {% do adapter.upload_json_artifacts(artifacts_directory_path, database, table_schema, replacement_string, kwargs=kwargs) %}
 
 {% endmacro %}

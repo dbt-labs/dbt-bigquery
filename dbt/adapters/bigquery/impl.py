@@ -687,14 +687,13 @@ class BigQueryAdapter(BaseAdapter):
         with self.connections.exception_handler("LOAD TABLE"):
             self.poll_until_job_completes(job, timeout)
 
-    @available.parse_none
     def upload_file(self, local_file_path: str, database: str, table_schema: str,
                     table_name: str, **kwargs) -> None:
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
         table_ref = self.connections.table_ref(database, table_schema, table_name)
-        
+
         logger.debug(f"Running upload_file with keyword arguments: {kwargs['kwargs']}")
 
         load_config = google.cloud.bigquery.LoadJobConfig()

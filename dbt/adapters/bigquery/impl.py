@@ -712,7 +712,7 @@ class BigQueryAdapter(BaseAdapter):
             self.poll_until_job_completes(job, timeout)
 
     @available.parse_none
-    def upload_json_artifact(self, local_file_path: str, database: str, table_schema: str,
+    def upload_json_artifacts(self, local_file_path: str, database: str, table_schema: str,
                            replacement_string: str, **kwargs) -> None:
         def alter_dict_keys(obj, replacement_string):
             """

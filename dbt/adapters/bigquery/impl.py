@@ -694,6 +694,8 @@ class BigQueryAdapter(BaseAdapter):
         client = conn.handle
 
         table_ref = self.connections.table_ref(database, table_schema, table_name)
+        
+        logger.debug(f"Running upload_file with keyword arguments: {kwargs['kwargs']}")
 
         load_config = google.cloud.bigquery.LoadJobConfig()
         for k, v in kwargs['kwargs'].items():

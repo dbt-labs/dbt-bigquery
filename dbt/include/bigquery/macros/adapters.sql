@@ -217,15 +217,11 @@ having count(*) > 1
 
 {% macro bigquery__upload_file(local_file_path, database, table_schema, table_name) %}
 
-  {{ log("kwargs: " ~ kwargs) }}
-
   {% do adapter.upload_file(local_file_path, database, table_schema, table_name, kwargs=kwargs) %}
 
 {% endmacro %}
 
 {% macro bigquery__upload_run_results(local_file_path, database, table_schema, table_name) %}
-
-  {{ log("kwargs: " ~ kwargs) }}
 
   {% do adapter.upload_run_results(local_file_path, database, table_schema, table_name, kwargs=kwargs) %}
 

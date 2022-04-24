@@ -27,3 +27,4 @@ class TestBigQueryScripting(DBTIntegrationTest):
         self.assertTablesEqual('incremental_overwrite_partitions', 'incremental_overwrite_date_expected')
         self.assertTablesEqual('incremental_overwrite_day', 'incremental_overwrite_day_expected')
         self.assertTablesEqual('incremental_overwrite_range', 'incremental_overwrite_range_expected')
+        self.assertTablesEqual('incremental_overwrite_day_with_copy_partitions', 'incremental_overwrite_day_expected')

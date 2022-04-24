@@ -705,19 +705,23 @@ class BigQueryAdapter(BaseAdapter):
             else:
                 setattr(load_config, k, v)
 
-        job = client.load_table_from_file(file_object, table_ref, rewind=True,
-                                              job_config=load_config)
+        job = client.load_table_from_file(
+            file_object,
+            table_ref,
+            rewind=True,
+            job_config=load_config
+        )
 
         timeout = self.connections.get_job_execution_timeout_seconds(conn)
         with self.connections.exception_handler("LOAD TABLE"):
             self.poll_until_job_completes(job, timeout)
 
     @available.parse_none
-    def upload_json_artifacts(self, artifacts_directory_path: str, database: str, table_schema: str,
-                           replacement_string: str, **kwargs) -> None:
+    def upload_json_artifacts(self, artifacts_directory_path: str, database: str,
+                              table_schema: str, replacement_string: str, **kwargs) -> None:
         def alter_dict_keys(obj, replacement_string):
             """
-                BigQuery does not support "." or "-" characters in column names. Replace 
+                BigQuery does not support "." or "-" characters in column names. Replace
                 these characters with "__" or provided replacement_string value.
             """
             def convert(k, replacement_string):
@@ -743,20 +747,24 @@ class BigQueryAdapter(BaseAdapter):
             "run_results.json",
             "sources.json"
         ]
-        
-        found_artifacts = [artifact for artifact in valid_artifact_file_names if os.path.isfile(f"{artifacts_directory_path}/{artifact}")]
+
+        found_artifacts = [
+            artifact for artifact in valid_artifact_file_names
+            if os.path.isfile(f"{artifacts_directory_path}/{artifact}")
+        ]
 
         logger.debug(f"The following artifact files were detected: {found_artifacts}")
 
         for artifact in found_artifacts:
             artifact_json = json.load(open(f"{artifacts_directory_path}/{artifact}", "r"))
 
-            # bigquery_schema_generator cannot handle a list inside a list, better to remove nesting where desired
+            # bigquery_schema_generator cannot handle a list inside a list,
+            # better to remove nesting where desired
             if artifact_json.get("nodes"):
                 for k, v in artifact_json.copy()["nodes"].items():
                     if v.get("refs"):
                         if isinstance(v["refs"][0], list):
-                            v["refs"]=v["refs"][0]
+                            v["refs"] = v["refs"][0]
 
             # Replace invalid characters in column names with valid string
             artifact_json = alter_dict_keys(artifact_json, replacement_string)

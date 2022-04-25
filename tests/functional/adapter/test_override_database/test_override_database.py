@@ -9,7 +9,6 @@ import os
 
 
 class BaseOverrideDatabase:
-    # setup_alternate_db = True
     @pytest.fixture(scope="class")
     def model_path(self):
         return "models"
@@ -35,19 +34,10 @@ class TestModelOverrideBigQuery(BaseOverrideDatabase):
     def run_database_override(self, project):
         func = lambda x: x
         run_dbt(['seed'])
-        # breakpoint()
         assert len(run_dbt(['run'])) == 4
-        # check_relations_equal(project.adapter, ['seed','view_1'])
-        # check_relations_equal(project.adapter, ['seed','view_3'])
-        # check_relations_equal(project.adapter, ['view_1','view_3'])
-        check_relations_equal(project.adapter, ['seed','view_4'])
-        # self.assertManyRelationsEqual([
-        #     (func('seed'), self.unique_schema(), self.default_database),
-        #     (func('view_2'), self.unique_schema(), self.alternative_database),
-        #     (func('view_1'), self.unique_schema(), self.default_database),
-        #     (func('view_3'), self.unique_schema(), self.default_database),
-        #     (func('view_4'), self.unique_schema(), self.alternative_database),
-        # ])
+        check_relations_equal(project.adapter, ['seed','view_1','view_3'])
+        check_relations_equal(project.adapter, ['seed','.'.join([os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema,'view_2'])])
+        check_relations_equal(project.adapter, ['seed','.'.join([os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema,'view_4'])])
 
     def test_bigquery_database_override(self, project):
         self.run_database_override(project)
@@ -56,30 +46,28 @@ class TestModelOverrideBigQuery(BaseOverrideDatabase):
 class BaseTestProjectModelOverrideBigQuery(BaseOverrideDatabase):
     # this is janky, but I really want to access self.default_database in
     # project_config
-    def default_database(self):
-        target = self._profile_config['test']['target']
-        profile = self._profile_config['test']['outputs'][target]
-        for key in ['database', 'project', 'dbname']:
-            if key in profile:
-                database = profile[key]
-                return database
-        assert False, 'No profile database found!'
+    # def default_database(self):
+    #     target = self._profile_config['test']['target']
+    #     profile = self._profile_config['test']['outputs'][target]
+    #     for key in ['database', 'project', 'dbname']:
+    #         if key in profile:
+    #             database = profile[key]
+    #             return database
+    #     assert False, 'No profile database found!'
 
-    def run_database_override(self):
+
+    def run_database_override(self, project):
         run_dbt(['seed'])
         assert len(run_dbt(['run'])) == 4
-        # self.assertExpectedRelations()
+        self.assertExpectedRelations(project)
 
-    # def assertExpectedRelations(self):
-    #     func = lambda x: x
+    def assertExpectedRelations(self, project):
+        func = lambda x: x
 
-    #     self.assertManyRelationsEqual([
-    #         (func('seed'), self.unique_schema(), self.default_database),
-    #         (func('view_2'), self.unique_schema(), self.alternative_database),
-    #         (func('view_1'), self.unique_schema(), self.alternative_database),
-    #         (func('view_3'), self.unique_schema(), self.default_database),
-    #         (func('view_4'), self.unique_schema(), self.alternative_database),
-    #     ])
+        check_relations_equal(project.adapter, ['seed','view_3'])
+        check_relations_equal(project.adapter, ['seed','.'.join([os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema,'view_1'])])
+        check_relations_equal(project.adapter, ['seed','.'.join([os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema,'view_2'])])
+        check_relations_equal(project.adapter, ['seed','.'.join([os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema,'view_4'])])
 
 
 class TestProjectModelOverrideBigQuery(BaseTestProjectModelOverrideBigQuery):
@@ -111,7 +99,7 @@ class TestProjectModelOverrideBigQuery(BaseTestProjectModelOverrideBigQuery):
         }
 
     def test_bigquery_database_override(self, project):
-        self.run_database_override()
+        self.run_database_override(project)
 
 
 class TestProjectModelAliasOverrideBigQuery(BaseTestProjectModelOverrideBigQuery):
@@ -143,7 +131,7 @@ class TestProjectModelAliasOverrideBigQuery(BaseTestProjectModelOverrideBigQuery
         }
 
     def test_bigquery_project_override(self, project):
-        self.run_database_override()
+        self.run_database_override(project)
 
 
 class TestProjectSeedOverrideBigQuery(BaseOverrideDatabase):
@@ -159,17 +147,13 @@ class TestProjectSeedOverrideBigQuery(BaseOverrideDatabase):
                 'database': os.getenv('BIGQUERY_TEST_ALT_DATABASE')
             }
         }
-    def run_database_override(self):
+    def run_database_override(self, project):
         func = lambda x: x
         run_dbt(['seed'])
         assert len(run_dbt(['run'])) == 4
-        # self.assertManyRelationsEqual([
-        #     (func('seed'), self.unique_schema(), self.alternative_database),
-        #     (func('view_2'), self.unique_schema(), self.alternative_database),
-        #     (func('view_1'), self.unique_schema(), self.default_database),
-        #     (func('view_3'), self.unique_schema(), self.default_database),
-        #     (func('view_4'), self.unique_schema(), self.alternative_database),
-        # ])
+        check_relations_equal(project.adapter, ['view_1','view_3',])
+        check_relations_equal(project.adapter, ['seed','.'.join([os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema,'view_2'])])
+        check_relations_equal(project.adapter, ['seed','.'.join([os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema,'view_4'])])
 
     def test_bigquery_database_override(self, project):
-        self.run_database_override()
+        self.run_database_override(project)

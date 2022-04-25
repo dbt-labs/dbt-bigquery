@@ -1,5 +1,5 @@
 import pytest
-from dbt.tests.util import run_dbt
+from dbt.tests.util import run_dbt, check_relations_equal
 from tests.functional.adapter.test_override_database.fixtures import (
     models,
     seeds,
@@ -9,7 +9,7 @@ import os
 
 
 class BaseOverrideDatabase:
-    setup_alternate_db = True
+    # setup_alternate_db = True
     @pytest.fixture(scope="class")
     def model_path(self):
         return "models"
@@ -31,13 +31,16 @@ class BaseOverrideDatabase:
         }
 
 
-class TestModelOverride(BaseOverrideDatabase):
-    def run_database_override(self):
+class TestModelOverrideBigQuery(BaseOverrideDatabase):
+    def run_database_override(self, project):
         func = lambda x: x
-
         run_dbt(['seed'])
-
+        # breakpoint()
         assert len(run_dbt(['run'])) == 4
+        # check_relations_equal(project.adapter, ['seed','view_1'])
+        # check_relations_equal(project.adapter, ['seed','view_3'])
+        # check_relations_equal(project.adapter, ['view_1','view_3'])
+        check_relations_equal(project.adapter, ['seed','view_4'])
         # self.assertManyRelationsEqual([
         #     (func('seed'), self.unique_schema(), self.default_database),
         #     (func('view_2'), self.unique_schema(), self.alternative_database),
@@ -47,10 +50,10 @@ class TestModelOverride(BaseOverrideDatabase):
         # ])
 
     def test_bigquery_database_override(self, project):
-        self.run_database_override()
+        self.run_database_override(project)
 
 
-class BaseTestProjectModelOverride(BaseOverrideDatabase):
+class BaseTestProjectModelOverrideBigQuery(BaseOverrideDatabase):
     # this is janky, but I really want to access self.default_database in
     # project_config
     def default_database(self):
@@ -79,7 +82,7 @@ class BaseTestProjectModelOverride(BaseOverrideDatabase):
     #     ])
 
 
-class TestProjectModelOverride(BaseTestProjectModelOverride):
+class TestProjectModelOverrideBigQuery(BaseTestProjectModelOverrideBigQuery):
     @pytest.fixture(scope="class")
     def project_config_update(self):
         return {
@@ -111,7 +114,7 @@ class TestProjectModelOverride(BaseTestProjectModelOverride):
         self.run_database_override()
 
 
-class TestProjectModelAliasOverride(BaseTestProjectModelOverride):
+class TestProjectModelAliasOverrideBigQuery(BaseTestProjectModelOverrideBigQuery):
     @pytest.fixture(scope="class")
     def project_config_update(self):
         return {
@@ -143,7 +146,7 @@ class TestProjectModelAliasOverride(BaseTestProjectModelOverride):
         self.run_database_override()
 
 
-class TestProjectSeedOverride(BaseOverrideDatabase):
+class TestProjectSeedOverrideBigQuery(BaseOverrideDatabase):
     @pytest.fixture(scope="class")
     def project_config_update(self):
         return {

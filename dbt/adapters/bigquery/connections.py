@@ -380,8 +380,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         client = conn.handle
 
         fire_event(SQLQuery(conn_name=conn.name, sql=sql))
-
-        if self.profile.query_comment and self.profile.query_comment.job_label:
+        if hasattr(self.profile, 'query_comment') and self.profile.query_comment and self.profile.query_comment.job_label:
             query_comment = self.query_header.comment.query_comment
             labels = self._labels_from_query_comment(query_comment)
         else:

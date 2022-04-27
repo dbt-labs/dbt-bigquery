@@ -54,3 +54,15 @@ class TestSnapshotTimestampBigQuery(BaseSnapshotTimestamp):
 
 class TestBaseAdapterMethodBigQuery(BaseAdapterMethod):
     pass
+
+
+# one time thing for validate connection in 1.1.latest
+# proper test at https://github.com/dbt-labs/dbt-core/blob/main/tests/adapter/dbt/tests/adapter/basic/test_validate_connection.py
+import dbt.task.debug
+class TestValidateConnection:
+    # project need to be here otherwise some other tests might break
+    def test_validate_connection(self, project, dbt_profile_data):
+
+        dbt.task.debug.DebugTask.validate_connection(
+            dbt_profile_data["test"]["outputs"]["default"]
+        )

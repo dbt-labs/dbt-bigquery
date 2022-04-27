@@ -275,15 +275,11 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT:
             keyfile = profile_credentials.keyfile
-            return creds.from_service_account_file(
-                keyfile, scopes=profile_credentials.scopes
-            )
+            return creds.from_service_account_file(keyfile, scopes=profile_credentials.scopes)
 
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON:
             details = profile_credentials.keyfile_json
-            return creds.from_service_account_info(
-                details, scopes=profile_credentials.scopes
-            )
+            return creds.from_service_account_info(details, scopes=profile_credentials.scopes)
 
         elif method == BigQueryConnectionMethod.OAUTH_SECRETS:
             return GoogleCredentials.Credentials(
@@ -342,8 +338,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         except Exception as e:
             logger.debug(
-                "Got an error when attempting to create a bigquery "
-                "client: '{}'".format(e)
+                "Got an error when attempting to create a bigquery " "client: '{}'".format(e)
             )
 
             connection.handle = None
@@ -495,9 +490,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         def standard_to_legacy(table):
             return table.project + ":" + table.dataset + "." + table.identifier
 
-        legacy_sql = (
-            "SELECT * FROM [" + standard_to_legacy(table) + "$__PARTITIONS_SUMMARY__]"
-        )
+        legacy_sql = "SELECT * FROM [" + standard_to_legacy(table) + "$__PARTITIONS_SUMMARY__]"
 
         sql = self._add_query_comment(legacy_sql)
         # auto_begin is ignored on bigquery, and only included for consistency
@@ -535,12 +528,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
         )
 
         def copy_and_results():
-            job_config = google.cloud.bigquery.CopyJobConfig(
-                write_disposition=write_disposition
-            )
-            copy_job = client.copy_table(
-                source_ref_array, destination_ref, job_config=job_config
-            )
+            job_config = google.cloud.bigquery.CopyJobConfig(write_disposition=write_disposition)
+            copy_job = client.copy_table(source_ref_array, destination_ref, job_config=job_config)
             timeout = self.get_job_execution_timeout_seconds(conn) or 300
             iterator = copy_job.result(timeout=timeout)
             return copy_job, iterator
@@ -556,9 +545,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
     @staticmethod
     def dataset_ref(database, schema):
-        return google.cloud.bigquery.DatasetReference(
-            project=database, dataset_id=schema
-        )
+        return google.cloud.bigquery.DatasetReference(project=database, dataset_id=schema)
 
     @staticmethod
     def table_ref(database, schema, table_name):
@@ -577,9 +564,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         client = conn.handle
 
         def fn():
-            return client.delete_dataset(
-                dataset_ref, delete_contents=True, not_found_ok=True
-            )
+            return client.delete_dataset(dataset_ref, delete_contents=True, not_found_ok=True)
 
         self._retry_and_handle(msg="drop dataset", conn=conn, fn=fn)
 
@@ -604,9 +589,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         """Query the client and wait for results."""
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
-        query_job = client.query(
-            query=sql, job_config=job_config, timeout=job_creation_timeout
-        )
+        query_job = client.query(query=sql, job_config=job_config, timeout=job_creation_timeout)
         iterator = query_job.result(timeout=job_execution_timeout)
 
         return query_job, iterator

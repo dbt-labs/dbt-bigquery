@@ -1,5 +1,5 @@
 import pytest
-from dbt.tests.util import run_dbt, check_relations_equal
+from dbt.tests.util import run_dbt, check_relations_equal, check_relations_equal_with_relations
 from tests.functional.adapter.test_override_database.fixtures import (
     models,
     seeds,
@@ -32,12 +32,17 @@ class BaseOverrideDatabase:
 
 class TestModelOverrideBigQuery(BaseOverrideDatabase):
     def run_database_override(self, project):
-        func = lambda x: x
+        # func = lambda x: x
         run_dbt(['seed'])
         assert len(run_dbt(['run'])) == 4
-        check_relations_equal(project.adapter, ['seed','view_1','view_3'])
-        check_relations_equal(project.adapter, ['seed','.'.join([os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema,'view_2'])])
-        check_relations_equal(project.adapter, ['seed','.'.join([os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema,'view_4'])])
+        check_relations_equal_with_relations(project.adapter, [
+            (os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema, 'seed' ),
+            (os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema, 'view_2'),
+            (os.getenv('BIGQUERY_TEST_DATABASE'), project.test_schema, 'view_1'),
+            (os.getenv('BIGQUERY_TEST_DATABASE'), project.test_schema, 'view_3'),
+            (os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema, 'view_4'),
+        ])
+
 
     def test_bigquery_database_override(self, project):
         self.run_database_override(project)
@@ -63,11 +68,13 @@ class BaseTestProjectModelOverrideBigQuery(BaseOverrideDatabase):
 
     def assertExpectedRelations(self, project):
         func = lambda x: x
-
-        check_relations_equal(project.adapter, ['seed','view_3'])
-        check_relations_equal(project.adapter, ['seed','.'.join([os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema,'view_1'])])
-        check_relations_equal(project.adapter, ['seed','.'.join([os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema,'view_2'])])
-        check_relations_equal(project.adapter, ['seed','.'.join([os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema,'view_4'])])
+        check_relations_equal_with_relations(project.adapter, [
+            (func('seed'), project.test_schema, os.getenv('BIGQUERY_TEST_DATABASE')),
+            (func('view_2'), project.test_schema, os.getenv('BIGQUERY_TEST_ALT_DATABASE')),
+            (func('view_1'), project.test_schema, os.getenv('BIGQUERY_TEST_ALT_DATABASE')),
+            (func('view_3'), project.test_schema, os.getenv('BIGQUERY_TEST_DATABASE')),
+            (func('view_4'), project.test_schema, os.getenv('BIGQUERY_TEST_ALT_DATABASE')),
+        ])
 
 
 class TestProjectModelOverrideBigQuery(BaseTestProjectModelOverrideBigQuery):
@@ -151,9 +158,13 @@ class TestProjectSeedOverrideBigQuery(BaseOverrideDatabase):
         func = lambda x: x
         run_dbt(['seed'])
         assert len(run_dbt(['run'])) == 4
-        check_relations_equal(project.adapter, ['view_1','view_3',])
-        check_relations_equal(project.adapter, ['seed','.'.join([os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema,'view_2'])])
-        check_relations_equal(project.adapter, ['seed','.'.join([os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema,'view_4'])])
+        check_relations_equal_with_relations(project.adapter, [
+            (func('seed'), project.test_schema, os.getenv('BIGQUERY_TEST_ALT_DATABASE')),
+            (func('view_2'), project.test_schema, os.getenv('BIGQUERY_TEST_ALT_DATABASE')),
+            (func('view_1'), project.test_schema, os.getenv('BIGQUERY_TEST_DATABASE')),
+            (func('view_3'), project.test_schema, os.getenv('BIGQUERY_TEST_DATABASE')),
+            (func('view_4'), project.test_schema, os.getenv('BIGQUERY_TEST_ALT_DATABASE')),
+        ])
 
     def test_bigquery_database_override(self, project):
         self.run_database_override(project)

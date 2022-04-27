@@ -36,9 +36,9 @@ class TestModelOverrideBigQuery(BaseOverrideDatabase):
         run_dbt(['seed'])
         assert len(run_dbt(['run'])) == 4
         check_relations_equal_with_relations(project.adapter, [
-            (os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema, 'seed' ),
-            (os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema, 'view_2'),
+            (os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema, 'seed'),
             (os.getenv('BIGQUERY_TEST_DATABASE'), project.test_schema, 'view_1'),
+            (os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema, 'view_2'),
             (os.getenv('BIGQUERY_TEST_DATABASE'), project.test_schema, 'view_3'),
             (os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema, 'view_4'),
         ])
@@ -70,8 +70,8 @@ class BaseTestProjectModelOverrideBigQuery(BaseOverrideDatabase):
         func = lambda x: x
         check_relations_equal_with_relations(project.adapter, [
             (func('seed'), project.test_schema, os.getenv('BIGQUERY_TEST_DATABASE')),
-            (func('view_2'), project.test_schema, os.getenv('BIGQUERY_TEST_ALT_DATABASE')),
             (func('view_1'), project.test_schema, os.getenv('BIGQUERY_TEST_ALT_DATABASE')),
+            (func('view_2'), project.test_schema, os.getenv('BIGQUERY_TEST_ALT_DATABASE')),
             (func('view_3'), project.test_schema, os.getenv('BIGQUERY_TEST_DATABASE')),
             (func('view_4'), project.test_schema, os.getenv('BIGQUERY_TEST_ALT_DATABASE')),
         ])
@@ -160,8 +160,8 @@ class TestProjectSeedOverrideBigQuery(BaseOverrideDatabase):
         assert len(run_dbt(['run'])) == 4
         check_relations_equal_with_relations(project.adapter, [
             (func('seed'), project.test_schema, os.getenv('BIGQUERY_TEST_ALT_DATABASE')),
-            (func('view_2'), project.test_schema, os.getenv('BIGQUERY_TEST_ALT_DATABASE')),
             (func('view_1'), project.test_schema, os.getenv('BIGQUERY_TEST_DATABASE')),
+            (func('view_2'), project.test_schema, os.getenv('BIGQUERY_TEST_ALT_DATABASE')),
             (func('view_3'), project.test_schema, os.getenv('BIGQUERY_TEST_DATABASE')),
             (func('view_4'), project.test_schema, os.getenv('BIGQUERY_TEST_ALT_DATABASE')),
         ])

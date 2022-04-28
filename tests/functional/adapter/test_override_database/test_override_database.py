@@ -8,6 +8,8 @@ from tests.functional.adapter.test_override_database.fixtures import (
 import os
 
 
+
+
 class BaseOverrideDatabase:
     @pytest.fixture(scope="class")
     def model_path(self):
@@ -35,12 +37,18 @@ class TestModelOverrideBigQuery(BaseOverrideDatabase):
         # func = lambda x: x
         run_dbt(['seed'])
         assert len(run_dbt(['run'])) == 4
+        # breakpoint()
         check_relations_equal_with_relations(project.adapter, [
-            (os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema, 'seed'),
-            (os.getenv('BIGQUERY_TEST_DATABASE'), project.test_schema, 'view_1'),
-            (os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema, 'view_2'),
-            (os.getenv('BIGQUERY_TEST_DATABASE'), project.test_schema, 'view_3'),
-            (os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema, 'view_4'),
+            project.adapter.Relation.create(database=os.getenv('BIGQUERY_TEST_DATABASE'), schema=project.test_schema, identifier='seed'),
+            project.adapter.Relation.create(database=os.getenv('BIGQUERY_TEST_DATABASE'), schema=project.test_schema, identifier='view_1'),
+            # project.adapter.Relation.create(database=os.getenv('BIGQUERY_TEST_ALT_DATABASE'), schema=project.test_schema, identifier='view_2'),
+            # project.adapter.Relation.create(database=os.getenv('BIGQUERY_TEST_DATABASE'), schema=project.test_schema, identifier='view_3'),
+            # project.adapter.Relation.create(database=os.getenv('BIGQUERY_TEST_ALT_DATABASE'), schema=project.test_schema, identifier='view_4')
+            # (os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema, 'seed'),
+            # (os.getenv('BIGQUERY_TEST_DATABASE'), project.test_schema, 'view_1'),
+            # (os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema, 'view_2'),
+            # (os.getenv('BIGQUERY_TEST_DATABASE'), project.test_schema, 'view_3'),
+            # (os.getenv('BIGQUERY_TEST_ALT_DATABASE'), project.test_schema, 'view_4'),
         ])
 
 

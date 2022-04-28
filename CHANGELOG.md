@@ -1,7 +1,13 @@
-## dbt-bigquery 1.1.0 (Release TBD)
+## dbt-bigquery 1.2.0 (Release TBD)
+
+### Features
+- Fetch table description to `catalog.json`, so it can be shown in dbt docs ([#173](https://github.com/dbt-labs/dbt-bigquery/issues/173), [#174](https://github.com/dbt-labs/dbt-bigquery/pull/174))
 
 ### Fixes
 - Restore default behavior for query timeout. Set default `job_execution_timeout` to `None` by default. Keep 300 seconds as query timeout where previously used.
+
+### Contributors
+- [@halvorlu](https://github.com/halvorlu)([#174](https://github.com/dbt-labs/dbt-bigquery/pull/174))
 
 ## dbt-bigquery 1.1.0rc1 (April 13, 2022)
 

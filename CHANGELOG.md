@@ -1,4 +1,4 @@
-## dbt-bigquery 1.1.0 (Release TBD)
+## dbt-bigquery 1.1.0 (April 28, 2022)
 
 ## dbt-bigquery 1.1.0rc2 (April 20, 2022)
 

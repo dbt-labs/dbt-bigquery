@@ -6,7 +6,7 @@
       select max({{ partition_by.field }}) from {{ this }}
       where {{ partition_by.field }} is not null
     );
-  
+
   {% endif %}
 
 {% endmacro %}
@@ -66,7 +66,7 @@
       {# have we already created the temp table to check for schema changes? #}
       {% if not tmp_relation_exists %}
         {{ declare_dbt_max_partition(this, partition_by, sql) }}
-        
+
         -- 1. create a temp table
         {{ create_table_as(True, tmp_relation, sql) }}
       {% else %}
@@ -156,12 +156,12 @@
 
   {% if existing_relation is none %}
       {% set build_sql = create_table_as(False, target_relation, sql) %}
-  
+
   {% elif existing_relation.is_view %}
       {#-- There's no way to atomically replace a view with a table on BQ --#}
       {{ adapter.drop_relation(existing_relation) }}
       {% set build_sql = create_table_as(False, target_relation, sql) %}
-  
+
   {% elif full_refresh_mode %}
       {#-- If the partition/cluster config has changed, then we must drop and recreate --#}
       {% if not adapter.is_replaceable(existing_relation, partition_by, cluster_by) %}
@@ -169,7 +169,7 @@
           {{ adapter.drop_relation(existing_relation) }}
       {% endif %}
       {% set build_sql = create_table_as(False, target_relation, sql) %}
-  
+
   {% else %}
     {% set tmp_relation_exists = false %}
     {% if on_schema_change != 'ignore' %} {# Check first, since otherwise we may not build a temp table #}

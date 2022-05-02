@@ -717,7 +717,7 @@ class TestDocsGenerate(DBTIntegrationTest):
         )
 
         return {
-            'dbt_schema_version': 'https://schemas.getdbt.com/dbt/manifest/v4.json',
+            'dbt_schema_version': 'https://schemas.getdbt.com/dbt/manifest/v5.json',
             'dbt_version': dbt.version.__version__,
             'nodes': {
                 'model.test.model': {
@@ -1306,7 +1306,7 @@ class TestDocsGenerate(DBTIntegrationTest):
         my_schema_name = self.unique_schema()
 
         return {
-            'dbt_schema_version': 'https://schemas.getdbt.com/dbt/manifest/v4.json',
+            'dbt_schema_version': 'https://schemas.getdbt.com/dbt/manifest/v5.json',
             'dbt_version': dbt.version.__version__,
             'nodes': {
                 'model.test.clustered': {
@@ -1828,7 +1828,7 @@ class TestDocsGenerate(DBTIntegrationTest):
             elif key == 'metadata':
                 metadata = manifest['metadata']
                 self.verify_metadata(
-                    metadata, 'https://schemas.getdbt.com/dbt/manifest/v4.json')
+                    metadata, 'https://schemas.getdbt.com/dbt/manifest/v5.json')
                 assert 'project_id' in metadata and metadata[
                     'project_id'] == '098f6bcd4621d373cade4e832627b4f6'
                 assert 'send_anonymous_usage_stats' in metadata and metadata[

@@ -43,7 +43,7 @@ If you are a member of the `dbt Labs` GitHub organization, you will have push ac
 First make sure that you set up your `virtualenv` as described in [Setting up an environment](https://github.com/dbt-labs/dbt-core/blob/HEAD/CONTRIBUTING.md#setting-up-an-environment).  Ensure you have the latest version of pip installed with `pip install --upgrade pip`. Next, install `dbt-bigquery` latest dependencies:
 
 ```sh
-pip install -e . -r dev_requirements.txt
+pip install -e . -r dev-requirements.txt
 ```
 
 When `dbt-bigquery` is installed this way, any changes you make to the `dbt-bigquery` source code will be reflected immediately in your next `dbt-bigquery` run.

@@ -37,18 +37,9 @@ defaults:
 
 jobs:
   code-quality:
-    name: ${{ matrix.toxenv }}
+    name: code-quality
 
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        toxenv: [flake8]
-
-    env:
-      TOXENV: ${{ matrix.toxenv }}
-      PYTEST_ADDOPTS: "-v --color=yes"
 
     steps:
       - name: Check out the repository
@@ -62,12 +53,13 @@ jobs:
       - name: Install python dependencies
         run: |
           pip install --user --upgrade pip
-          pip install tox
+          pip install -r dev_requirements.txt
           pip --version
-          tox --version
-
-      - name: Run tox
-        run: tox
+          pre-commit --version
+          mypy --version
+          dbt --version
+      - name: Run pre-comit hooks
+        run: pre-commit run --all-files --show-diff-on-failure
 
   unit:
     name: unit test / python ${{ matrix.python-version }}
@@ -100,11 +92,9 @@ jobs:
           pip install tox
           pip --version
           tox --version
-          
       - name: Install dbt-core latest
         run: |
           pip install "git+https://github.com/dbt-labs/dbt-core.git#egg=dbt-core&subdirectory=core"
-
       - name: Run tox
         run: tox
 
@@ -123,6 +113,9 @@ jobs:
     name: build packages
 
     runs-on: ubuntu-latest
+
+    outputs:
+      is_alpha: ${{ steps.check-is-alpha.outputs.is_alpha }}
 
     steps:
       - name: Check out the repository
@@ -155,6 +148,13 @@ jobs:
         run: |
           check-wheel-contents dist/*.whl --ignore W007,W008
 
+      - name: Check if this is an alpha version
+        id: check-is-alpha
+        run: |
+          export is_alpha=0
+          if [[ "$(ls -lh dist/)" == *"a1"* ]]; then export is_alpha=1; fi
+          echo "::set-output name=is_alpha::$is_alpha"
+
       - uses: actions/upload-artifact@v2
         with:
           name: dist
@@ -162,6 +162,8 @@ jobs:
 
   test-build:
     name: verify packages / python ${{ matrix.python-version }} / ${{ matrix.os }}
+
+    if: needs.build.outputs.is_alpha == 0
 
     needs: build
 
@@ -184,7 +186,6 @@ jobs:
           pip install --user --upgrade pip
           pip install --upgrade wheel
           pip --version
-
       - uses: actions/download-artifact@v2
         with:
           name: dist
@@ -196,15 +197,12 @@ jobs:
       - name: Install wheel distributions
         run: |
           find ./dist/*.whl -maxdepth 1 -type f | xargs pip install --force-reinstall --find-links=dist/
-
       - name: Check wheel distributions
         run: |
           dbt --version
-
       - name: Install source distributions
         run: |
           find ./dist/*.gz -maxdepth 1 -type f | xargs pip install --force-reinstall --find-links=dist/
-
       - name: Check source distributions
         run: |
           dbt --version

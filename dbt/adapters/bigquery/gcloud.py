@@ -14,7 +14,7 @@ logger = AdapterLogger("BigQuery")
 
 def gcloud_installed():
     try:
-        run_cmd('.', ['gcloud', '--version'])
+        run_cmd(".", ["gcloud", "--version"])
         return True
     except OSError as e:
         logger.debug(e)
@@ -23,6 +23,6 @@ def gcloud_installed():
 
 def setup_default_credentials():
     if gcloud_installed():
-        run_cmd('.', ["gcloud", "auth", "application-default", "login"])
+        run_cmd(".", ["gcloud", "auth", "application-default", "login"])
     else:
         raise dbt.exceptions.RuntimeException(NOT_INSTALLED_MSG)

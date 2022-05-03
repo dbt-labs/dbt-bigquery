@@ -109,7 +109,7 @@
     {% endif %}
 
     {% set build_sql = bq_insert_overwrite(
-        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, on_schema_change
+        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists
     ) %}
 
   {% else %} {# strategy == 'merge' #}

@@ -7,7 +7,12 @@ import dbt.exceptions
 import dbt.clients.agate_helper
 
 from dbt import ui  # type: ignore
+
+# dbt-bigquery is primarily a 'base' (Python) adapter
+# as BigQuery adds more SQL support, we can prefer SQL for some operations
 from dbt.adapters.base import BaseAdapter, available, RelationType, SchemaSearchMap, AdapterConfig
+from dbt.adapters.sql import SQLAdapter
+
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery import BigQueryColumn
 from dbt.adapters.bigquery import BigQueryConnectionManager
@@ -273,18 +278,15 @@ class BigQueryAdapter(BaseAdapter):
             table = None
         return self._bq_table_to_relation(table)
 
+    # BigQuery added SQL support for 'create schema' + 'drop schema' in March 2021
+    # What's the right way to do this? mypy hates this:
+    #       Argument 1 to "create_schema" of "SQLAdapter" has incompatible type "BigQueryAdapter"; expected "SQLAdapter"  [arg-type]
+    # I don't think we should make BigQueryAdapter a subclass of SQLAdapter...
     def create_schema(self, relation: BigQueryRelation) -> None:
-        database = relation.database
-        schema = relation.schema
-        logger.debug('Creating schema "{}.{}".', database, schema)
-        self.connections.create_dataset(database, schema)
+        return SQLAdapter.create_schema(self, relation)  # type: ignore
 
     def drop_schema(self, relation: BigQueryRelation) -> None:
-        database = relation.database
-        schema = relation.schema
-        logger.debug('Dropping schema "{}.{}".', database, schema)
-        self.connections.drop_dataset(database, schema)
-        self.cache.drop_schema(database, schema)
+        return SQLAdapter.drop_schema(self, relation)  # type: ignore
 
     @classmethod
     def quote(cls, identifier: str) -> str:

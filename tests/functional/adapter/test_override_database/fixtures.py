@@ -47,11 +47,21 @@ seeds__seed_csv = """id,name
 
 @pytest.fixture(scope="class")
 def models():
-    return {"view_2.sql": models__view_2_sql, "view_1.sql": models__view_1_sql, "subfolder": {"view_4.sql": models__subfolder__view_4_sql, "view_3.sql": models__subfolder__view_3_sql}}
+    return {
+      "view_2.sql": models__view_2_sql,
+      "view_1.sql": models__view_1_sql,
+      "subfolder":
+        {
+          "view_4.sql": models__subfolder__view_4_sql,
+          "view_3.sql": models__subfolder__view_3_sql,
+          },
+    }
 
 @pytest.fixture(scope="class")
 def seeds():
-    return {"seed.csv": seeds__seed_csv}
+    return {
+      "seed.csv": seeds__seed_csv
+      }
 
 @pytest.fixture(scope="class")
 def project_files(project_root, models, seeds,):

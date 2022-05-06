@@ -29,7 +29,6 @@ def oauth_target():
         'type': 'bigquery',
         'method': 'oauth',
         'threads': 1,
-        "project": os.getenv('BIGQUERY_TEST_DATABASE')
         # project isn't needed if you configure a default, via 'gcloud config set project'
     }
 

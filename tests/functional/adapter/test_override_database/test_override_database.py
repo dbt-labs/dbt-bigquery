@@ -58,10 +58,10 @@ class BaseTestProjectModelOverrideBigQuery(BaseOverrideDatabase):
 
     def assertExpectedRelations(self, project):
         check_relations_equal_with_relations(project.adapter, [
-            project.adapter.Relation.create(database=project.database, schema=project.test_schema, identifier="seed"),
+            project.adapter.Relation.create(schema=project.test_schema, identifier="seed"),
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_2"),
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_1"),
-            project.adapter.Relation.create(database=project.database, schema=project.test_schema, identifier="view_3"),
+            project.adapter.Relation.create(schema=project.test_schema, identifier="view_3"),
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_4")
         ])
 
@@ -149,8 +149,8 @@ class TestProjectSeedOverrideBigQuery(BaseOverrideDatabase):
         check_relations_equal_with_relations(project.adapter, [
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="seed"),
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_2"),
-            project.adapter.Relation.create(database=project.database, schema=project.test_schema, identifier="view_1"),
-            project.adapter.Relation.create(database=project.database, schema=project.test_schema, identifier="view_3"),
+            project.adapter.Relation.create(schema=project.test_schema, identifier="view_1"),
+            project.adapter.Relation.create(schema=project.test_schema, identifier="view_3"),
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_4")
         ])
 

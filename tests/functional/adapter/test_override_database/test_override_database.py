@@ -37,10 +37,10 @@ class TestModelOverrideBigQuery(BaseOverrideDatabase):
         run_dbt(["seed"])
         assert len(run_dbt(["run"])) == 4
         check_relations_equal_with_relations(project.adapter, [
-            project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_DATABASE"), schema=project.test_schema, identifier="seed"),
+            project.adapter.Relation.create(database=project.database, schema=project.test_schema, identifier="seed"),
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_2"),
-            project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_DATABASE"), schema=project.test_schema, identifier="view_1"),
-            project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_DATABASE"), schema=project.test_schema, identifier="view_3"),
+            project.adapter.Relation.create(database=project.database, schema=project.test_schema, identifier="view_1"),
+            project.adapter.Relation.create(database=project.database, schema=project.test_schema, identifier="view_3"),
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_4")
         ])
 
@@ -58,10 +58,10 @@ class BaseTestProjectModelOverrideBigQuery(BaseOverrideDatabase):
 
     def assertExpectedRelations(self, project):
         check_relations_equal_with_relations(project.adapter, [
-            project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_DATABASE"), schema=project.test_schema, identifier="seed"),
+            project.adapter.Relation.create(database=project.database, schema=project.test_schema, identifier="seed"),
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_2"),
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_1"),
-            project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_DATABASE"), schema=project.test_schema, identifier="view_3"),
+            project.adapter.Relation.create(database=project.database, schema=project.test_schema, identifier="view_3"),
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_4")
         ])
 
@@ -78,7 +78,7 @@ class TestProjectModelOverrideBigQuery(BaseTestProjectModelOverrideBigQuery):
                 "database": os.getenv("BIGQUERY_TEST_ALT_DATABASE"),
                 "test": {
                     "subfolder": {
-                        "database": os.getenv("BIGQUERY_TEST_DATABASE")
+                        "database": "{{ target.database }}"
                     }
                 }
             },
@@ -110,7 +110,7 @@ class TestProjectModelAliasOverrideBigQuery(BaseTestProjectModelOverrideBigQuery
                 "project": os.getenv("BIGQUERY_TEST_ALT_DATABASE"),
                 "test": {
                     "subfolder": {
-                        "project": os.getenv("BIGQUERY_TEST_DATABASE"),
+                        "project": "{{ target.database }}"
                     }
                 }
             },
@@ -149,8 +149,8 @@ class TestProjectSeedOverrideBigQuery(BaseOverrideDatabase):
         check_relations_equal_with_relations(project.adapter, [
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="seed"),
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_2"),
-            project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_DATABASE"), schema=project.test_schema, identifier="view_1"),
-            project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_DATABASE"), schema=project.test_schema, identifier="view_3"),
+            project.adapter.Relation.create(database=project.database, schema=project.test_schema, identifier="view_1"),
+            project.adapter.Relation.create(database=project.database, schema=project.test_schema, identifier="view_3"),
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_4")
         ])
 

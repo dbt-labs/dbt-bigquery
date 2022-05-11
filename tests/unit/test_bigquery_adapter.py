@@ -353,13 +353,13 @@ class TestConnectionNamePassthrough(BaseTestBigQueryAdapter):
 #        relation = BigQueryRelation.create(database='db', schema='schema')
 #        self.adapter.create_schema(relation)
 #        self.mock_connection_manager.create_dataset.assert_called_once_with('db', 'schema')
-#
-#    @patch.object(BigQueryAdapter, 'check_schema_exists')
-#    def test_drop_schema(self, mock_check_schema):
-#        mock_check_schema.return_value = True
-#        relation = BigQueryRelation.create(database='db', schema='schema')
-#        self.adapter.drop_schema(relation)
-#        self.mock_connection_manager.drop_dataset.assert_called_once_with('db', 'schema')
+
+    @patch.object(BigQueryAdapter, 'check_schema_exists')
+    def test_drop_schema(self, mock_check_schema):
+        mock_check_schema.return_value = True
+        relation = BigQueryRelation.create(database='db', schema='schema')
+        self.adapter.drop_schema(relation)
+        self.mock_connection_manager.drop_dataset.assert_called_once_with('db', 'schema')
 
     def test_get_columns_in_relation(self):
         self.mock_connection_manager.get_bq_table.side_effect = ValueError

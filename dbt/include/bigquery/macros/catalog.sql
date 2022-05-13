@@ -35,6 +35,14 @@
         )
     ),
 
+    table_options as (
+        select
+            concat(table_catalog, '.', table_schema, '.', table_name) as relation_id,
+            JSON_VALUE(option_value) as table_comment
+
+        from {{ information_schema.replace(information_schema_view='TABLE_OPTIONS') }}
+        where option_name = 'description'
+    ),
     extracted as (
 
         select *,
@@ -146,6 +154,7 @@
             else unsharded_tables.table_name
         end as table_name,
         unsharded_tables.table_type,
+        table_options.table_comment,
 
         -- coalesce name and type for External tables - these columns are not
         -- present in the COLUMN_FIELD_PATHS resultset
@@ -198,6 +207,7 @@
     -- sure that column metadata is picked up through the join. This will only
     -- return the column information for the "max" table in a date-sharded table set
     from unsharded_tables
+    left join table_options using (relation_id)
     left join columns using (relation_id)
     left join column_stats using (relation_id)
   {%- endset -%}

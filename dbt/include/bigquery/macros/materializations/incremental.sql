@@ -29,8 +29,15 @@
   {#-- if partitioned, use BQ scripting to get the range of partition values to be updated --#}
   {% if strategy == 'insert_overwrite' %}
 
-    {% set build_sql = bq_generate_incremental_insert_overwrite_build_sql(
-        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, on_schema_change
+    {% set missing_partition_msg -%}
+      The 'insert_overwrite' strategy requires the `partition_by` config.
+    {%- endset %}
+    {% if partition_by is none %}
+      {% do exceptions.raise_compiler_error(missing_partition_msg) %}
+    {% endif %}
+
+    {% set build_sql = bq_insert_overwrite(
+        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists
     ) %}
 
   {% else %} {# strategy == 'merge' #}

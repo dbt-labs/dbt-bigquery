@@ -380,8 +380,11 @@ class BigQueryConnectionManager(BaseConnectionManager):
         client = conn.handle
 
         fire_event(SQLQuery(conn_name=conn.name, sql=sql))
-
-        if self.profile.query_comment and self.profile.query_comment.job_label:
+        if (
+            hasattr(self.profile, "query_comment")
+            and self.profile.query_comment
+            and self.profile.query_comment.job_label
+        ):
             query_comment = self.query_header.comment.query_comment
             labels = self._labels_from_query_comment(query_comment)
         else:
@@ -475,7 +478,10 @@ class BigQueryConnectionManager(BaseConnectionManager):
             message = f"{code} ({num_rows_formated} rows, {processed_bytes} processed)"
 
         response = BigQueryAdapterResponse(  # type: ignore[call-arg]
-            _message=message, rows_affected=num_rows, code=code, bytes_processed=bytes_processed
+            _message=message,
+            rows_affected=num_rows,
+            code=code,
+            bytes_processed=bytes_processed,
         )
 
         return response, table
@@ -530,7 +536,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         self._retry_and_handle(
             msg='copy table "{}" to "{}"'.format(
-                ", ".join(source_ref.path for source_ref in source_ref_array), destination_ref.path
+                ", ".join(source_ref.path for source_ref in source_ref_array),
+                destination_ref.path,
             ),
             conn=conn,
             fn=copy_and_results,
@@ -548,6 +555,9 @@ class BigQueryConnectionManager(BaseConnectionManager):
     def get_bq_table(self, database, schema, identifier):
         """Get a bigquery table for a schema/model."""
         conn = self.get_thread_connection()
+        # backwards compatibility: fill in with defaults if not specified
+        database = database or conn.credentials.database
+        schema = schema or conn.credentials.schema
         table_ref = self.table_ref(database, schema, identifier)
         return conn.handle.get_table(table_ref)
 
@@ -572,7 +582,12 @@ class BigQueryConnectionManager(BaseConnectionManager):
         self._retry_and_handle(msg="create dataset", conn=conn, fn=fn)
 
     def _query_and_results(
-        self, client, sql, job_params, job_creation_timeout=None, job_execution_timeout=None
+        self,
+        client,
+        sql,
+        job_params,
+        job_creation_timeout=None,
+        job_execution_timeout=None,
     ):
         """Query the client and wait for results."""
         # Cannot reuse job_config if destination is set and ddl is used

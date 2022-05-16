@@ -12,7 +12,10 @@ import google.auth.exceptions
 import google.cloud.bigquery
 import google.cloud.exceptions
 from google.api_core import retry, client_info
-from google.auth import impersonated_credentials, aws as GoogleAuthAWS
+from google.auth import (
+    impersonated_credentials,
+    aws as GoogleAuthAWS
+) 
 from google.oauth2 import (
     credentials as GoogleCredentials,
     service_account as GoogleServiceAccountCredentials,
@@ -268,6 +271,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
     def get_bigquery_credentials(cls, profile_credentials):
         method = profile_credentials.method
         creds = GoogleServiceAccountCredentials.Credentials
+        
 
         if method == BigQueryConnectionMethod.OAUTH:
             credentials, _ = get_bigquery_defaults(scopes=profile_credentials.scopes)
@@ -290,6 +294,11 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 token_uri=profile_credentials.token_uri,
                 scopes=profile_credentials.scopes,
             )
+        
+        elif method == BigQueryConnectionMethod.AWS_FILE:
+            aws_creds = GoogleAuthAWS.Credentials
+            details = profile_credentials.keyfile
+            return aws_creds.from_file(details, scopes=profile_credentials.scopes)
 
         elif method == BigQueryConnectionMethod.AWS_FILE:
             aws_creds = GoogleAuthAWS.Credentials

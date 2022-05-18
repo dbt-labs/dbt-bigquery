@@ -33,18 +33,22 @@ models:
       - get_cols_in
 """
 
-class TestIncompleteRelation:
+class TestIncompleteRelationSetup:
     @pytest.fixture(scope="class")
     def properties(self):
-        return {"properties_model_yml.yml": properties__model_yml}
+        return {"properties__model_yml.yml": properties__model_yml}
 
     @pytest.fixture(scope="class")
-    def tests(self):
-        return {"tests__get_col_in.sql": tests__get_cols_in_sql}
+    def macros(self):
+        return {"get_col_in.sql": tests__get_cols_in_sql}
 
     @pytest.fixture(scope="class")
     def models(self):
-        return { "models__my_model.sql": models__my_model }
+        return { "my_model.sql": models__my_model }
 
-    def test_incomplete_relation(self, project):
-        run_dbt(["run"])
+
+class TestIncompleteRelation(TestIncompleteRelationSetup):
+
+  def test_incomplete_relation(self, project):
+     run_dbt(["build"])
+

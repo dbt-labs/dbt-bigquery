@@ -1,4 +1,9 @@
-## dbt-bigquery 1.1.0 (Release TBD)
+## dbt-bigquery 1.2.0 (Release TBD)
+- Adding Python 3.10 testing and enabling mypy ([#177](https://github.com/dbt-labs/dbt-bigquery/pull/177))
+
+## dbt-bigquery 1.1.0 (April 28, 2022)
+
+## dbt-bigquery 1.1.0rc2 (April 20, 2022)
 
 ### Fixes
 - Restore default behavior for query timeout. Set default `job_execution_timeout` to `None` by default. Keep 300 seconds as query timeout where previously used.

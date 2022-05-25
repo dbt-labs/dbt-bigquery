@@ -22,6 +22,7 @@ import google.cloud.exceptions
 import google.cloud.bigquery
 
 from google.cloud.bigquery import AccessEntry, SchemaField
+from google.cloud.bigquery.encryption_configuration import EncryptionConfiguration
 
 import time
 import agate
@@ -610,16 +611,19 @@ class BigQueryAdapter(BaseAdapter):
         client.update_table(new_table, ["schema"])
 
     @available.parse_none
-    def load_dataframe(self, database, schema, table_name, agate_table, column_override):
+    def load_dataframe(self, database, schema, table_name, agate_table, column_override, kms_key_name):
         bq_schema = self._agate_to_schema(agate_table, column_override)
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
         table_ref = self.connections.table_ref(database, schema, table_name)
 
+        destination_encryption_configuration = EncryptionConfiguration(kms_key_name=kms_key_name)
+
         load_config = google.cloud.bigquery.LoadJobConfig()
         load_config.skip_leading_rows = 1
         load_config.schema = bq_schema
+        load_config.destination_encryption_configuration = destination_encryption_configuration
 
         with open(agate_table.original_abspath, "rb") as f:
             job = client.load_table_from_file(f, table_ref, rewind=True, job_config=load_config)

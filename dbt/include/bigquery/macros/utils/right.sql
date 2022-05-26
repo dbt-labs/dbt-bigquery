@@ -1,8 +1,8 @@
 {% macro bigquery__right(string_text, length_expression) %}
 
-    case when {{ length_expression }} = 0 
+    case when {{ length_expression }} = 0
         then ''
-    else 
+    else
         substr(
             {{ string_text }},
             -1 * ({{ length_expression }})

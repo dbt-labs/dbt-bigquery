@@ -10,7 +10,7 @@
         {{ string_text }},
         {{ delimiter_text }}
         )[safe_offset(
-          length({{ string_text }}) 
+          length({{ string_text }})
           - length(
               replace({{ string_text }},  {{ delimiter_text }}, '')
           ) + 1

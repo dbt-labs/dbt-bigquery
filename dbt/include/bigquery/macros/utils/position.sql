@@ -3,7 +3,7 @@
     strpos(
         {{ string_text }},
         {{ substring_text }}
-        
+
     )
-    
+
 {%- endmacro -%}

@@ -86,6 +86,7 @@ class BigQueryConnectionMethod(StrEnum):
 @dataclass
 class BigQueryAdapterResponse(AdapterResponse):
     bytes_processed: Optional[int] = None
+    slot_millis: Optional[int] = None
 
 
 @dataclass
@@ -449,12 +450,14 @@ class BigQueryConnectionManager(BaseConnectionManager):
             num_rows = query_table.num_rows
             num_rows_formated = self.format_rows_number(num_rows)
             bytes_processed = query_job.total_bytes_processed
+            slot_millis = query_job.slot_millis
             processed_bytes = self.format_bytes(bytes_processed)
             message = f"{code} ({num_rows_formated} rows, {processed_bytes} processed)"
 
         elif query_job.statement_type == "SCRIPT":
             code = "SCRIPT"
             bytes_processed = query_job.total_bytes_processed
+            slot_millis = query_job.slot_millis
             message = f"{code} ({self.format_bytes(bytes_processed)} processed)"
 
         elif query_job.statement_type in ["INSERT", "DELETE", "MERGE", "UPDATE"]:
@@ -462,6 +465,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             num_rows = query_job.num_dml_affected_rows
             num_rows_formated = self.format_rows_number(num_rows)
             bytes_processed = query_job.total_bytes_processed
+            slot_millis = query_job.slot_millis
             processed_bytes = self.format_bytes(bytes_processed)
             message = f"{code} ({num_rows_formated} rows, {processed_bytes} processed)"
 
@@ -474,6 +478,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             num_rows = query_table.num_rows
             num_rows_formated = self.format_rows_number(num_rows)
             bytes_processed = query_job.total_bytes_processed
+            slot_millis = query_job.slot_millis
             processed_bytes = self.format_bytes(bytes_processed)
             message = f"{code} ({num_rows_formated} rows, {processed_bytes} processed)"
 
@@ -482,6 +487,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             rows_affected=num_rows,
             code=code,
             bytes_processed=bytes_processed,
+            slot_millis=slot_millis,
         )
 
         return response, table

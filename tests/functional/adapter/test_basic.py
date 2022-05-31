@@ -13,6 +13,9 @@ from dbt.tests.adapter.basic.test_snapshot_check_cols import BaseSnapshotCheckCo
 from dbt.tests.adapter.basic.test_snapshot_timestamp import BaseSnapshotTimestamp
 from dbt.tests.adapter.basic.test_adapter_methods import BaseAdapterMethod
 from dbt.tests.adapter.basic.test_validate_connection import BaseValidateConnection
+from dbt.tests.adapter.basic.test_docs_generate import BaseDocsGenerate
+from dbt.tests.adapter.basic.expected_catalog import base_expected_catalog
+from tests.functional.adapter.expected_stats import bigquery_stats
 
 
 class TestSimpleMaterializationsBigQuery(BaseSimpleMaterializations):
@@ -53,8 +56,26 @@ class TestSnapshotCheckColsBigQuery(BaseSnapshotCheckCols):
 class TestSnapshotTimestampBigQuery(BaseSnapshotTimestamp):
     pass
 
+
 class TestBaseAdapterMethodBigQuery(BaseAdapterMethod):
     pass
 
+
 class TestBigQueryValidateConnection(BaseValidateConnection):
     pass
+
+
+class TestDocsGenerateBigQuery(BaseDocsGenerate):
+    @pytest.fixture(scope="class")
+    def expected_catalog(self, project):
+        return base_expected_catalog(
+            project,
+            role=None,
+            id_type="INT64",
+            text_type="STRING",
+            time_type="DATETIME",
+            view_type="view",
+            table_type="table",
+            model_stats=bigquery_stats(False),
+            seed_stats=bigquery_stats(True),
+        )

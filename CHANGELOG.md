@@ -1,6 +1,6 @@
 ## dbt-bigquery 1.2.0 (Release TBD)
 - Adding Python 3.10 testing and enabling mypy ([#177](https://github.com/dbt-labs/dbt-bigquery/pull/177))
-- Adding `slot_millis` to `BigQueryAdapterResponse` ([#195](https://github.com/dbt-labs/dbt-bigquery/pull/195))
+- Adding `slot_ms` to `BigQueryAdapterResponse` ([#195](https://github.com/dbt-labs/dbt-bigquery/pull/195))
 
 ### Contributors
 - [@yu-iskw](https://github.com/yu-iskw)([#195](https://github.com/dbt-labs/dbt-bigquery/pull/195))

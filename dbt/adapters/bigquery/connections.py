@@ -555,6 +555,9 @@ class BigQueryConnectionManager(BaseConnectionManager):
     def get_bq_table(self, database, schema, identifier):
         """Get a bigquery table for a schema/model."""
         conn = self.get_thread_connection()
+        # backwards compatibility: fill in with defaults if not specified
+        database = database or conn.credentials.database
+        schema = schema or conn.credentials.schema
         table_ref = self.table_ref(database, schema, identifier)
         return conn.handle.get_table(table_ref)
 

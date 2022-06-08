@@ -153,14 +153,14 @@ jobs:
 
       - name: Install python dependencies
         run: |
-          pip install --user --upgrade pip
-          pip install tox
-          pip --version
+          python -m pip install --user --upgrade pip
+          python -m pip install tox
+          python -m pip --version
           tox --version
 
       - name: Install dbt-core latest
         run: |
-          pip install "git+https://github.com/dbt-labs/dbt-core.git#egg=dbt-core&subdirectory=core"
+          python -m pip install "git+https://github.com/dbt-labs/dbt-core.git#egg=dbt-core&subdirectory=core"
 
       - name: Run tox (bigquery)
         if: matrix.adapter == 'bigquery'

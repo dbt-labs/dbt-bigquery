@@ -104,6 +104,7 @@ jobs:
       - name: Install dbt-core latest
         run: |
           python -m pip install "git+https://github.com/dbt-labs/dbt-core.git#egg=dbt-core&subdirectory=core"
+
       - name: Run tox
         run: tox
 
@@ -183,6 +184,7 @@ jobs:
           python -m pip install --user --upgrade pip
           python -m pip install --upgrade wheel
           python -m pip --version
+
       - uses: actions/download-artifact@v2
         with:
           name: dist
@@ -194,6 +196,7 @@ jobs:
       - name: Install wheel distributions
         run: |
           find ./dist/*.whl -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/
+
       - name: Check wheel distributions
         run: |
           dbt --version
@@ -201,6 +204,7 @@ jobs:
       - name: Install source distributions
         run: |
           find ./dist/*.gz -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/
+
       - name: Check source distributions
         run: |
           dbt --version

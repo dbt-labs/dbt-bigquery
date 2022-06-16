@@ -7,11 +7,7 @@ import dbt.exceptions
 import dbt.clients.agate_helper
 
 from dbt import ui  # type: ignore
-
-# dbt-bigquery is primarily a 'base' (Python) adapter
-# as BigQuery adds more SQL support, we can prefer SQL for some operations
 from dbt.adapters.base import BaseAdapter, available, RelationType, SchemaSearchMap, AdapterConfig
-from dbt.adapters.cache import _make_key
 
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery import BigQueryColumn

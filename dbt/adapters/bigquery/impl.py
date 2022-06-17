@@ -8,6 +8,7 @@ import dbt.clients.agate_helper
 
 from dbt import ui  # type: ignore
 from dbt.adapters.base import BaseAdapter, available, RelationType, SchemaSearchMap, AdapterConfig
+from dbt.adapters.cache import _make_key
 
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery import BigQueryColumn

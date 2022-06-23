@@ -1,3 +1,8 @@
+## dbt-bigquery 1.1.1rc1 (June 23, 2022)
+
+### Fixes
+- Fixes regression in get_columns_in_relation when database is missing ([#180](https://github.com/dbt-labs/dbt-bigquery/issues/180), [#165](https://github.com/dbt-labs/dbt-bigquery/pull/165))
+
 ## dbt-bigquery 1.1.0 (April 28, 2022)
 
 ## dbt-bigquery 1.1.0rc2 (April 20, 2022)

@@ -9,7 +9,7 @@
 - Lift and shift cross-database macros from dbt-utils ([#192](https://github.com/dbt-labs/dbt-bigquery/pull/192)
 - Implement TestDocsGenerateBigQuery test ([#190](https://github.com/dbt-labs/dbt-bigquery/pull/190))
 - Init push for pytest conversion of override_database for bigquery ([#165](https://github.com/dbt-labs/dbt-bigquery/pull/165), [#188](https://github.com/dbt-labs/dbt-bigquery/pull/188))
-- Add oauth test target as default ([#166](https://github.com/dbt-labs/dbt-bigquery/pull/166)) 
+- Add oauth test target as default ([#166](https://github.com/dbt-labs/dbt-bigquery/pull/166))
 
 ### Contributors
 - [@robomill](https://github.com/robomill) ([#172](https://github.com/dbt-labs/dbt-bigquery/pull/172))

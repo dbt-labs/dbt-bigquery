@@ -143,7 +143,7 @@
   {%- set tmp_relation = make_temp_relation(this) %}
 
   {#-- Validate early so we don't run SQL if the strategy is invalid --#}
-  {% set strategy = dbt_bigquery_validate_get_incremental_strategy(config) -%}
+  {%- set strategy = dbt_bigquery_validate_get_incremental_strategy(config) -%}
 
   {%- set raw_partition_by = config.get('partition_by', none) -%}
   {%- set partition_by = adapter.parse_partition_by(raw_partition_by) -%}
@@ -151,6 +151,9 @@
   {%- set cluster_by = config.get('cluster_by', none) -%}
 
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
+
+   -- grab current tables grants config for comparision later on
+  {% set  grant_config = config.get('grants') %}
 
   {{ run_hooks(pre_hooks) }}
 
@@ -196,6 +199,8 @@
   {{ run_hooks(post_hooks) }}
 
   {% set target_relation = this.incorporate(type='table') %}
+
+  {% do apply_grants(target_relation, grant_config) %}
 
   {% do persist_docs(target_relation, model) %}
 

@@ -213,14 +213,14 @@ class BigQueryConnectionManager(BaseConnectionManager):
             raise RuntimeException(message)
 
         except Exception as e:
+            exc_message = str(e)
             logger.debug("Unhandled error while running:\n{}".format(sql))
-            logger.debug(e)
+            logger.debug(exc_message)
             if isinstance(e, RuntimeException):
                 # during a sql query, an internal to dbt exception was raised.
                 # this sounds a lot like a signal handler and probably has
                 # useful information, so raise it without modification.
                 raise
-            exc_message = str(e)
             # the google bigquery library likes to add the query log, which we
             # don't want to log. Hopefully they never change this!
             if BQ_QUERY_JOB_SPLIT in exc_message:

@@ -21,11 +21,19 @@ import google.oauth2
 import google.cloud.exceptions
 import google.cloud.bigquery
 
+try:
+    # Library only needed for python models
+    from google.cloud import dataproc_v1
+    from google.cloud import storage
+except:
+    pass
+
 from google.cloud.bigquery import AccessEntry, SchemaField
 
 import time
 import agate
 import json
+import re
 
 logger = AdapterLogger("BigQuery")
 
@@ -803,3 +811,75 @@ class BigQueryAdapter(BaseAdapter):
             return res[0]
         else:
             return list(res)
+    
+    @available.parse_none
+    def submit_python_job(self, schema: str, identifier: str, file_content: str):
+        # TODO improve the typing here.  N.B. Jinja returns a `jinja2.runtime.Undefined` instead 
+        # of `None` which evaluates to True!
+
+        # TODO limit this function to run only when doing the materialization of python nodes
+        # TODO should we also to timeout here?
+
+        # validate all additional stuff for python is set
+        python_required_configs = [
+            "dataproc_region",
+            "dataproc_cluster_name",
+            "gcs_bucket",
+        ]
+        for required_config in python_required_configs:
+            if not getattr(self.connections.profile.credentials, required_config):
+                raise ValueError(f"Need to supply {required_config} in profile to submit python job")
+
+        dataproc = DataProcHelper(self.connections.profile.credentials)
+        model_file_name = f"{schema}/{identifier}.py"
+        #upload python file to GCS
+        dataproc.upload_to_gcs(
+            model_file_name,
+            file_content
+        )
+        # submit dataproc job
+        dataproc.submit_dataproc_job(model_file_name)
+
+        # TODO proper result for this
+        return 'OK'
+
+class DataProcHelper:
+    def __init__(self, credential):
+        """_summary_
+
+        Args:
+            credential (_type_): _description_
+        """
+        self.credential = credential
+    
+    def upload_to_gcs(self, filename: str, file_content:str):
+        client = storage.Client(project=self.credential.database)
+        bucket = client.get_bucket(self.credential.gcs_bucket)
+        blob = bucket.blob(filename)
+        blob.upload_from_string(file_content)
+
+    def submit_dataproc_job(self, filename: str):
+        job_client = dataproc_v1.JobControllerClient(
+            client_options={"api_endpoint": "{}-dataproc.googleapis.com:443".format(self.credential.dataproc_region)}
+        )
+        # Create the job config.
+        job = {
+            "placement": {"cluster_name": self.credential.dataproc_cluster_name},
+            "pyspark_job": {"main_python_file_uri": "gs://{}/{}".format(self.credential.gcs_bucket, filename)},
+        }
+        operation = job_client.submit_job_as_operation(
+            request={"project_id": self.credential.database, "region": self.credential.dataproc_region, "job": job}
+        )
+        response = operation.result()
+        # Dataproc job output is saved to the Cloud Storage bucket
+        # allocated to the job. Use regex to obtain the bucket and blob info.
+        matches = re.match("gs://(.*?)/(.*)", response.driver_output_resource_uri)
+        output = (
+            storage.Client()
+            .get_bucket(matches.group(1))
+            .blob(f"{matches.group(2)}.000000000")
+            .download_as_string()
+        )
+
+        # TODO return failure
+    

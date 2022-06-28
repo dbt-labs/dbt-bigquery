@@ -116,6 +116,10 @@ class BigQueryCredentials(Credentials):
     client_secret: Optional[str] = None
     token_uri: Optional[str] = None
 
+    dataproc_region: Optional[str] = None
+    dataproc_cluster_name: Optional[str] = None
+    gcs_bucket: Optional[str] = None
+
     scopes: Optional[Tuple[str, ...]] = (
         "https://www.googleapis.com/auth/bigquery",
         "https://www.googleapis.com/auth/cloud-platform",

@@ -1,5 +1,6 @@
 {% materialization table, adapter='bigquery' -%}
-
+  
+  {%- set language = config.get('language') -%}
   {%- set identifier = model['alias'] -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
   {%- set exists_not_as_table = (old_relation is not none and not old_relation.is_table) -%}
@@ -24,9 +25,11 @@
     {% do log("Hard refreshing " ~ old_relation ~ " because it is not replaceable") %}
     {% do adapter.drop_relation(old_relation) %}
   {% endif %}
-  {% call statement('main') -%}
-    {{ create_table_as(False, target_relation, sql) }}
-  {% endcall -%}
+
+  -- build model
+  {%- call statement('main', language=language) -%}
+    {{ create_table_as(False, target_relation, compiled_code, language) }}
+  {%- endcall -%}
 
   {{ run_hooks(post_hooks) }}
 
@@ -35,3 +38,29 @@
   {{ return({'relations': [target_relation]}) }}
 
 {% endmaterialization %}
+
+-- TODO dataproc requires a temp bucket to perform BQ write
+-- this is hard coded to internal testing ATM. need to adjust to render
+-- or find another way around
+{% macro py_complete_script(python_code, target_relation) %}
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder.appName('smallTest').getOrCreate()
+
+spark.conf.set("viewsEnabled","true")
+spark.conf.set("temporaryGcsBucket","python-model-test")
+
+{{ python_code }}
+dbt = dbtObj(spark.read.format("bigquery").load)
+df = model(dbt)
+
+# COMMAND ----------
+# this is materialization code dbt generated, please do not modify
+
+
+df.write \
+  .mode("overwrite") \
+  .format("bigquery") \
+  .option("writeMethod", "direct") \
+  .save("{{target_relation}}")
+{% endmacro %}

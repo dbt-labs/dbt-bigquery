@@ -215,8 +215,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
         except Exception as e:
             exc_message = str(e)
             logger.debug("Unhandled error while running:\n{}".format(sql))
-            logger.debug(exc_message)
             if isinstance(e, RuntimeException):
+                logger.debug(exc_message)
                 # during a sql query, an internal to dbt exception was raised.
                 # this sounds a lot like a signal handler and probably has
                 # useful information, so raise it without modification.
@@ -225,6 +225,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             # don't want to log. Hopefully they never change this!
             if BQ_QUERY_JOB_SPLIT in exc_message:
                 exc_message = exc_message.split(BQ_QUERY_JOB_SPLIT)[0].strip()
+            logger.debug(exc_message)
             raise RuntimeException(exc_message)
 
     def cancel_open(self) -> None:

@@ -42,7 +42,7 @@
 -- TODO dataproc requires a temp bucket to perform BQ write
 -- this is hard coded to internal testing ATM. need to adjust to render
 -- or find another way around
-{% macro py_complete_script(python_code, target_relation) %}
+{% macro py_complete_script(compiled_code, target_relation) %}
 from pyspark.sql import SparkSession
 
 spark = SparkSession.builder.appName('smallTest').getOrCreate()
@@ -50,7 +50,7 @@ spark = SparkSession.builder.appName('smallTest').getOrCreate()
 spark.conf.set("viewsEnabled","true")
 spark.conf.set("temporaryGcsBucket","python-model-test")
 
-{{ python_code }}
+{{ compiled_code }}
 dbt = dbtObj(spark.read.format("bigquery").load)
 df = model(dbt)
 

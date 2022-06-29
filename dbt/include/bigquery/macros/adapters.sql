@@ -41,7 +41,7 @@
   {%- do return(bigquery_options(opts)) -%}
 {%- endmacro -%}
 
-{% macro bigquery__create_table_as(temporary, relation, model_code, language='sql') -%}
+{% macro bigquery__create_table_as(temporary, relation, compiled_code, language='sql') -%}
   {%- if language == 'sql' -%}
     {%- set raw_partition_by = config.get('partition_by', none) -%}
     {%- set raw_cluster_by = config.get('cluster_by', none) -%}
@@ -56,7 +56,7 @@
     {{ cluster_by(raw_cluster_by) }}
     {{ bigquery_table_options(config, model, temporary) }}
     as (
-      {{ model_code }}
+      {{ compiled_code }}
     );
   {%- elif language == 'python' -%}
     {#-- 
@@ -66,7 +66,7 @@
     TODO: Deep dive into spark sessions to see if we can reuse a single session for an entire 
     dbt invocation.
      --#}
-    {{ py_complete_script(python_code=model_code, target_relation=relation.quote(database=False, schema=False, identifier=False)) }}
+    {{ py_complete_script(compiled_code=compiled_code, target_relation=relation.quote(database=False, schema=False, identifier=False)) }}
   {%- endif -%}
 
 {%- endmacro -%}

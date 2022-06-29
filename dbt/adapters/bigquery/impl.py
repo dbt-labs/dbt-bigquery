@@ -813,7 +813,7 @@ class BigQueryAdapter(BaseAdapter):
             return list(res)
     
     @available.parse_none
-    def submit_python_job(self, schema: str, identifier: str, file_content: str):
+    def submit_python_job(self, parsed_model:dict, compiled_code: str):
         # TODO improve the typing here.  N.B. Jinja returns a `jinja2.runtime.Undefined` instead 
         # of `None` which evaluates to True!
 
@@ -821,6 +821,8 @@ class BigQueryAdapter(BaseAdapter):
         # TODO should we also to timeout here?
 
         # validate all additional stuff for python is set
+        schema = getattr(parsed_model, "schema", self.config.credentials.schema)
+        identifier = parsed_model['alias']
         python_required_configs = [
             "dataproc_region",
             "dataproc_cluster_name",
@@ -835,7 +837,7 @@ class BigQueryAdapter(BaseAdapter):
         #upload python file to GCS
         dataproc.upload_to_gcs(
             model_file_name,
-            file_content
+            compiled_code
         )
         # submit dataproc job
         dataproc.submit_dataproc_job(model_file_name)
@@ -852,11 +854,11 @@ class DataProcHelper:
         """
         self.credential = credential
     
-    def upload_to_gcs(self, filename: str, file_content:str):
+    def upload_to_gcs(self, filename: str, compiled_code:str):
         client = storage.Client(project=self.credential.database)
         bucket = client.get_bucket(self.credential.gcs_bucket)
         blob = bucket.blob(filename)
-        blob.upload_from_string(file_content)
+        blob.upload_from_string(compiled_code)
 
     def submit_dataproc_job(self, filename: str):
         job_client = dataproc_v1.JobControllerClient(

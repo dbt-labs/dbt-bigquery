@@ -1,3 +1,5 @@
+## dbt-bigquery 1.1.1 (July 5, 2022)
+
 ## dbt-bigquery 1.1.1rc1 (June 23, 2022)
 
 ### Fixes

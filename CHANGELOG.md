@@ -1,5 +1,19 @@
-## dbt-bigquery 1.2.0 (Release TBD)
+## dbt-bigquery 1.2.0b1 (June 24, 2022)
+
+### Fixes
+- Incorrect parameter is passed to the bq_insert_overwrite macro call ([#172](https://github.com/dbt-labs/dbt-bigquery/pull/172))
+- Fix validate connection failing ([#168](https://github.com/dbt-labs/dbt-bigquery/pull/168))
+
+### Under the hood
 - Adding Python 3.10 testing and enabling mypy ([#177](https://github.com/dbt-labs/dbt-bigquery/pull/177))
+- Lift and shift cross-database macros from dbt-utils ([#192](https://github.com/dbt-labs/dbt-bigquery/pull/192)
+- Implement TestDocsGenerateBigQuery test ([#190](https://github.com/dbt-labs/dbt-bigquery/pull/190))
+- Init push for pytest conversion of override_database for bigquery ([#165](https://github.com/dbt-labs/dbt-bigquery/pull/165), [#188](https://github.com/dbt-labs/dbt-bigquery/pull/188))
+- Add oauth test target as default ([#166](https://github.com/dbt-labs/dbt-bigquery/pull/166))
+
+### Contributors
+- [@robomill](https://github.com/robomill) ([#172](https://github.com/dbt-labs/dbt-bigquery/pull/172))
+- [@dbeatty10](https://github.com/dbeatty10) ([#192](https://github.com/dbt-labs/dbt-bigquery/pull/192)
 
 ## dbt-bigquery 1.1.0 (April 28, 2022)
 

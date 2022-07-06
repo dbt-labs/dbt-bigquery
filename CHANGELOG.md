@@ -1,3 +1,8 @@
+## dbt-bigquery 1.2.0rc1 (Release TBD)
+
+### Under the hood
+- Modify `BigQueryColumn.numeric_type` to always exclude precision + scale, since the functionality of ["parametrized data types on BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#parameterized_data_types) is highly constrained ([#214](https://github.com/dbt-labs/dbt-bigquery/pull/214))
+
 ## dbt-bigquery 1.2.0b1 (June 24, 2022)
 
 ### Fixes

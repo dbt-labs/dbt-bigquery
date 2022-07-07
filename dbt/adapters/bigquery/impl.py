@@ -274,7 +274,7 @@ class BigQueryAdapter(BaseAdapter):
         :return: A standardized dictionary matching the `grants` config
         :rtype: dict
         """
-        grants_dict = {}
+        grants_dict: Dict[str, List] = {}
         for row in grants_table:
             grantee = row["grantee"]
             privilege = row["privilege_type"]

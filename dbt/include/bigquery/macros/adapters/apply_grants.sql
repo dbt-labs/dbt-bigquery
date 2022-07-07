@@ -4,7 +4,7 @@
     {% endif %}
 
     select privilege_type, grantee from {{ relation.project }}.`region-{{ target.location }}`.INFORMATION_SCHEMA.OBJECT_PRIVILEGES
-    where object_schema = "{{ relation.dataset }}" and object_name = "{{ relation.identifier }}" and grantee != "user:"||session_user()
+    where object_schema = "{{ relation.dataset }}" and object_name = "{{ relation.identifier }}" and split(grantee, ':')[offset(1)] != current_user()
 {% endmacro %}
 
 

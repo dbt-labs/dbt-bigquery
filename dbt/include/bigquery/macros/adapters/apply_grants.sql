@@ -1,15 +1,17 @@
 {% macro  bigquery__get_show_grant_sql(relation) %}
-    select * from {{ relation.project }}.`region-{{ target.location }}`.INFORMATION_SCHEMA.OBJECT_PRIVILEGES
+    select privilege_type, grantee from {{ relation.project }}.`region-{{ target.location }}`.INFORMATION_SCHEMA.OBJECT_PRIVILEGES
     where object_schema = "{{ relation.dataset }}" and object_name = "{{ relation.identifier }}"
 {% endmacro %}
 
 
 {%- macro bigquery__get_grant_sql(relation, grant_config) -%}
+{# TODO: remove these when quotes are added to default macro #}
+
     {%- for privilege in grant_config.keys() -%}
         {%- set grantees = grant_config[privilege] -%}
         {%- if grantees -%}
             {%- for grantee in grantees -%}
-                grant {{ privilege }} on {{ relation.type }} {{ relation }} to {{ grantee}};
+                grant {{ privilege }} on {{ relation.type }} {{ relation }} to "{{ grantee}}";
             {%- endfor -%}
         {%- endif -%}
     {%- endfor -%}
@@ -17,6 +19,8 @@
 
 
 {% macro bigquery__get_revoke_sql(relation, grant_config) %}
+{# TODO: remove these when quotes are added to default macro #}
+
     {%- for privilege in grant_config.keys() -%}
         {%- set grantees = [] -%}
         {%- set all_grantees = grant_config[privilege] -%}
@@ -27,7 +31,7 @@
         {% endfor -%}
         {%- if grantees -%}
             {%- for grantee in grantees -%}
-                revoke `{{ privilege }}` on {{ relation.type }} {{ relation.dataset }}.{{ relation.identifier }} from "{{ grantee }}";
+                revoke `{{ privilege }}` on {{ relation.type }} {{ relation }}  from "{{ grantee }}";
             {% endfor -%}
         {%- endif -%}
     {%- endfor -%}
@@ -35,9 +39,10 @@
 
 
 {% macro bigquery__apply_grants(relation, grant_config, should_revoke=True) %}
+
     {% if grant_config %}
             {% if should_revoke %}
-            {#-- This check is the only reason BQ needs its own copy of apply_grants --#}
+            {# This check is the only reason BQ needs its own copy of apply_grants - is there a better way? #}
                 {% if not target.location %}
                     {{ exceptions.raise_compiler_error("In order to use the grants feature, you must specify a location ") }}
                 {% endif %}

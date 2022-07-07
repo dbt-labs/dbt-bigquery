@@ -22,17 +22,8 @@
 
 {% macro bigquery__get_revoke_sql(relation, grant_config) %}
     {%- for privilege in grant_config.keys() -%}
-        {%- set grantees = [] -%}
-        {%- set all_grantees = grant_config[privilege] -%}
-        {%- for grantee in all_grantees -%}
-            {%- if grantee != target.user -%}
-                {% do grantees.append(grantee) %}
-            {%- endif -%}
-        {%- endfor -%}
-        {%- if grantees -%}
-            {%- for grantee in grantees -%}
-                revoke `{{ privilege }}` on {{ relation.type }} {{ relation }}  from "{{ grantee }}";
-            {% endfor -%}
-        {%- endif -%}
+        {%- for grantee in grant_config[privilege] -%}
+            revoke `{{ privilege }}` on {{ relation.type }} {{ relation }}  from "{{ grantee }}";
+        {% endfor -%}
     {%- endfor -%}
 {%- endmacro -%}

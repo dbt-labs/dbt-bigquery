@@ -10,17 +10,19 @@
 
 {%- macro bigquery__get_grant_sql(relation, grant_config) -%}
     {%- for privilege in grant_config.keys() -%}
-        {%- for grantee in grant_config[privilege] -%}
-            grant `{{ privilege }}` on {{ relation.type }} {{ relation }} to "{{ grantee }}";
-        {% endfor -%}
+        {%- set grantees = grant_config[privilege] -%}
+        {%- if grantees -%}
+            grant `{{ privilege }}` on {{ relation.type }} {{ relation }} to {{ '\"' + grantees|join('\", \"') + '\"' }};
+        {% endif -%}
     {%- endfor -%}
 {%- endmacro %}
 
 
 {% macro bigquery__get_revoke_sql(relation, grant_config) %}
     {%- for privilege in grant_config.keys() -%}
-        {%- for grantee in grant_config[privilege] -%}
-            revoke `{{ privilege }}` on {{ relation.type }} {{ relation }} from "{{ grantee }}";
-        {% endfor -%}
+        {%- set grantees = grant_config[privilege] -%}
+        {%- if grantees -%}
+            revoke `{{ privilege }}` on {{ relation.type }} {{ relation }} from {{ '\"' + grantees|join('\", \"') + '\"' }};
+        {% endif -%}
     {%- endfor -%}
 {%- endmacro -%}

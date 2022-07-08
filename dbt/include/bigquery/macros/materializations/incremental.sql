@@ -153,7 +153,7 @@
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
 
    -- grab current tables grants config for comparision later on
-  {% set  grant_config = config.get('grants') %}
+  {% set grant_config = config.get('grants') %}
 
   {{ run_hooks(pre_hooks) }}
 

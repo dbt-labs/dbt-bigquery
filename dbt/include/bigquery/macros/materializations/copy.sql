@@ -1,9 +1,6 @@
 {% materialization copy, adapter='bigquery' -%}
 
   {# Setup #}
-    -- grab current tables grants config for comparision later on
-  {# TODO: this is a guess I need to circle back to - does the BQ copy API also copy grants automatically?  If yes it seems like we would want to option to overwrite them if needed? #}
-  {%- set  grant_config = config.get('grants') -%}
   {{ run_hooks(pre_hooks) }}
 
   {% set destination = this.incorporate(type='table') %}

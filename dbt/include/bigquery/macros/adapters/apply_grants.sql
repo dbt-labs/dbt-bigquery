@@ -39,3 +39,28 @@
     {{ return(revoke_statements) }}
 
 {%- endmacro -%}
+
+{% macro bigquery__apply_grants(relation, grant_config, should_revoke=True) %}
+    {% if grant_config %}
+        {% if should_revoke %}
+            {% set current_grants_table = run_query(get_show_grant_sql(relation)) %}
+            {% set current_grants_dict = adapter.standardize_grants_dict(current_grants_table) %}
+            {% set needs_granting = diff_of_two_dicts_no_lower(grant_config, current_grants_dict) %}
+            {% set needs_revoking = diff_of_two_dicts_no_lower(current_grants_dict, grant_config) %}
+            {% if not (needs_granting or needs_revoking) %}
+                {{ log('On ' ~ relation ~': All grants are in place, no revocation or granting needed.')}}
+            {% endif %}
+        {% else %}
+            {% set needs_revoking = {} %}
+            {% set needs_granting = grant_config %}
+        {% endif %}
+        {% if needs_granting or needs_revoking %}
+            {% set revoke_statement_list = get_revoke_sql(relation, needs_revoking) %}
+            {% set grant_statement_list = get_grant_sql(relation, needs_granting) %}
+            {% set grant_and_revoke_statement_list = revoke_statement_list + grant_statement_list %}
+            {% if grant_and_revoke_statement_list %}
+                {{ call_grant_revoke_statement_list(grant_and_revoke_statement_list) }}
+            {% endif %}
+        {% endif %}
+    {% endif %}
+{% endmacro %}

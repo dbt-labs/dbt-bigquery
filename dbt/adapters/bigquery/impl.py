@@ -261,29 +261,6 @@ class BigQueryAdapter(BaseAdapter):
             logger.debug("list_relations_without_caching error: {}".format(str(exc)))
             return []
 
-    @available
-    def standardize_grants_dict(self, grants_table: agate.Table) -> dict:
-        """Translate the result of `show grants` (or equivalent) to match the
-        grants which a user would configure in their project.
-
-        If relevant -- filter down to grants made BY the current user role,
-        and filter OUT any grants TO the current user/role (e.g. OWNERSHIP).
-
-        :param grants_table: An agate table containing the query result of
-            the SQL returned by get_show_grant_sql
-        :return: A standardized dictionary matching the `grants` config
-        :rtype: dict
-        """
-        grants_dict: Dict[str, List] = {}
-        for row in grants_table:
-            grantee = row["grantee"]
-            privilege = row["privilege_type"]
-            if privilege in grants_dict.keys():
-                grants_dict[privilege].append(grantee)
-            else:
-                grants_dict.update({privilege: [grantee]})
-        return grants_dict
-
     def get_relation(self, database: str, schema: str, identifier: str) -> BigQueryRelation:
         if self._schema_is_cached(database, schema):
             # if it's in the cache, use the parent's model of going through

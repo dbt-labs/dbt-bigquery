@@ -143,7 +143,7 @@
   {%- set tmp_relation = make_temp_relation(this) %}
 
   {#-- Validate early so we don't run SQL if the strategy is invalid --#}
-  {%- set strategy = dbt_bigquery_validate_get_incremental_strategy(config) -%}
+  {% set strategy = dbt_bigquery_validate_get_incremental_strategy(config) -%}
 
   {%- set raw_partition_by = config.get('partition_by', none) -%}
   {%- set partition_by = adapter.parse_partition_by(raw_partition_by) -%}

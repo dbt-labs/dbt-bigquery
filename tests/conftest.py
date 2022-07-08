@@ -30,6 +30,7 @@ def oauth_target():
         'method': 'oauth',
         'threads': 1,
         # project isn't needed if you configure a default, via 'gcloud config set project'
+        'location': 'US'
     }
 
 
@@ -43,4 +44,5 @@ def service_account_target():
         'threads': 1,
         'project': project_id,
         'keyfile_json': credentials,
+        'location': 'US'
     }

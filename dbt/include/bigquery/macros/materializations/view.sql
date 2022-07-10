@@ -15,7 +15,7 @@
     {% set to_return = create_or_replace_view() %}
 
     {% set target_relation = this.incorporate(type='view') %}
-    {% do apply_grants(target_relation, grant_config) %}
+
     {% do persist_docs(target_relation, model) %}
 
     {% if config.get('grant_access_to') %}

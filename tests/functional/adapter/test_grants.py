@@ -7,22 +7,15 @@ from dbt.tests.adapter.grants.test_invalid_grants import BaseInvalidGrants
 from dbt.tests.adapter.grants.test_seed_grants import BaseSeedGrants
 from dbt.tests.adapter.grants.test_snapshot_grants import BaseSnapshotGrants
 
-from dbt.context.base import BaseContext  # diff_of_two_dicts_no_lower only
-
 
 class BaseGrantsBigQuery(BaseGrants):
-    def privilege_names(self):
-        # TODO: what is insert equivalent?
-        return {"select": "roles/bigquery.dataViewer", "insert": "roles/bigquery.dataViewer", "fake_privilege": "roles/invalid"}
-
-
-    def assert_expected_grants_match_actual(self, project, relation_name, expected_grants):
-        actual_grants = self.get_grants_on_relation(project, relation_name)
-        # need a case-insensitive comparison
-        # so just a simple "assert expected == actual_grants" won't work
-        diff_a = BaseContext.diff_of_two_dicts_no_lower(actual_grants, expected_grants)
-        diff_b = BaseContext.diff_of_two_dicts_no_lower(expected_grants, actual_grants)
-        assert diff_a == diff_b == {}
+    def privilege_grantee_name_overrides(self):
+        return {
+            "select": "roles/bigquery.dataViewer",
+            "insert": "roles/bigquery.dataEditor",
+            "fake_privilege": "roles/invalid",
+            "invalid_user": "user:invalid",
+        }
 
 class TestModelGrantsBigQuery(BaseGrantsBigQuery, BaseModelGrants):
     pass
@@ -33,7 +26,10 @@ class TestIncrementalGrantsBigQuery(BaseGrantsBigQuery, BaseIncrementalGrants):
 
 
 class TestSeedGrantsBigQuery(BaseGrantsBigQuery, BaseSeedGrants):
-    pass
+    # seeds in dbt-bigquery are always "full refreshed," in such a way that
+    # the grants do not carry over
+    def seeds_support_partial_refresh(self):
+        return False
 
 
 class TestSnapshotGrantsBigQuery(BaseGrantsBigQuery, BaseSnapshotGrants):
@@ -41,4 +37,8 @@ class TestSnapshotGrantsBigQuery(BaseGrantsBigQuery, BaseSnapshotGrants):
 
 
 class TestInvalidGrantsBigQuery(BaseGrantsBigQuery, BaseInvalidGrants):
-    pass
+    def grantee_does_not_exist_error(self):
+        return "User invalid does not exist."
+
+    def privilege_does_not_exist_error(self):
+        return "Role roles/invalid is not supported for this resource."

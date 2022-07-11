@@ -14,7 +14,7 @@ class BaseGrantsBigQuery(BaseGrants):
             "select": "roles/bigquery.dataViewer",
             "insert": "roles/bigquery.dataEditor",
             "fake_privilege": "roles/invalid",
-            "invalid_user": "user:invalid",
+            "invalid_user": "user:fake@dbtlabs.com",
         }
 
 class TestModelGrantsBigQuery(BaseGrantsBigQuery, BaseModelGrants):
@@ -38,7 +38,7 @@ class TestSnapshotGrantsBigQuery(BaseGrantsBigQuery, BaseSnapshotGrants):
 
 class TestInvalidGrantsBigQuery(BaseGrantsBigQuery, BaseInvalidGrants):
     def grantee_does_not_exist_error(self):
-        return "User invalid does not exist."
+        return "User fake@dbtlabs.com does not exist."
 
     def privilege_does_not_exist_error(self):
         return "Role roles/invalid is not supported for this resource."

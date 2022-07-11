@@ -152,6 +152,9 @@
 
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
 
+   -- grab current tables grants config for comparision later on
+  {% set grant_config = config.get('grants') %}
+
   {{ run_hooks(pre_hooks) }}
 
   {% if existing_relation is none %}
@@ -196,6 +199,9 @@
   {{ run_hooks(post_hooks) }}
 
   {% set target_relation = this.incorporate(type='table') %}
+
+  {% set should_revoke = should_revoke(existing_relation, full_refresh_mode) %}
+  {% do apply_grants(target_relation, grant_config, should_revoke) %}
 
   {% do persist_docs(target_relation, model) %}
 

@@ -1,10 +1,9 @@
 {% macro bigquery__get_show_grant_sql(relation) %}
-    {% if not target.location %}
-        {{ exceptions.raise_compiler_error("In order to use the grants feature, you must specify a location ") }}
-    {% endif %}
+    {% set location = adapter.get_dataset_location(relation) %}
+    {% set relation = relation.incorporate(location=location) %}
 
     select privilege_type, grantee
-    from `{{ relation.project }}`.`region-{{ target.location }}`.INFORMATION_SCHEMA.OBJECT_PRIVILEGES
+    from {{ relation.information_schema("OBJECT_PRIVILEGES") }}
     where object_schema = "{{ relation.dataset }}"
       and object_name = "{{ relation.identifier }}"
       -- filter out current user

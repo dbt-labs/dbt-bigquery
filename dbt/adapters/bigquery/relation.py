@@ -4,6 +4,7 @@ from typing import Optional
 from itertools import chain, islice
 
 from dbt.adapters.base.relation import BaseRelation, ComponentName, InformationSchema
+from dbt.exceptions import raise_compiler_error
 from dbt.utils import filter_null_values
 from typing import TypeVar
 
@@ -86,8 +87,12 @@ class BigQueryInformationSchema(InformationSchema):
     @classmethod
     def from_relation(cls, relation, information_schema_view):
         info_schema = super().from_relation(relation, information_schema_view)
-        if information_schema_view == "OBJECT_PRIVILEGES" and relation.location:
-            # TODO: raise an exception if relation.location is missing?
+        if information_schema_view == "OBJECT_PRIVILEGES":
+            # OBJECT_PRIVILEGES require a location.  If the location is blank there is nothing
+            # the user can do about it.
+            if not relation.location:
+                msg = f'No location found when trying to retrieve "{information_schema_view}"'
+                raise raise_compiler_error(msg)
             info_schema = info_schema.incorporate(location=relation.location)
         return info_schema
 

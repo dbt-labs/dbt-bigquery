@@ -5,6 +5,9 @@
   {%- set exists_not_as_table = (old_relation is not none and not old_relation.is_table) -%}
   {%- set target_relation = api.Relation.create(database=database, schema=schema, identifier=identifier, type='table') -%}
 
+  -- grab current tables grants config for comparision later on
+  {%- set grant_config = config.get('grants') -%}
+
   {{ run_hooks(pre_hooks) }}
 
   {#
@@ -29,6 +32,9 @@
   {% endcall -%}
 
   {{ run_hooks(post_hooks) }}
+
+  {% set should_revoke = should_revoke(old_relation, full_refresh_mode=True) %}
+  {% do apply_grants(target_relation, grant_config, should_revoke) %}
 
   {% do persist_docs(target_relation, model) %}
 

@@ -776,6 +776,14 @@ class BigQueryAdapter(BaseAdapter):
         dataset.access_entries = access_entries
         client.update_dataset(dataset, ["access_entries"])
 
+    @available.parse_none
+    def get_dataset_location(self, relation):
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+        dataset_ref = self.connections.dataset_ref(relation.project, relation.dataset)
+        dataset = client.get_dataset(dataset_ref)
+        return dataset.location
+
     def get_rows_different_sql(  # type: ignore[override]
         self,
         relation_a: BigQueryRelation,

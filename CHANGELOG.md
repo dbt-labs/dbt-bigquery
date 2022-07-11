@@ -1,4 +1,7 @@
-## dbt-bigquery 1.2.0rc1 (Release TBD)
+## dbt-bigquery 1.2.0rc1 (June 11, 2022)
+
+### Features
+- Add grants to materializations ([#198](https://github.com/dbt-labs/dbt-bigquery/issues/198), [#212](https://github.com/dbt-labs/dbt-bigquery/pull/212))
 
 ### Under the hood
 - Modify `BigQueryColumn.numeric_type` to always exclude precision + scale, since the functionality of ["parametrized data types on BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#parameterized_data_types) is highly constrained ([#214](https://github.com/dbt-labs/dbt-bigquery/pull/214))

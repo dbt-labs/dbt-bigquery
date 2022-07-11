@@ -91,7 +91,7 @@ class BigQueryInformationSchema(InformationSchema):
             # OBJECT_PRIVILEGES require a location.  If the location is blank there is nothing
             # the user can do about it.
             if not relation.location:
-                msg = f'No location found when trying to retrieve "{information_schema_view}"'
+                msg = f'No location/region found when trying to retrieve "{information_schema_view}"'
                 raise raise_compiler_error(msg)
             info_schema = info_schema.incorporate(location=relation.location)
         return info_schema

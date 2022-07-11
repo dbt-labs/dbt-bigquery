@@ -21,6 +21,16 @@
 {%- endmacro -%}
 
 
+{%- macro bigquery__get_grant_sql__option_X(relation, privilege, grantee) -%}
+    grant {{ privilege }} on {{ relation }} to {{ grantees | join(', ') }}
+{%- endmacro -%}
+
+
+{%- macro bigquery__get_revoke_sql__option_X(relation, privilege, grantee) -%}
+    revoke {{ privilege }} on {{ relation }} from {{ grantees | join(', ') }}
+{%- endmacro -%}
+
+
 {%- macro bigquery__get_grant_sql__option_0(relation, privilege, grantee) -%}
     grant `{{ privilege }}` on {{ relation.type }} {{ relation }} to {{ '\"' + grantee|join('\", \"') + '\"' }}
 {%- endmacro -%}

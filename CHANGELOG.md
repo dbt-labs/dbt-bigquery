@@ -1,4 +1,7 @@
-## dbt-bigquery 1.2.0rc1 (June 11, 2022)
+## dbt-bigquery 1.3.0b1 (Release TBD)
+
+
+## dbt-bigquery 1.2.0rc1 (June 12, 2022)
 
 ### Features
 - Add grants to materializations ([#198](https://github.com/dbt-labs/dbt-bigquery/issues/198), [#212](https://github.com/dbt-labs/dbt-bigquery/pull/212))

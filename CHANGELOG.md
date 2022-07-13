@@ -1,8 +1,12 @@
-## dbt-bigquery 1.2.0rc1 (Release TBD)
+## dbt-bigquery 1.3.0b1 (Release TBD)
+
+### Features
+- Implement `create_schema` via SQL, instead of Python method, allowing users to override if desired. `drop_schema` remains a Python method for the time being. ([#182](https://github.com/dbt-labs/dbt-bigquery/issues/182), [#183](https://github.com/dbt-labs/dbt-bigquery/pull/183))
+
+## dbt-bigquery 1.2.0rc1 (June 12, 2022)
 
 ### Features
 - Add grants to materializations ([#198](https://github.com/dbt-labs/dbt-bigquery/issues/198), [#212](https://github.com/dbt-labs/dbt-bigquery/pull/212))
-- Implement `create_schema` via SQL, instead of Python method, allowing users to override if desired. `drop_schema` remains a Python method for the time being. ([#182](https://github.com/dbt-labs/dbt-bigquery/issues/182), [#183](https://github.com/dbt-labs/dbt-bigquery/pull/183))
 
 ### Under the hood
 - Modify `BigQueryColumn.numeric_type` to always exclude precision + scale, since the functionality of ["parametrized data types on BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#parameterized_data_types) is highly constrained ([#214](https://github.com/dbt-labs/dbt-bigquery/pull/214))

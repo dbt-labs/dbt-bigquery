@@ -94,3 +94,15 @@ class TestIncrementalMergeColumns(BaseTestSimpleCopy):
         })
         self.seed_and_run()
         self.assertTablesEqual("incremental_update_cols", "expected_result")
+
+    @use_profile("bigquery")
+    def test__bigquery__incremental_merge_exclude_columns(self):
+        self.use_default_project({
+            "seed-paths": ["seeds-merge-exclude-cols-initial"]
+        })
+        self.seed_and_run()
+        self.use_default_project({
+            "seed-paths": ["seeds-merge-exclude-cols-update"]
+        })
+        self.seed_and_run()
+        self.assertTablesEqual("incremental_exclude_cols", "expected_result")

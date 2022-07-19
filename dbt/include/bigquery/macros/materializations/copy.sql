@@ -16,7 +16,7 @@
     {{ source_array.append(source(*src_table)) }}
   {% endfor %}
 
-  {# Call adapter's copy_table function #}
+  {# Call adapter copy_table function #}
   {%- set result_str = adapter.copy_table(
       source_array,
       destination,
@@ -26,6 +26,7 @@
 
   {# Clean up #}
   {{ run_hooks(post_hooks) }}
+  {%- do apply_grants(target_relation, grant_config) -%}
   {{ adapter.commit() }}
 
   {{ return({'relations': [destination]}) }}

@@ -349,11 +349,6 @@ class TestConnectionNamePassthrough(BaseTestBigQueryAdapter):
         self.adapter.get_relation('db', 'schema', 'my_model')
         self.mock_connection_manager.get_bq_table.assert_called_once_with('db', 'schema', 'my_model')
 
-    def test_create_schema(self):
-        relation = BigQueryRelation.create(database='db', schema='schema')
-        self.adapter.create_schema(relation)
-        self.mock_connection_manager.create_dataset.assert_called_once_with('db', 'schema')
-
     @patch.object(BigQueryAdapter, 'check_schema_exists')
     def test_drop_schema(self, mock_check_schema):
         mock_check_schema.return_value = True

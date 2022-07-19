@@ -1,5 +1,32 @@
-## dbt-bigquery 1.2.0 (Release TBD)
+## dbt-bigquery 1.3.0b1 (Release TBD)
+
+### Features
+- Implement `create_schema` via SQL, instead of Python method, allowing users to override if desired. `drop_schema` remains a Python method for the time being. ([#182](https://github.com/dbt-labs/dbt-bigquery/issues/182), [#183](https://github.com/dbt-labs/dbt-bigquery/pull/183))
+
+## dbt-bigquery 1.2.0rc1 (June 12, 2022)
+
+### Features
+- Add grants to materializations ([#198](https://github.com/dbt-labs/dbt-bigquery/issues/198), [#212](https://github.com/dbt-labs/dbt-bigquery/pull/212))
+
+### Under the hood
+- Modify `BigQueryColumn.numeric_type` to always exclude precision + scale, since the functionality of ["parametrized data types on BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#parameterized_data_types) is highly constrained ([#214](https://github.com/dbt-labs/dbt-bigquery/pull/214))
+
+## dbt-bigquery 1.2.0b1 (June 24, 2022)
+
+### Fixes
+- Incorrect parameter is passed to the bq_insert_overwrite macro call ([#172](https://github.com/dbt-labs/dbt-bigquery/pull/172))
+- Fix validate connection failing ([#168](https://github.com/dbt-labs/dbt-bigquery/pull/168))
+
+### Under the hood
 - Adding Python 3.10 testing and enabling mypy ([#177](https://github.com/dbt-labs/dbt-bigquery/pull/177))
+- Lift and shift cross-database macros from dbt-utils ([#192](https://github.com/dbt-labs/dbt-bigquery/pull/192)
+- Implement TestDocsGenerateBigQuery test ([#190](https://github.com/dbt-labs/dbt-bigquery/pull/190))
+- Init push for pytest conversion of override_database for bigquery ([#165](https://github.com/dbt-labs/dbt-bigquery/pull/165), [#188](https://github.com/dbt-labs/dbt-bigquery/pull/188))
+- Add oauth test target as default ([#166](https://github.com/dbt-labs/dbt-bigquery/pull/166))
+
+### Contributors
+- [@robomill](https://github.com/robomill) ([#172](https://github.com/dbt-labs/dbt-bigquery/pull/172))
+- [@dbeatty10](https://github.com/dbeatty10) ([#192](https://github.com/dbt-labs/dbt-bigquery/pull/192)
 
 ## dbt-bigquery 1.1.0 (April 28, 2022)
 

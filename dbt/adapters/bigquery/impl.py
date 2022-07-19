@@ -812,10 +812,10 @@ class BigQueryAdapter(BaseAdapter):
             return res[0]
         else:
             return list(res)
-    
+
     @available.parse_none
     def submit_python_job(self, parsed_model:dict, compiled_code: str):
-        # TODO improve the typing here.  N.B. Jinja returns a `jinja2.runtime.Undefined` instead 
+        # TODO improve the typing here.  N.B. Jinja returns a `jinja2.runtime.Undefined` instead
         # of `None` which evaluates to True!
 
         # TODO limit this function to run only when doing the materialization of python nodes
@@ -863,16 +863,18 @@ class DataProcHelper:
             credential (_type_): _description_
         """
         self.credential = credential
-    
+        self.GoogleCredentials = BigQueryConnectionManager.get_credentials(credential)
+
     def upload_to_gcs(self, filename: str, compiled_code:str):
-        client = storage.Client(project=self.credential.database)
+        client = storage.Client(project=self.credential.database, credentials=self.GoogleCredentials)
         bucket = client.get_bucket(self.credential.gcs_bucket)
         blob = bucket.blob(filename)
         blob.upload_from_string(compiled_code)
 
     def submit_dataproc_job(self, filename: str):
         job_client = dataproc_v1.JobControllerClient(
-            client_options={"api_endpoint": "{}-dataproc.googleapis.com:443".format(self.credential.dataproc_region)}
+            client_options={"api_endpoint": "{}-dataproc.googleapis.com:443".format(self.credential.dataproc_region)},
+            credentials=self.GoogleCredentials
         )
         # Create the job config.
         job = {
@@ -892,4 +894,4 @@ class DataProcHelper:
             .blob(f"{matches.group(2)}.000000000")
             .download_as_string()
         )
-    
+

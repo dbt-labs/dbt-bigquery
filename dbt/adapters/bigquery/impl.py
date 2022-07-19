@@ -11,6 +11,7 @@ from dbt.adapters.base import BaseAdapter, available, RelationType, SchemaSearch
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery import BigQueryColumn
 from dbt.adapters.bigquery import BigQueryConnectionManager
+from dbt.adapters.bigquery.connections import BigQueryAdapterResponse
 from dbt.contracts.graph.manifest import Manifest
 from dbt.events import AdapterLogger
 from dbt.utils import filter_null_values
@@ -843,7 +844,16 @@ class BigQueryAdapter(BaseAdapter):
         dataproc.submit_dataproc_job(model_file_name)
 
         # TODO proper result for this
-        return 'OK'
+        message = "OK"
+        code = None
+        num_rows = None
+        bytes_processed = None
+        return BigQueryAdapterResponse(  # type: ignore[call-arg]
+            _message=message,
+            rows_affected=num_rows,
+            code=code,
+            bytes_processed=bytes_processed,
+        )
 
 class DataProcHelper:
     def __init__(self, credential):
@@ -882,6 +892,4 @@ class DataProcHelper:
             .blob(f"{matches.group(2)}.000000000")
             .download_as_string()
         )
-
-        # TODO return failure
     

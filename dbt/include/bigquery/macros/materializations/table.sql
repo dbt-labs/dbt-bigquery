@@ -48,7 +48,7 @@ from pyspark.sql import SparkSession
 spark = SparkSession.builder.appName('smallTest').getOrCreate()
 
 spark.conf.set("viewsEnabled","true")
-spark.conf.set("temporaryGcsBucket","python-model-test")
+spark.conf.set("temporaryGcsBucket","{{target.gcs_bucket}}")
 
 {{ compiled_code }}
 dbt = dbtObj(spark.read.format("bigquery").load)

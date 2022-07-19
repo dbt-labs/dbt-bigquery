@@ -158,6 +158,7 @@ class BigQueryCredentials(Credentials):
             "job_retries",
             "job_creation_timeout_seconds",
             "job_execution_timeout_seconds",
+            "gcs_bucket",
         )
 
     @classmethod

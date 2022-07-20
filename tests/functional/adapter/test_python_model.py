@@ -1,10 +1,13 @@
 import os
 import pytest
 from dbt.tests.util import run_dbt, write_file
-from dbt.tests.adapter.python_model.test_python_model import BasePythonModelTests
+import dbt.tests.adapter.python_model.test_python_model as dbt_tests
+
+class TestPythonIncrementalMatsBigQuery(dbt_tests.BasePythonIncrementalTests):
+    pass
 
 @pytest.skip("dataproc not enabled on testing account", allow_module_level=True)
-class TestPythonModelSpark(BasePythonModelTests):
+class TestPythonModelSpark(dbt_tests.BasePythonModelTests):
     pass
 
 models__simple_python_model = """

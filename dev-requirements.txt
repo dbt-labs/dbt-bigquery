@@ -8,6 +8,8 @@ bumpversion
 flake8
 flaky
 freezegun==1.1.0
+google-auth
+google-cloud-bigquery
 ipdb
 mypy==0.942
 pip-tools

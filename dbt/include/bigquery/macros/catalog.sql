@@ -9,28 +9,48 @@
   {%- set query -%}
     with tables as (
         select
-            project_id as table_database,
-            dataset_id as table_schema,
-            table_id as original_table_name,
+            table_catalog as table_database,
+            table_schema as table_schema,
+            table_name as original_table_name,
 
-            concat(project_id, '.', dataset_id, '.', table_id) as relation_id,
+            CONCAT(table_catalog, '.', table_schema, '.', table_name) as relation_id,
 
-            row_count,
-            size_bytes as size_bytes,
-            case
-                when type = 1 then 'table'
-                when type = 2 then 'view'
-                else 'external'
-            end as table_type,
+            0 as row_count,
+            0 as size_bytes,
+            case when table_type = 'EXTERNAL' then 'external' ELSE 'table' end as table_type,
 
-            REGEXP_CONTAINS(table_id, '^.+[0-9]{8}$') and coalesce(type, 0) = 1 as is_date_shard,
-            REGEXP_EXTRACT(table_id, '^(.+)[0-9]{8}$') as shard_base_name,
-            REGEXP_EXTRACT(table_id, '^.+([0-9]{8})$') as shard_name
+            REGEXP_CONTAINS(table_name, '^.+[0-9]{8}$') and table_type = 'BASE TABLE' as is_date_shard,
+            REGEXP_EXTRACT(table_name, '^(.+)[0-9]{8}$') as shard_base_name,
+            REGEXP_EXTRACT(table_name, '^.+([0-9]{8})$') as shard_name
 
-        from {{ information_schema.replace(information_schema_view='__TABLES__') }}
+        from {{ information_schema.replace(information_schema_view='INFORMATION_SCHEMA.TABLES') }}
         where (
           {%- for schema in schemas -%}
-            upper(dataset_id) = upper('{{ schema }}'){%- if not loop.last %} or {% endif -%}
+            upper(table_schema) = upper('{{ schema }}'){%- if not loop.last %} or {% endif -%}
+          {%- endfor -%}
+        )
+
+        union all
+
+        select
+            table_catalog as table_database,
+            table_schema as table_schema,
+            table_name as original_table_name,
+
+            CONCAT(table_catalog, '.', table_schema, '.', table_name) as relation_id,
+
+            0 as row_count,
+            0 as size_bytes,
+            'view' as table_type,
+
+            false as is_date_shard,
+            REGEXP_EXTRACT(table_name, '^(.+)[0-9]{8}$') as shard_base_name,
+            REGEXP_EXTRACT(table_name, '^.+([0-9]{8})$') as shard_name
+
+        from {{ information_schema.replace(information_schema_view='INFORMATION_SCHEMA.VIEWS') }}
+        where (
+          {%- for schema in schemas -%}
+            upper(table_schema) = upper('{{ schema }}'){%- if not loop.last %} or {% endif -%}
           {%- endfor -%}
         )
     ),

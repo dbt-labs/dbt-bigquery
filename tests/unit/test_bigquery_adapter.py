@@ -482,6 +482,25 @@ class TestBigQueryInformationSchema(unittest.TestCase):
         assert tables_schema.quote_policy.identifier is False
         assert tables_schema.quote_policy.database is False
 
+        tables_schema = info_schema.replace(information_schema_view='INFORMATION_SCHEMA.TABLES')
+        assert tables_schema.information_schema_view == 'INFORMATION_SCHEMA.TABLES'
+        assert tables_schema.include_policy.schema is True
+        assert tables_schema.include_policy.identifier is False
+        assert tables_schema.include_policy.database is True
+        assert tables_schema.quote_policy.schema is True
+        assert tables_schema.quote_policy.identifier is False
+        assert tables_schema.quote_policy.database is False
+
+
+        tables_schema = info_schema.replace(information_schema_view='INFORMATION_SCHEMA.VIEWS')
+        assert tables_schema.information_schema_view == 'INFORMATION_SCHEMA.VIEWS'
+        assert tables_schema.include_policy.schema is True
+        assert tables_schema.include_policy.identifier is False
+        assert tables_schema.include_policy.database is True
+        assert tables_schema.quote_policy.schema is True
+        assert tables_schema.quote_policy.identifier is False
+        assert tables_schema.quote_policy.database is False
+
         schemata_schema = info_schema.replace(information_schema_view='SCHEMATA')
         assert schemata_schema.information_schema_view == 'SCHEMATA'
         assert schemata_schema.include_policy.schema is False

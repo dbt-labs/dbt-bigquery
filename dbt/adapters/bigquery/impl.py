@@ -812,10 +812,10 @@ class BigQueryAdapter(BaseAdapter):
             return res[0]
         else:
             return list(res)
-    
+
     @available.parse_none
     def submit_python_job(self, parsed_model:dict, compiled_code: str):
-        # TODO improve the typing here.  N.B. Jinja returns a `jinja2.runtime.Undefined` instead 
+        # TODO improve the typing here.  N.B. Jinja returns a `jinja2.runtime.Undefined` instead
         # of `None` which evaluates to True!
 
         # TODO limit this function to run only when doing the materialization of python nodes
@@ -832,16 +832,16 @@ class BigQueryAdapter(BaseAdapter):
         for required_config in python_required_configs:
             if not getattr(self.connections.profile.credentials, required_config):
                 raise ValueError(f"Need to supply {required_config} in profile to submit python job")
-
-        dataproc = DataProcHelper(self.connections.profile.credentials)
+        if not hasattr(self, 'dataproc_helper'):
+            self.dataproc_helper = DataProcHelper(self.connections.profile.credentials)
         model_file_name = f"{schema}/{identifier}.py"
         #upload python file to GCS
-        dataproc.upload_to_gcs(
+        self.dataproc_helper.upload_to_gcs(
             model_file_name,
             compiled_code
         )
         # submit dataproc job
-        dataproc.submit_dataproc_job(model_file_name)
+        self.dataproc_helper.submit_dataproc_job(model_file_name)
 
         # TODO proper result for this
         message = "OK"
@@ -863,33 +863,41 @@ class DataProcHelper:
             credential (_type_): _description_
         """
         self.credential = credential
-    
+        self.GoogleCredentials = BigQueryConnectionManager.get_credentials(credential)
+        self.storage_client = storage.Client(project=self.credential.database, credentials=self.GoogleCredentials)
+        self.job_client = dataproc_v1.JobControllerClient(
+            client_options={"api_endpoint": "{}-dataproc.googleapis.com:443".format(self.credential.dataproc_region)},
+            credentials=self.GoogleCredentials
+        )
+
     def upload_to_gcs(self, filename: str, compiled_code:str):
-        client = storage.Client(project=self.credential.database)
-        bucket = client.get_bucket(self.credential.gcs_bucket)
+        bucket = self.storage_client.get_bucket(self.credential.gcs_bucket)
         blob = bucket.blob(filename)
         blob.upload_from_string(compiled_code)
 
     def submit_dataproc_job(self, filename: str):
         job_client = dataproc_v1.JobControllerClient(
-            client_options={"api_endpoint": "{}-dataproc.googleapis.com:443".format(self.credential.dataproc_region)}
+            client_options={"api_endpoint": "{}-dataproc.googleapis.com:443".format(self.credential.dataproc_region)},
+            credentials=self.GoogleCredentials
         )
         # Create the job config.
         job = {
             "placement": {"cluster_name": self.credential.dataproc_cluster_name},
             "pyspark_job": {"main_python_file_uri": "gs://{}/{}".format(self.credential.gcs_bucket, filename)},
         }
-        operation = job_client.submit_job_as_operation(
+        operation = self.job_client.submit_job_as_operation(
             request={"project_id": self.credential.database, "region": self.credential.dataproc_region, "job": job}
         )
         response = operation.result()
+
+        # TODO: there might be useful results here that we can parse and return
         # Dataproc job output is saved to the Cloud Storage bucket
         # allocated to the job. Use regex to obtain the bucket and blob info.
-        matches = re.match("gs://(.*?)/(.*)", response.driver_output_resource_uri)
-        output = (
-            storage.Client()
-            .get_bucket(matches.group(1))
-            .blob(f"{matches.group(2)}.000000000")
-            .download_as_string()
-        )
-    
+        # matches = re.match("gs://(.*?)/(.*)", response.driver_output_resource_uri)
+        # output = (
+        #     self.storage_client
+        #     .get_bucket(matches.group(1))
+        #     .blob(f"{matches.group(2)}.000000000")
+        #     .download_as_string()
+        # )
+

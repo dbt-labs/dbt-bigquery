@@ -42,7 +42,7 @@
 -- TODO dataproc requires a temp bucket to perform BQ write
 -- this is hard coded to internal testing ATM. need to adjust to render
 -- or find another way around
-{% macro py_complete_script(compiled_code, target_relation) %}
+{% macro py_write_table(compiled_code, target_relation) %}
 from pyspark.sql import SparkSession
 
 spark = SparkSession.builder.appName('smallTest').getOrCreate()

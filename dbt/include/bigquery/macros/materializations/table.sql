@@ -1,5 +1,5 @@
 {% materialization table, adapter='bigquery' -%}
-  
+
   {%- set language = config.get('language') -%}
   {%- set identifier = model['alias'] -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
@@ -52,7 +52,7 @@ spark.conf.set("temporaryGcsBucket","{{target.gcs_bucket}}")
 
 {{ compiled_code }}
 dbt = dbtObj(spark.read.format("bigquery").load)
-df = model(dbt)
+df = model(dbt, spark)
 
 # COMMAND ----------
 # this is materialization code dbt generated, please do not modify

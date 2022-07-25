@@ -14,7 +14,7 @@
 
 {% macro dbt_bigquery_validate_get_incremental_strategy(config) %}
   {#-- Find and validate the incremental strategy #}
-  {%- set strategy = config.get("incremental_strategy", default="merge") -%}
+  {%- set strategy = config.get("incremental_strategy") or 'merge' -%}
 
   {% set invalid_strategy_msg -%}
     Invalid incremental strategy provided: {{ strategy }}
@@ -46,6 +46,12 @@
         )
       {%- endset -%}
 
+      {#-- Because we're putting the model SQL _directly_ into the MERGE statement,
+         we need to prepend the MERGE statement with the user-configured sql_header,
+         which may be needed to resolve that model SQL (e.g. referencing a variable or UDF in the header)
+         in the "dynamic" case, we save the model SQL result as a temp table first, wherein the
+         sql_header is included by the create_table_as macro.
+      #}
       {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header=true) }}
 
   {% else %} {# dynamic #}
@@ -80,12 +86,8 @@
           from {{ tmp_relation }}
       );
 
-      {#
-        TODO: include_sql_header is a hack; consider a better approach that includes
-              the sql_header at the materialization-level instead
-      #}
       -- 3. run the merge statement
-      {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header=false) }};
+      {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate]) }};
 
       -- 4. clean up the temp table
       drop table if exists {{ tmp_relation }}

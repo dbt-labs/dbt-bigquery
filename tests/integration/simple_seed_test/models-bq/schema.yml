@@ -45,3 +45,8 @@ seeds:
     tests:
     - column_type:
         type: STRING
+
+- name: seed_kms
+  columns:
+  - name: birthday
+  - name: id

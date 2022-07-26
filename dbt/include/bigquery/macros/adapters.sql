@@ -87,10 +87,6 @@
 
 {% endmacro %}
 
-{% macro bigquery__create_schema(relation) -%}
-  {{ adapter.create_schema(relation) }}
-{% endmacro %}
-
 {% macro bigquery__drop_schema(relation) -%}
   {{ adapter.drop_schema(relation) }}
 {% endmacro %}

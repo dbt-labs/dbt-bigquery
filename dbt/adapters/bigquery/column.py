@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, List, TypeVar, Iterable, Type
+from typing import Optional, List, TypeVar, Iterable, Type, Any
 
 from dbt.adapters.base.column import Column
 
@@ -91,6 +91,12 @@ class BigQueryColumn(Column):
 
         else:
             return field_type
+
+    @classmethod
+    def numeric_type(cls, dtype: str, precision: Any, scale: Any) -> str:
+        # BigQuery makes life much harder if precision + scale are specified
+        # even if they're fed in here, just return the data type by itself
+        return dtype
 
     def is_string(self) -> bool:
         return self.dtype.lower() == "string"

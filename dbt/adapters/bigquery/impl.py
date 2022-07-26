@@ -9,12 +9,16 @@ import dbt.clients.agate_helper
 from dbt import ui  # type: ignore
 from dbt.adapters.base import BaseAdapter, available, RelationType, SchemaSearchMap, AdapterConfig
 from dbt.adapters.base.impl import log_code_execution
+from dbt.adapters.cache import _make_key
+
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery import BigQueryColumn
 from dbt.adapters.bigquery import BigQueryConnectionManager
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse
 from dbt.contracts.graph.manifest import Manifest
 from dbt.events import AdapterLogger
+from dbt.events.functions import fire_event
+from dbt.events.types import SchemaCreation, SchemaDrop
 from dbt.utils import filter_null_values
 
 import google.auth
@@ -34,6 +38,8 @@ logger = AdapterLogger("BigQuery")
 # Write dispositions for bigquery.
 WRITE_APPEND = google.cloud.bigquery.job.WriteDisposition.WRITE_APPEND
 WRITE_TRUNCATE = google.cloud.bigquery.job.WriteDisposition.WRITE_TRUNCATE
+
+CREATE_SCHEMA_MACRO_NAME = "create_schema"
 
 
 def sql_escape(string):
@@ -275,16 +281,29 @@ class BigQueryAdapter(BaseAdapter):
             table = None
         return self._bq_table_to_relation(table)
 
+    # BigQuery added SQL support for 'create schema' + 'drop schema' in March 2021
+    # Unfortunately, 'drop schema' runs into permissions issues during tests
+    # Most of the value here comes from user overrides of 'create_schema'
+
+    # TODO: the code below is copy-pasted from SQLAdapter.create_schema. Is there a better way?
     def create_schema(self, relation: BigQueryRelation) -> None:
-        database = relation.database
-        schema = relation.schema
-        logger.debug('Creating schema "{}.{}".', database, schema)
-        self.connections.create_dataset(database, schema)
+        # use SQL 'create schema'
+        relation = relation.without_identifier()  # type: ignore
+        fire_event(SchemaCreation(relation=_make_key(relation)))
+        kwargs = {
+            "relation": relation,
+        }
+        self.execute_macro(CREATE_SCHEMA_MACRO_NAME, kwargs=kwargs)
+        self.commit_if_has_connection()
+        # we can't update the cache here, as if the schema already existed we
+        # don't want to (incorrectly) say that it's empty
 
     def drop_schema(self, relation: BigQueryRelation) -> None:
+        # still use a client method, rather than SQL 'drop schema ... cascade'
         database = relation.database
         schema = relation.schema
-        logger.debug('Dropping schema "{}.{}".', database, schema)
+        logger.debug('Dropping schema "{}.{}".', database, schema)  # in lieu of SQL
+        fire_event(SchemaDrop(relation=_make_key(relation)))
         self.connections.drop_dataset(database, schema)
         self.cache.drop_schema(database, schema)
 
@@ -758,6 +777,14 @@ class BigQueryAdapter(BaseAdapter):
         access_entries.append(AccessEntry(role, entity_type, entity))
         dataset.access_entries = access_entries
         client.update_dataset(dataset, ["access_entries"])
+
+    @available.parse_none
+    def get_dataset_location(self, relation):
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+        dataset_ref = self.connections.dataset_ref(relation.project, relation.dataset)
+        dataset = client.get_dataset(dataset_ref)
+        return dataset.location
 
     def get_rows_different_sql(  # type: ignore[override]
         self,

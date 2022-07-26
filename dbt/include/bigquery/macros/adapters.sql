@@ -66,7 +66,7 @@
     TODO: Deep dive into spark sessions to see if we can reuse a single session for an entire
     dbt invocation.
      --#}
-    {{ py_complete_script(compiled_code=compiled_code, target_relation=relation.quote(database=False, schema=False, identifier=False)) }}
+    {{ py_write_table(compiled_code=compiled_code, target_relation=relation.quote(database=False, schema=False, identifier=False)) }}
   {%- endif -%}
 
 {%- endmacro -%}
@@ -85,10 +85,6 @@
   {{ bigquery_view_options(config, model) }}
   as {{ sql }};
 
-{% endmacro %}
-
-{% macro bigquery__create_schema(relation) -%}
-  {{ adapter.create_schema(relation) }}
 {% endmacro %}
 
 {% macro bigquery__drop_schema(relation) -%}

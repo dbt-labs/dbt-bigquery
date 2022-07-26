@@ -1,10 +1,13 @@
 {% materialization table, adapter='bigquery' -%}
 
-  {%- set language = config.get('language') -%}
+  {%- set language = model['language'] -%}
   {%- set identifier = model['alias'] -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
   {%- set exists_not_as_table = (old_relation is not none and not old_relation.is_table) -%}
   {%- set target_relation = api.Relation.create(database=database, schema=schema, identifier=identifier, type='table') -%}
+
+  -- grab current tables grants config for comparision later on
+  {%- set grant_config = config.get('grants') -%}
 
   {{ run_hooks(pre_hooks) }}
 
@@ -33,6 +36,9 @@
 
   {{ run_hooks(post_hooks) }}
 
+  {% set should_revoke = should_revoke(old_relation, full_refresh_mode=True) %}
+  {% do apply_grants(target_relation, grant_config, should_revoke) %}
+
   {% do persist_docs(target_relation, model) %}
 
   {{ return({'relations': [target_relation]}) }}
@@ -42,7 +48,7 @@
 -- TODO dataproc requires a temp bucket to perform BQ write
 -- this is hard coded to internal testing ATM. need to adjust to render
 -- or find another way around
-{% macro py_complete_script(compiled_code, target_relation) %}
+{% macro py_write_table(compiled_code, target_relation) %}
 from pyspark.sql import SparkSession
 
 spark = SparkSession.builder.appName('smallTest').getOrCreate()

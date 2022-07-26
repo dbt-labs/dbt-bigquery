@@ -9,6 +9,7 @@ import dbt.clients.agate_helper
 from dbt import ui  # type: ignore
 from dbt.adapters.base import BaseAdapter, available, RelationType, SchemaSearchMap, AdapterConfig
 from dbt.adapters.base.impl import log_code_execution
+
 from dbt.adapters.cache import _make_key
 
 from dbt.adapters.bigquery.relation import BigQueryRelation
@@ -289,6 +290,7 @@ class BigQueryAdapter(BaseAdapter):
     def create_schema(self, relation: BigQueryRelation) -> None:
         # use SQL 'create schema'
         relation = relation.without_identifier()  # type: ignore
+
         fire_event(SchemaCreation(relation=_make_key(relation)))
         kwargs = {
             "relation": relation,

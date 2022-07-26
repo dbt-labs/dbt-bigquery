@@ -375,11 +375,11 @@ class BigQueryAdapter(BaseAdapter):
         model_database = model.get("database")
         model_schema = model.get("schema")
         model_alias = model.get("alias")
-        model_sql = model.get("compiled_sql")
+        model_code = model.get("compiled_code")
 
-        logger.debug("Model SQL ({}):\n{}".format(model_alias, model_sql))
+        logger.debug("Model SQL ({}):\n{}".format(model_alias, model_code))
         self.connections.create_view(
-            database=model_database, schema=model_schema, table_name=model_alias, sql=model_sql
+            database=model_database, schema=model_schema, table_name=model_alias, sql=model_code
         )
         return "CREATE VIEW"
 

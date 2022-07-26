@@ -1,6 +1,6 @@
 {% materialization table, adapter='bigquery' -%}
 
-  {%- set language = config.get('language') -%}
+  {%- set language = model['language'] -%}
   {%- set identifier = model['alias'] -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
   {%- set exists_not_as_table = (old_relation is not none and not old_relation.is_table) -%}

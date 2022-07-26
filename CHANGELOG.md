@@ -3,6 +3,9 @@
 ### Features
 - Implement `create_schema` via SQL, instead of Python method, allowing users to override if desired. `drop_schema` remains a Python method for the time being. ([#182](https://github.com/dbt-labs/dbt-bigquery/issues/182), [#183](https://github.com/dbt-labs/dbt-bigquery/pull/183))
 
+### Under the hood
+- Implement minimal changes to support dbt Core incremental materialization refactor. ([#232](http://github.com/dbt-labs/dbt-bigquery/issues/232), [#223](https://github.com/dbt-labs/dbt-biquery/pull/223))
+
 ## dbt-bigquery 1.2.0rc1 (June 12, 2022)
 
 ### Features

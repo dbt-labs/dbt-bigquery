@@ -36,14 +36,14 @@ def service_account_target():
     credentials_json_str = os.getenv('BIGQUERY_TEST_SERVICE_ACCOUNT_JSON').replace("'", '')
     credentials = json.loads(credentials_json_str)
     project_id = credentials.get('project_id')
-    return {
+    ret = {
         'type': 'bigquery',
         'method': 'service-account-json',
         'threads': 1,
         'project': project_id,
-        'keyfile_json': credentials,
-        # following 3 for python model
         'dataproc_region': os.getenv("DATAPROC_REGION"),
         'dataproc_cluster_name': os.getenv("DATAPROC_CLUSTER_NAME"),
         'gcs_bucket': os.getenv("GCS_BUCKET")
     }
+    print(ret)
+    return ret

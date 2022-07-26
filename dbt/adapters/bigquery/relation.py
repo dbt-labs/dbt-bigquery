@@ -128,7 +128,7 @@ class BigQueryInformationSchema(InformationSchema):
             schema = False
 
         identifier = True
-        if information_schema_view in ("INFORMATION_SCHEMA.TABLES", "INFORMATION_SCHEMA.VIEWS", "__TABLES__"):
+        if information_schema_view in ("INFORMATION_SCHEMA.TABLES", "INFORMATION_SCHEMA.VIEWS"):
             identifier = False
 
         # In the future, let's refactor so that location/region can also be a

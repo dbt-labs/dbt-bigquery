@@ -30,7 +30,7 @@ on:
       - "releases/*"
   # all PRs, important to note that `pull_request_target` workflows
   # will run in the context of the target branch of a PR
-  pull_request_target:
+  pull_request:
   # manual trigger
   workflow_dispatch:
   # run this once per night to ensure no regressions from latest dbt-core changes
@@ -171,7 +171,14 @@ jobs:
           DBT_TEST_USER_1: group:buildbot@dbtlabs.com
           DBT_TEST_USER_2: group:dev-core@dbtlabs.com
           DBT_TEST_USER_3: serviceAccount:dbt-integration-test-user@dbt-test-env.iam.gserviceaccount.com
-        run: tox
+          DATAPROC_REGION: us-central1
+          DATAPROC_CLUSTER_NAME: dbt-test-1
+          GCS_BUCKET: dbt-ci
+        run: 
+          echo $DATAPROC_REGION
+          echo $DATAPROC_CLUSTER_NAME
+          echo $GCS_BUCKET
+          tox
 
       - uses: actions/upload-artifact@v2
         if: always()

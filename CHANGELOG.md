@@ -51,6 +51,7 @@
 - Adds new integration test to check against new ability to allow unique_key to be a list. [#112](https://github.com/dbt-labs/dbt-bigquery/issues/112)
 - Added upload_file macro to upload a local file to a table. [#102](https://github.com/dbt-labs/dbt-bigquery/issues/102)
 - Add logic to BigQueryConnectionManager to add fuctionality for UPDATE and SELECT statements. [#79](https://github.com/dbt-labs/dbt-bigquery/pull/79)
+- Support BigQuery 'labels' and 'hours_to_expiration' configs for seeds. [#125](https://github.com/dbt-labs/dbt-bigquery/issues/125)
 
 ### Fixes
 - Fix test related to preventing coercion of boolean values (True, False) to numeric values (0, 1) in query results ([#93](https://github.com/dbt-labs/dbt-bigquery/issues/93))
@@ -72,6 +73,7 @@ This will prevent BigQuery from throwing an error since non-partitioned tables c
 - [@pgoslatara](https://github.com/pgoslatara) ([#66](https://github.com/dbt-labs/dbt-bigquery/pull/121))
 - [@drewmcdonald](https://github.com/drewmcdonald)([#98](https://github.com/dbt-labs/dbt-bigquery/pull/98))
 - [@rjh336](https://github.com/rjh336)([#79](https://github.com/dbt-labs/dbt-bigquery/pull/79))
+- [@darrylng](https://github.com/darrylng)([#133](https://github.com/dbt-labs/dbt-bigquery/pull/133))
 
 ## dbt-bigquery 1.0.0 (December 3, 2021)
 

@@ -12,6 +12,11 @@
   {%- set column_override = model['config'].get('column_types', {}) -%}
   {{ adapter.load_dataframe(model['database'], model['schema'], model['alias'],
   							agate_table, column_override) }}
+
+  {% call statement() %}
+    alter table {{ this.render() }} set {{ bigquery_table_options(config, model) }}
+  {% endcall %}
+
   {% if config.persist_relation_docs() and 'description' in model %}
 
   	{{ adapter.update_table_description(model['database'], model['schema'], model['alias'], model['description']) }}

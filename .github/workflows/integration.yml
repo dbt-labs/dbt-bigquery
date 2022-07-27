@@ -171,12 +171,7 @@ jobs:
           DATAPROC_REGION: us-central1
           DATAPROC_CLUSTER_NAME: dbt-test-1
           GCS_BUCKET: dbt-ci
-        run: |
-          echo "This is my vars"        
-          echo $DATAPROC_REGION
-          echo $DATAPROC_CLUSTER_NAME
-          echo $GCS_BUCKET
-
+        run: tox
 
       - uses: actions/upload-artifact@v2
         if: always()

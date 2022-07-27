@@ -305,6 +305,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         )
 
     @classmethod
+    @retry.Retry()  # google decorator. retries on transient errors with exponential backoff
     def get_bigquery_client(cls, profile_credentials):
         if profile_credentials.impersonate_service_account:
             creds = cls.get_impersonated_bigquery_credentials(profile_credentials)

@@ -30,7 +30,7 @@ on:
       - "releases/*"
   # all PRs, important to note that `pull_request_target` workflows
   # will run in the context of the target branch of a PR
-  pull_request:
+  pull_request_target:
   # manual trigger
   workflow_dispatch:
 
@@ -171,12 +171,7 @@ jobs:
           DATAPROC_REGION: us-central1
           DATAPROC_CLUSTER_NAME: dbt-test-1
           GCS_BUCKET: dbt-ci
-        run: |
-          echo 'logging env var'
-          echo $DATAPROC_REGION
-          echo $DATAPROC_CLUSTER_NAME
-          echo $GCS_BUCKET
-          tox
+        run: tox
 
       - uses: actions/upload-artifact@v2
         if: always()

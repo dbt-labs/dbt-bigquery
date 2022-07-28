@@ -33,6 +33,9 @@ from google.cloud.bigquery import AccessEntry, SchemaField
 import time
 import agate
 import json
+import os.path
+from bigquery_schema_generator.generate_schema import SchemaGenerator
+from io import StringIO
 
 logger = AdapterLogger("BigQuery")
 
@@ -651,14 +654,15 @@ class BigQueryAdapter(BaseAdapter):
         with self.connections.exception_handler("LOAD TABLE"):
             self.poll_until_job_completes(job, timeout)
 
-    @available.parse_none
     def upload_file(
-        self, local_file_path: str, database: str, table_schema: str, table_name: str, **kwargs
+        self, file_object: StringIO, database: str, table_schema: str, table_name: str, **kwargs
     ) -> None:
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
         table_ref = self.connections.table_ref(database, table_schema, table_name)
+
+        logger.debug(f"Running upload_file with keyword arguments: {kwargs['kwargs']}")
 
         load_config = google.cloud.bigquery.LoadJobConfig()
         for k, v in kwargs["kwargs"].items():
@@ -667,12 +671,96 @@ class BigQueryAdapter(BaseAdapter):
             else:
                 setattr(load_config, k, v)
 
-        with open(local_file_path, "rb") as f:
-            job = client.load_table_from_file(f, table_ref, rewind=True, job_config=load_config)
+        job = client.load_table_from_file(
+            file_object, table_ref, rewind=True, job_config=load_config
+        )
 
         timeout = self.connections.get_job_execution_timeout_seconds(conn) or 300
         with self.connections.exception_handler("LOAD TABLE"):
             self.poll_until_job_completes(job, timeout)
+
+    @available.parse_none
+    def upload_json_artifacts(
+        self,
+        artifacts_directory_path: str,
+        database: str,
+        table_schema: str,
+        replacement_string: str,
+        **kwargs,
+    ) -> None:
+        def alter_dict_keys(obj, replacement_string):
+            """
+            BigQuery does not support "." or "-" characters in column names. Replace
+            these characters with "__" or provided replacement_string value.
+            """
+
+            def convert(k, replacement_string):
+                return k.replace(".", replacement_string).replace("-", replacement_string)
+
+            if isinstance(obj, (str, int, float)):
+                return obj
+
+            if isinstance(obj, dict):
+                new = obj.__class__()
+                for k, v in obj.items():
+                    new[convert(k, replacement_string)] = alter_dict_keys(v, replacement_string)
+            elif isinstance(obj, (list, set, tuple)):
+                new = obj.__class__(alter_dict_keys(v, replacement_string) for v in obj)
+            else:
+                return obj
+
+            return new
+
+        valid_artifact_file_names = [
+            "catalog.json",
+            "manifest.json",
+            "run_results.json",
+            "sources.json",
+        ]
+
+        found_artifacts = [
+            artifact
+            for artifact in valid_artifact_file_names
+            if os.path.isfile(f"{artifacts_directory_path}/{artifact}")
+        ]
+
+        logger.debug(f"The following artifact files were detected: {found_artifacts}")
+
+        for artifact in found_artifacts:
+            artifact_json = json.load(open(f"{artifacts_directory_path}/{artifact}", "r"))
+
+            # bigquery_schema_generator cannot handle a list inside a list,
+            # better to remove nesting where desired
+            if artifact_json.get("nodes"):
+                for k, v in artifact_json.copy()["nodes"].items():
+                    if v.get("refs"):
+                        if isinstance(v["refs"][0], list):
+                            v["refs"] = v["refs"][0]
+
+            # Replace invalid characters in column names with valid string
+            artifact_json = alter_dict_keys(artifact_json, replacement_string)
+
+            # Extract schema from JSON object
+            generator = SchemaGenerator(
+                input_format="dict",
+                keep_nulls=True,
+                ignore_invalid_lines=False,
+            )
+            schema_map, _ = generator.deduce_schema([artifact_json])
+
+            self.upload_file(
+                StringIO(json.dumps(artifact_json)),
+                database,
+                table_schema,
+                artifact.replace(".json", ""),
+                kwargs={
+                    **{
+                        "schema": json.dumps(generator.flatten_schema(schema_map)),
+                        "source_format": "NEWLINE_DELIMITED_JSON",
+                    },
+                    **kwargs["kwargs"],
+                },
+            )
 
     @classmethod
     def _catalog_filter_table(cls, table: agate.Table, manifest: Manifest) -> agate.Table:

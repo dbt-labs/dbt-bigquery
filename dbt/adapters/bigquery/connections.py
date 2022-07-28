@@ -116,6 +116,10 @@ class BigQueryCredentials(Credentials):
     client_secret: Optional[str] = None
     token_uri: Optional[str] = None
 
+    dataproc_region: Optional[str] = None
+    dataproc_cluster_name: Optional[str] = None
+    gcs_bucket: Optional[str] = None
+
     scopes: Optional[Tuple[str, ...]] = (
         "https://www.googleapis.com/auth/bigquery",
         "https://www.googleapis.com/auth/cloud-platform",
@@ -154,6 +158,7 @@ class BigQueryCredentials(Credentials):
             "job_retries",
             "job_creation_timeout_seconds",
             "job_execution_timeout_seconds",
+            "gcs_bucket",
         )
 
     @classmethod
@@ -265,7 +270,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return f"{rows_number:3.1f}{unit}".strip()
 
     @classmethod
-    def get_bigquery_credentials(cls, profile_credentials):
+    def get_google_credentials(cls, profile_credentials) -> GoogleCredentials:
         method = profile_credentials.method
         creds = GoogleServiceAccountCredentials.Credentials
 
@@ -295,8 +300,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
         raise FailedToConnectException(error)
 
     @classmethod
-    def get_impersonated_bigquery_credentials(cls, profile_credentials):
-        source_credentials = cls.get_bigquery_credentials(profile_credentials)
+    def get_impersonated_credentials(cls, profile_credentials):
+        source_credentials = cls.get_google_credentials(profile_credentials)
         return impersonated_credentials.Credentials(
             source_credentials=source_credentials,
             target_principal=profile_credentials.impersonate_service_account,
@@ -305,11 +310,15 @@ class BigQueryConnectionManager(BaseConnectionManager):
         )
 
     @classmethod
-    def get_bigquery_client(cls, profile_credentials):
+    def get_credentials(cls, profile_credentials):
         if profile_credentials.impersonate_service_account:
-            creds = cls.get_impersonated_bigquery_credentials(profile_credentials)
+            return cls.get_impersonated_credentials(profile_credentials)
         else:
-            creds = cls.get_bigquery_credentials(profile_credentials)
+            return cls.get_google_credentials(profile_credentials)
+
+    @classmethod
+    def get_bigquery_client(cls, profile_credentials):
+        creds = cls.get_credentials(profile_credentials)
         execution_project = profile_credentials.execution_project
         location = getattr(profile_credentials, "location", None)
 

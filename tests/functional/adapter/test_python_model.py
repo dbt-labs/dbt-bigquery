@@ -6,6 +6,7 @@ import dbt.tests.adapter.python_model.test_python_model as dbt_tests
 class TestPythonIncrementalMatsBigQuery(dbt_tests.BasePythonIncrementalTests):
     pass
 
+
 @pytest.skip("dataproc not enabled on testing account", allow_module_level=True)
 class TestPythonModelSpark(dbt_tests.BasePythonModelTests):
     pass
@@ -30,7 +31,7 @@ def model(dbt, spark):
     data = [[1,2]] * 10
     return spark.createDataFrame(data, schema=['test1', 'test3'])
 """
-@pytest.skip("dataproc not enabled on testing account", allow_module_level=True)
+
 class TestChangingSchemaDataproc:
     @pytest.fixture(scope="class")
     def models(self):

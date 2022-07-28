@@ -75,9 +75,7 @@
         {{ declare_dbt_max_partition(this, partition_by, sql) }}
 
         -- 1. create a temp table
-        {%- call statement('main') -%}
-          {{ create_table_as(True, tmp_relation, compiled_code) }}
-        {%- endcall -%}
+        {{ create_table_as(True, tmp_relation, compiled_code) }}
       {% else %}
         -- 1. temp table already exists, we used it to check for schema changes
       {% endif %}
@@ -211,7 +209,6 @@
     {% if not dest_columns %}
       {% set dest_columns = adapter.get_columns_in_relation(existing_relation) %}
     {% endif %}
-
     {% set build_sql = bq_generate_incremental_build_sql(
         strategy, tmp_relation, target_relation, compiled_code, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists
     ) %}

@@ -76,7 +76,7 @@
 
         -- 1. create a temp table
         {%- call statement('main') -%}
-          {{ create_table_as(True, tmp_relation, compiled_code, language) }}
+          {{ create_table_as(True, tmp_relation, compiled_code) }}
         {%- endcall -%}
       {% else %}
         -- 1. temp table already exists, we used it to check for schema changes

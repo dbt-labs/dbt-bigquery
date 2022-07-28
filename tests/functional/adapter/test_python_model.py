@@ -3,10 +3,10 @@ import pytest
 from dbt.tests.util import run_dbt, write_file
 import dbt.tests.adapter.python_model.test_python_model as dbt_tests
 
-class TestPythonIncrementalMatsBigQuery(dbt_tests.BasePythonIncrementalTests):
+class TestPythonIncrementalMatsDataproc(dbt_tests.BasePythonIncrementalTests):
     pass
 
-class TestPythonModelSpark(dbt_tests.BasePythonModelTests):
+class TestPythonModelDataproc(dbt_tests.BasePythonModelTests):
     pass
 
 models__simple_python_model = """

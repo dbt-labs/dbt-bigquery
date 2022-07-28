@@ -221,13 +221,6 @@
     {% endcall %}
 
     {%- if language == 'python' and tmp_relation -%}
-      {#--
-      This is yucky.
-      See note in dbt-spark/dbt/include/spark/macros/adapters.sql
-      re: python models and temporary views.
-
-      Also, why does not either drop_relation or adapter.drop_relation work here?!
-      --#}
       {{ adapter.drop_relation(tmp_relation) }}
     {%- endif -%}
 

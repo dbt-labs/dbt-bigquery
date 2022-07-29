@@ -86,6 +86,8 @@ class BigQueryConnectionMethod(StrEnum):
 @dataclass
 class BigQueryAdapterResponse(AdapterResponse):
     bytes_processed: Optional[int] = None
+    job_id: Optional[str] = None
+    project_id: Optional[str] = None
 
 
 @dataclass
@@ -446,51 +448,67 @@ class BigQueryConnectionManager(BaseConnectionManager):
         code = None
         num_rows = None
         bytes_processed = None
+        job_id = None
+        project_id = None
+        num_rows_formatted = None
+        processed_bytes = None
+
+        def set_common_attributes():
+            nonlocal message, num_rows, num_rows_formatted, bytes_processed, processed_bytes, job_id, project_id
+            bytes_processed = query_job.total_bytes_processed
+            processed_bytes = self.format_bytes(bytes_processed)
+            job_id = query_job.job_id
+            project_id = query_job.project
+            if num_rows is not None:
+                num_rows_formatted = self.format_rows_number(num_rows)
+                message = f"{code} ({num_rows_formatted} rows, {processed_bytes} processed)"
+            else:
+                message = f"{code} ({processed_bytes} processed)"
 
         if query_job.statement_type == "CREATE_VIEW":
             code = "CREATE VIEW"
 
         elif query_job.statement_type == "CREATE_TABLE_AS_SELECT":
+            code = "CREATE TABLE"
             conn = self.get_thread_connection()
             client = conn.handle
             query_table = client.get_table(query_job.destination)
-            code = "CREATE TABLE"
             num_rows = query_table.num_rows
-            num_rows_formated = self.format_rows_number(num_rows)
-            bytes_processed = query_job.total_bytes_processed
-            processed_bytes = self.format_bytes(bytes_processed)
-            message = f"{code} ({num_rows_formated} rows, {processed_bytes} processed)"
+            set_common_attributes()
+            message = f"{code} ({num_rows_formatted} rows, {processed_bytes} processed)"
 
         elif query_job.statement_type == "SCRIPT":
             code = "SCRIPT"
-            bytes_processed = query_job.total_bytes_processed
-            message = f"{code} ({self.format_bytes(bytes_processed)} processed)"
+            set_common_attributes()
 
         elif query_job.statement_type in ["INSERT", "DELETE", "MERGE", "UPDATE"]:
             code = query_job.statement_type
             num_rows = query_job.num_dml_affected_rows
-            num_rows_formated = self.format_rows_number(num_rows)
-            bytes_processed = query_job.total_bytes_processed
-            processed_bytes = self.format_bytes(bytes_processed)
-            message = f"{code} ({num_rows_formated} rows, {processed_bytes} processed)"
+            set_common_attributes()
 
         elif query_job.statement_type == "SELECT":
+            code = "SELECT"
             conn = self.get_thread_connection()
             client = conn.handle
             # use anonymous table for num_rows
             query_table = client.get_table(query_job.destination)
-            code = "SELECT"
             num_rows = query_table.num_rows
-            num_rows_formated = self.format_rows_number(num_rows)
-            bytes_processed = query_job.total_bytes_processed
-            processed_bytes = self.format_bytes(bytes_processed)
-            message = f"{code} ({num_rows_formated} rows, {processed_bytes} processed)"
+            set_common_attributes()
+
+        if job_id is not None and project_id is not None:
+            logger.debug(
+                "Job details accessible at https://console.cloud.google.com/bigquery?project={}&j={}&page=queryresults",
+                project_id,
+                job_id,
+            )
 
         response = BigQueryAdapterResponse(  # type: ignore[call-arg]
             _message=message,
             rows_affected=num_rows,
             code=code,
             bytes_processed=bytes_processed,
+            job_id=job_id,
+            project_id=project_id,
         )
 
         return response, table

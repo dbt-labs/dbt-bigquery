@@ -7,7 +7,7 @@ black==22.6.0
 bumpversion
 flake8
 flaky
-freezegun==1.1.0
+freezegun==1.2.1
 ipdb
 mypy==0.942
 pip-tools

@@ -1,4 +1,6 @@
-## dbt-bigquery 1.3.0b1 (Release TBD)
+## dbt-bigquery 1.3.0b2 (Release TBD)
+
+## dbt-bigquery 1.3.0b1 (July 29, 2020)
 
 ### Features
 - Implement `create_schema` via SQL, instead of Python method, allowing users to override if desired. `drop_schema` remains a Python method for the time being. ([#182](https://github.com/dbt-labs/dbt-bigquery/issues/182), [#183](https://github.com/dbt-labs/dbt-bigquery/pull/183))

@@ -3,6 +3,7 @@ import pytest
 from dbt.tests.util import run_dbt, write_file
 import dbt.tests.adapter.python_model.test_python_model as dbt_tests
 
+@pytest.skip("cluster unstable", allow_module_level=True)
 class TestPythonIncrementalMatsDataproc(dbt_tests.BasePythonIncrementalTests):
     pass
 

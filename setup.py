@@ -73,6 +73,12 @@ setup(
         "google-api-core>=1.16.0,<3",
         "googleapis-common-protos>=1.6.0,<2",
     ],
+    extras_require={
+        "dataproc": [
+            "google-cloud-storage[dataproc]>=2.4.0",
+            "google-cloud-dataproc[dataproc]>=4.0.3",
+        ],
+    },
     zip_safe=False,
     classifiers=[
         "Development Status :: 5 - Production/Stable",

@@ -8,11 +8,7 @@
 
 ### Under the hood
 - Implement minimal changes to support dbt Core incremental materialization refactor. ([#232](http://github.com/dbt-labs/dbt-bigquery/issues/232), [#223](https://github.com/dbt-labs/dbt-biquery/pull/223))
-- Add job_id/project_id to adapter response to enable easy job linking ([#225](https://github.com/dbt-labs/dbt-bigquery/pull/225))
 
-### Contributors
-- [@Kayrnt](https://github.com/Kayrnt) ([#225](https://github.com/dbt-labs/dbt-bigquery/pull/225))
--
 ## dbt-bigquery 1.2.0rc1 (June 12, 2022)
 
 ### Features

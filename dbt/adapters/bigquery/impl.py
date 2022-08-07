@@ -898,7 +898,7 @@ class DataProcHelper:
         self.storage_client = storage.Client(
             project=self.credential.database, credentials=self.GoogleCredentials
         )
-        self.job_client = dataproc_v1.JobControllerClient(
+        self.job_client = dataproc_v1.BatchControllerClient(
             client_options={
                 "api_endpoint": "{}-dataproc.googleapis.com:443".format(
                     self.credential.dataproc_region
@@ -913,20 +913,34 @@ class DataProcHelper:
         blob.upload_from_string(compiled_code)
 
     def submit_dataproc_job(self, filename: str):
-        # Create the job config.
-        job = {
-            "placement": {"cluster_name": self.credential.dataproc_cluster_name},
-            "pyspark_job": {
-                "main_python_file_uri": "gs://{}/{}".format(self.credential.gcs_bucket, filename)
-            },
+        from google.cloud import dataproc_v1
+
+        # create the Dataproc Serverless job config
+        batch = dataproc_v1.Batch()
+        gcs_location = "gs://{}/{}".format(self.credential.gcs_bucket, filename)
+        batch.pyspark_batch.main_python_file_uri = gcs_location
+        batch.pyspark_batch.jar_file_uris = [
+            "gs://spark-lib/bigquery/spark-3.1-bigquery-0.26.0-preview.jar"  # how to keep this up to date?
+        ]
+
+        # should we make all of these spark/dataproc properties configurable?
+        # https://cloud.google.com/dataproc-serverless/docs/concepts/properties
+        # https://cloud.google.com/dataproc-serverless/docs/reference/rest/v1/projects.locations.batches#runtimeconfig
+        batch.runtime_config.properties = {
+            "spark.executor.instances": "2",
         }
-        operation = self.job_client.submit_job_as_operation(
-            request={
-                "project_id": self.credential.database,
-                "region": self.credential.dataproc_region,
-                "job": job,
-            }
+
+        parent = f"projects/{self.credential.database}/locations/{self.credential.dataproc_region}"
+
+        request = dataproc_v1.CreateBatchRequest(
+            parent=parent,
+            batch=batch,
         )
+
+        # make the request
+        operation = self.job_client.create_batch(request=request)
+        # this takes quite a while
+        # https://googleapis.dev/python/google-api-core/latest/operation.html#google.api_core.operation.Operation
         response = operation.result()
         return response
 

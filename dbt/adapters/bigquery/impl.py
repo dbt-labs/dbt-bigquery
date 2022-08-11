@@ -29,6 +29,7 @@ import google.cloud.exceptions
 import google.cloud.bigquery
 
 from google.cloud.bigquery import AccessEntry, SchemaField
+from google.cloud.bigquery.enums import EntityTypes
 
 import time
 import agate
@@ -764,21 +765,23 @@ class BigQueryAdapter(BaseAdapter):
         GrantTarget.validate(grant_target_dict)
         grant_target = GrantTarget.from_dict(grant_target_dict)
         dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
-        dataset = client.get_dataset(dataset_ref)
 
-        if entity_type == "view":
+        if entity_type == EntityTypes.VIEW:
             entity = self.get_table_ref_from_relation(entity).to_api_repr()
 
-        access_entry = AccessEntry(role, entity_type, entity)
-        access_entries = dataset.access_entries
+        with self.connections.lock:
+            dataset = client.get_dataset(dataset_ref)
 
-        if access_entry in access_entries:
-            logger.debug(f"Access entry {access_entry} " f"already exists in dataset")
-            return
+            access_entry = AccessEntry(role, entity_type, entity)
+            access_entries = dataset.access_entries
 
-        access_entries.append(AccessEntry(role, entity_type, entity))
-        dataset.access_entries = access_entries
-        client.update_dataset(dataset, ["access_entries"])
+            if access_entry in access_entries:
+                logger.debug(f"Access entry {access_entry} " f"already exists in dataset")
+                return
+
+            access_entries.append(AccessEntry(role, entity_type, entity))
+            dataset.access_entries = access_entries
+            client.update_dataset(dataset, ["access_entries"])
 
     @available.parse_none
     def get_dataset_location(self, relation):

@@ -1,0 +1,7 @@
+kind: Fixes
+body: Fix bug where calls to `grant_access_to` from multiple threads could fail.
+time: 2022-08-11T10:30:49.358387+01:00
+custom:
+  Author: judahrand
+  Issue: "266"
+  PR: "265"

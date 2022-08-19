@@ -114,6 +114,7 @@ class BigqueryConfig(AdapterConfig):
     require_partition_filter: Optional[bool] = None
     partition_expiration_days: Optional[int] = None
     merge_update_columns: Optional[str] = None
+    location: Optional[str] = None
 
 
 class BigQueryAdapter(BaseAdapter):
@@ -745,6 +746,9 @@ class BigQueryAdapter(BaseAdapter):
                 opts["require_partition_filter"] = config.get("require_partition_filter")
             if config.get("partition_expiration_days") is not None:
                 opts["partition_expiration_days"] = config.get("partition_expiration_days")
+
+        if config.get("location") is not None:
+            opts["location"] = config.get("location")
 
         return opts
 

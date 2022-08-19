@@ -886,6 +886,15 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         actual = adapter.get_view_options(mock_config, node={})
         self.assertEqual(expected, actual)
 
+    def test_location(self):
+        adapter = self.get_adapter('oauth')
+        mock_config = create_autospec(
+            RuntimeConfigObject)
+        config = {'location': 'EU'}
+        mock_config.get.side_effect = lambda name: config.get(name)
+        expected = {'location': 'EU'}
+        actual = adapter.get_table_options(mock_config, node={})
+        self.assertEqual(expected, actual)
 
 
 class TestBigQueryFilterCatalog(unittest.TestCase):

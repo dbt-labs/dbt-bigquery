@@ -1,0 +1,7 @@
+kind: Features
+body: Support the `location` option to create schema
+time: 2022-08-19T21:41:40.073268+09:00
+custom:
+  Author: yu-iskw
+  Issue: "273"
+  PR: "275"

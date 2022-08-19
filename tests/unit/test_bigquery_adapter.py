@@ -893,7 +893,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         config = {'location': 'EU'}
         mock_config.get.side_effect = lambda name: config.get(name)
         expected = {'location': 'EU'}
-        actual = adapter.get_table_options(mock_config, node={})
+        actual = adapter.get_table_options(mock_config, node={}, temporary=False)
         self.assertEqual(expected, actual)
 
 

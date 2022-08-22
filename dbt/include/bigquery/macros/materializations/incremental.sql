@@ -99,7 +99,7 @@
 
 
 {% macro bq_generate_incremental_build_sql(
-    strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists
+    strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_predicates
 ) %}
   {#-- if partitioned, use BQ scripting to get the range of partition values to be updated --#}
   {% if strategy == 'insert_overwrite' %}
@@ -128,7 +128,7 @@
       {%- endif -%}
     {%- endset -%}
 
-    {% set build_sql = get_merge_sql(target_relation, source_sql, unique_key, dest_columns) %}
+    {% set build_sql = get_merge_sql(target_relation, source_sql, unique_key, dest_columns, incremental_predicates) %}
 
   {% endif %}
 
@@ -155,6 +155,7 @@
   {%- set cluster_by = config.get('cluster_by', none) -%}
 
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
+  {% set incremental_predicates = config.get('incremental_predicates', default=none) %}
 
    -- grab current tables grants config for comparision later on
   {% set grant_config = config.get('grants') %}
@@ -210,7 +211,7 @@
       {% set dest_columns = adapter.get_columns_in_relation(existing_relation) %}
     {% endif %}
     {% set build_sql = bq_generate_incremental_build_sql(
-        strategy, tmp_relation, target_relation, compiled_code, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists
+        strategy, tmp_relation, target_relation, compiled_code, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_predicates
     ) %}
 
     {%- call statement('main') -%}

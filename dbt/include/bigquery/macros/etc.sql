@@ -14,21 +14,24 @@
   {{- return(None) -}}
 {%- endmacro -%}
 
-{%- macro get_max_partition(relation) -%}
+{%- macro get_max_partition(relation, data_type=none) -%}
     {%- if not execute -%}
         {{- return(none) -}}
     {%- endif -%}
 
-    {# Get info about partitioning. #}
-    {%- set raw_partition_by = config.get('partition_by', none) -%}
-    {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
+    {%- if data_type is none -%}
+        {# Get info about partitioning. #}
+        {%- set raw_partition_by = config.get('partition_by', none) -%}
+        {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
+        {%- set data_type = partition_config.data_type -%}
+    {%- endif -%}
 
     {# Get the maxiumum partition id. #}
     {%- set partitions_metadata = get_partitions_metadata(relation) -%}
     {%- set partition_id = partitions_metadata.columns['partition_id'].values() | max -%}
 
     {# Format partition id for SQL comparision. #}
-    {%- if partition_config.data_type | lower in ('date', 'timestamp', 'datetime') -%}
+    {%- if data_type | lower in ('date', 'timestamp', 'datetime') -%}
         {%- if partition_id | length == 4 -%}
             {%- set format = '%Y' -%}
         {%- elif partition_id | length == 6 -%}
@@ -38,9 +41,9 @@
         {%- else -%}
             {%- set format = '%Y%m%d%H' -%}
         {%- endif -%}
-        {%- set res = dbt.safe_cast("parse_timestamp('{}', '{}')".format(format, partition_id), partition_config.data_type) -%}
+        {%- set res = "parse_timestamp('{}', '{}')".format(format, partition_id) -%}
     {%- else -%}
-        {%- set res = dbt.safe_cast("'{}'".format(partition_id), dbt.type_int()) -%}
+        {%- set res = "'{}'".format(partition_id) -%}
     {%- endif -%}
-    {{- return(res) -}}
+    {{- return(safe_cast(res, data_type)) -}}
 {%- endmacro -%}

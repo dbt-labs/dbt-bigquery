@@ -3,10 +3,7 @@
   {#-- TODO: revisit partitioning with python models --#}
   {%- if '_dbt_max_partition' in complied_code and language == 'sql' -%}
 
-    declare _dbt_max_partition {{ partition_by.data_type }} default (
-      select max({{ partition_by.field }}) from {{ this }}
-      where {{ partition_by.field }} is not null
-    );
+    declare _dbt_max_partition {{ partition_by.data_type }} default {{ get_max_partition(this, partition_by.data_type) }};
 
   {%- endif -%}
 

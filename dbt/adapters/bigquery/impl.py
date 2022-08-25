@@ -8,11 +8,18 @@ import dbt.clients.agate_helper
 
 from dbt import ui  # type: ignore
 from dbt.adapters.base import BaseAdapter, available, RelationType, SchemaSearchMap, AdapterConfig
+from dbt.adapters.base.impl import log_code_execution
+
+from dbt.adapters.cache import _make_key
+
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery import BigQueryColumn
 from dbt.adapters.bigquery import BigQueryConnectionManager
+from dbt.adapters.bigquery.connections import BigQueryAdapterResponse
 from dbt.contracts.graph.manifest import Manifest
 from dbt.events import AdapterLogger
+from dbt.events.functions import fire_event
+from dbt.events.types import SchemaCreation, SchemaDrop
 from dbt.utils import filter_null_values
 
 import google.auth
@@ -32,6 +39,8 @@ logger = AdapterLogger("BigQuery")
 # Write dispositions for bigquery.
 WRITE_APPEND = google.cloud.bigquery.job.WriteDisposition.WRITE_APPEND
 WRITE_TRUNCATE = google.cloud.bigquery.job.WriteDisposition.WRITE_TRUNCATE
+
+CREATE_SCHEMA_MACRO_NAME = "create_schema"
 
 
 def sql_escape(string):
@@ -273,16 +282,30 @@ class BigQueryAdapter(BaseAdapter):
             table = None
         return self._bq_table_to_relation(table)
 
+    # BigQuery added SQL support for 'create schema' + 'drop schema' in March 2021
+    # Unfortunately, 'drop schema' runs into permissions issues during tests
+    # Most of the value here comes from user overrides of 'create_schema'
+
+    # TODO: the code below is copy-pasted from SQLAdapter.create_schema. Is there a better way?
     def create_schema(self, relation: BigQueryRelation) -> None:
-        database = relation.database
-        schema = relation.schema
-        logger.debug('Creating schema "{}.{}".', database, schema)
-        self.connections.create_dataset(database, schema)
+        # use SQL 'create schema'
+        relation = relation.without_identifier()  # type: ignore
+
+        fire_event(SchemaCreation(relation=_make_key(relation)))
+        kwargs = {
+            "relation": relation,
+        }
+        self.execute_macro(CREATE_SCHEMA_MACRO_NAME, kwargs=kwargs)
+        self.commit_if_has_connection()
+        # we can't update the cache here, as if the schema already existed we
+        # don't want to (incorrectly) say that it's empty
 
     def drop_schema(self, relation: BigQueryRelation) -> None:
+        # still use a client method, rather than SQL 'drop schema ... cascade'
         database = relation.database
         schema = relation.schema
-        logger.debug('Dropping schema "{}.{}".', database, schema)
+        logger.debug('Dropping schema "{}.{}".', database, schema)  # in lieu of SQL
+        fire_event(SchemaDrop(relation=_make_key(relation)))
         self.connections.drop_dataset(database, schema)
         self.cache.drop_schema(database, schema)
 
@@ -354,11 +377,11 @@ class BigQueryAdapter(BaseAdapter):
         model_database = model.get("database")
         model_schema = model.get("schema")
         model_alias = model.get("alias")
-        model_sql = model.get("compiled_sql")
+        model_code = model.get("compiled_code")
 
-        logger.debug("Model SQL ({}):\n{}".format(model_alias, model_sql))
+        logger.debug("Model SQL ({}):\n{}".format(model_alias, model_code))
         self.connections.create_view(
-            database=model_database, schema=model_schema, table_name=model_alias, sql=model_sql
+            database=model_database, schema=model_schema, table_name=model_alias, sql=model_code
         )
         return "CREATE VIEW"
 
@@ -757,6 +780,14 @@ class BigQueryAdapter(BaseAdapter):
         dataset.access_entries = access_entries
         client.update_dataset(dataset, ["access_entries"])
 
+    @available.parse_none
+    def get_dataset_location(self, relation):
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+        dataset_ref = self.connections.dataset_ref(relation.project, relation.dataset)
+        dataset = client.get_dataset(dataset_ref)
+        return dataset.location
+
     def get_rows_different_sql(  # type: ignore[override]
         self,
         relation_a: BigQueryRelation,
@@ -803,3 +834,109 @@ class BigQueryAdapter(BaseAdapter):
             return res[0]
         else:
             return list(res)
+
+    @available.parse_none
+    @log_code_execution
+    def submit_python_job(self, parsed_model: dict, compiled_code: str):
+        # TODO improve the typing here.  N.B. Jinja returns a `jinja2.runtime.Undefined` instead
+        # of `None` which evaluates to True!
+
+        # TODO limit this function to run only when doing the materialization of python nodes
+        # TODO should we also to timeout here?
+
+        # validate all additional stuff for python is set
+        schema = getattr(parsed_model, "schema", self.config.credentials.schema)
+        identifier = parsed_model["alias"]
+        python_required_configs = [
+            "dataproc_region",
+            "dataproc_cluster_name",
+            "gcs_bucket",
+        ]
+        for required_config in python_required_configs:
+            if not getattr(self.connections.profile.credentials, required_config):
+                raise ValueError(
+                    f"Need to supply {required_config} in profile to submit python job"
+                )
+        if not hasattr(self, "dataproc_helper"):
+            self.dataproc_helper = DataProcHelper(self.connections.profile.credentials)
+        model_file_name = f"{schema}/{identifier}.py"
+        # upload python file to GCS
+        self.dataproc_helper.upload_to_gcs(model_file_name, compiled_code)
+        # submit dataproc job
+        self.dataproc_helper.submit_dataproc_job(model_file_name)
+
+        # TODO proper result for this
+        message = "OK"
+        code = None
+        num_rows = None
+        bytes_processed = None
+        return BigQueryAdapterResponse(  # type: ignore[call-arg]
+            _message=message,
+            rows_affected=num_rows,
+            code=code,
+            bytes_processed=bytes_processed,
+        )
+
+
+class DataProcHelper:
+    def __init__(self, credential):
+        """_summary_
+
+        Args:
+            credential (_type_): _description_
+        """
+        try:
+            # Library only needed for python models
+            from google.cloud import dataproc_v1
+            from google.cloud import storage
+        except ImportError:
+            raise RuntimeError(
+                "You need to install [dataproc] extras to run python model in dbt-bigquery"
+            )
+        self.credential = credential
+        self.GoogleCredentials = BigQueryConnectionManager.get_credentials(credential)
+        self.storage_client = storage.Client(
+            project=self.credential.database, credentials=self.GoogleCredentials
+        )
+        self.job_client = dataproc_v1.JobControllerClient(
+            client_options={
+                "api_endpoint": "{}-dataproc.googleapis.com:443".format(
+                    self.credential.dataproc_region
+                )
+            },
+            credentials=self.GoogleCredentials,
+        )
+
+    def upload_to_gcs(self, filename: str, compiled_code: str):
+        bucket = self.storage_client.get_bucket(self.credential.gcs_bucket)
+        blob = bucket.blob(filename)
+        blob.upload_from_string(compiled_code)
+
+    def submit_dataproc_job(self, filename: str):
+        # Create the job config.
+        job = {
+            "placement": {"cluster_name": self.credential.dataproc_cluster_name},
+            "pyspark_job": {
+                "main_python_file_uri": "gs://{}/{}".format(self.credential.gcs_bucket, filename)
+            },
+        }
+        operation = self.job_client.submit_job_as_operation(
+            request={
+                "project_id": self.credential.database,
+                "region": self.credential.dataproc_region,
+                "job": job,
+            }
+        )
+        response = operation.result()
+        return response
+
+        # TODO: there might be useful results here that we can parse and return
+        # Dataproc job output is saved to the Cloud Storage bucket
+        # allocated to the job. Use regex to obtain the bucket and blob info.
+        # matches = re.match("gs://(.*?)/(.*)", response.driver_output_resource_uri)
+        # output = (
+        #     self.storage_client
+        #     .get_bucket(matches.group(1))
+        #     .blob(f"{matches.group(2)}.000000000")
+        #     .download_as_string()
+        # )

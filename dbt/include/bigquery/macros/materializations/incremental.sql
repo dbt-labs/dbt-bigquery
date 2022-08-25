@@ -136,7 +136,7 @@
 
 {% endmacro %}
 
-{% materialization incremental, adapter='bigquery' -%}
+{% materialization incremental, adapter='bigquery', supported_languages=['sql', 'python'] -%}
 
   {%- set unique_key = config.get('unique_key') -%}
   {%- set full_refresh_mode = (should_full_refresh()) -%}

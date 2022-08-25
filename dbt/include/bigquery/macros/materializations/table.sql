@@ -1,4 +1,4 @@
-{% materialization table, adapter='bigquery' -%}
+{% materialization table, adapter='bigquery', supported_languages=['sql', 'python']-%}
 
   {%- set language = model['language'] -%}
   {%- set identifier = model['alias'] -%}

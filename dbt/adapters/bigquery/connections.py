@@ -89,6 +89,7 @@ class BigQueryAdapterResponse(AdapterResponse):
     location: Optional[str] = None
     project_id: Optional[str] = None
     job_id: Optional[str] = None
+    slot_ms: Optional[int] = None
 
 
 @dataclass
@@ -460,6 +461,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         project_id = None
         num_rows_formatted = None
         processed_bytes = None
+        slot_ms = None
 
         if query_job.statement_type == "CREATE_VIEW":
             code = "CREATE VIEW"
@@ -488,6 +490,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         # set common attributes
         bytes_processed = query_job.total_bytes_processed
+        slot_ms = query_job.slot_millis
         processed_bytes = self.format_bytes(bytes_processed)
         location = query_job.location
         job_id = query_job.job_id
@@ -511,6 +514,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             location=location,
             project_id=project_id,
             job_id=job_id,
+            slot_ms=slot_ms,
         )
 
         return response, table

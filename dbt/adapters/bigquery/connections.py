@@ -503,8 +503,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
         else:
             message = f"{code}"
 
-        if location is not None and job_id is not None and project_id is not None:
-            logger.debug(self._bq_job_link(job_id, project_id, location))
+        if location is not None and project_id is not None and job_id is not None:
+            logger.debug(self._bq_job_link(location, project_id, job_id))
 
         response = BigQueryAdapterResponse(  # type: ignore[call-arg]
             _message=message,

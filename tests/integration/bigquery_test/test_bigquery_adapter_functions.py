@@ -21,6 +21,13 @@ class TestBigqueryAdapterFunctions(DBTIntegrationTest):
         results = self.run_dbt()
         self.assertEqual(len(results), 3)
 
+        for result in results:
+            # all queries in adapter models are jobs that are expected to have a location/project_id/job_id
+            assert result.adapter_response["location"] is not None
+            assert result.adapter_response["project_id"] is not None
+            assert result.adapter_response["job_id"] is not None
+            assert result.adapter_response["slot_ms"] is not None
+
         test_results = self.run_dbt(['test'])
 
         self.assertTrue(len(test_results) > 0)

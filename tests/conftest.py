@@ -42,4 +42,8 @@ def service_account_target():
         'threads': 1,
         'project': project_id,
         'keyfile_json': credentials,
+        # following 3 for python model
+        'dataproc_region': os.getenv("DATAPROC_REGION"),
+        'dataproc_cluster_name': os.getenv("DATAPROC_CLUSTER_NAME"),
+        'gcs_bucket': os.getenv("GCS_BUCKET")
     }

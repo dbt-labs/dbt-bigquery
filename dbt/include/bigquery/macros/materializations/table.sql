@@ -67,6 +67,6 @@ df = model(dbt, spark)
 df.write \
   .mode("overwrite") \
   .format("bigquery") \
-  .option("writeMethod", "direct") \
+  .option("writeMethod", "direct").option("writeDisposition", 'WRITE_TRUNCATE') \
   .save("{{target_relation}}")
 {% endmacro %}

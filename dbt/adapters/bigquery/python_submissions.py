@@ -122,7 +122,7 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         # how to keep this up to date?
         # we should probably also open this up to be configurable
         batch.pyspark_batch.jar_file_uris = [
-            "gs://spark-lib/bigquery/spark-3.1-bigquery-0.26.0-preview.jar"
+            "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-0.21.1.jar"
         ]
         # should we make all of these spark/dataproc properties configurable?
         # https://cloud.google.com/dataproc-serverless/docs/concepts/properties

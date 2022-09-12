@@ -121,9 +121,11 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         batch.pyspark_batch.main_python_file_uri = self.gcs_location
         # how to keep this up to date?
         # we should probably also open this up to be configurable
-        batch.pyspark_batch.jar_file_uris = [
-            "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-0.21.1.jar"
-        ]
+        jar_file_uri = self.parsed_model["config"].get(
+            "jar_file_uri",
+            "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-0.21.1.jar",
+        )
+        batch.pyspark_batch.jar_file_uris = [jar_file_uri]
         # should we make all of these spark/dataproc properties configurable?
         # https://cloud.google.com/dataproc-serverless/docs/concepts/properties
         # https://cloud.google.com/dataproc-serverless/docs/reference/rest/v1/projects.locations.batches#runtimeconfig

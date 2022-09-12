@@ -4,14 +4,7 @@ from dbt.adapters.base import PythonJobHelper
 from dbt.adapters.bigquery import BigQueryConnectionManager, BigQueryCredentials
 from google.api_core import retry
 from google.api_core.client_options import ClientOptions
-
-try:
-    # library only needed for python models
-    from google.cloud import storage, dataproc_v1  # type: ignore
-except ImportError:
-    _has_dataproc_lib = False
-else:
-    _has_dataproc_lib = True
+from google.cloud import storage, dataproc_v1  # type: ignore
 
 
 class BaseDataProcHelper(PythonJobHelper):
@@ -21,10 +14,6 @@ class BaseDataProcHelper(PythonJobHelper):
         Args:
             credential (_type_): _description_
         """
-        if not _has_dataproc_lib:
-            raise RuntimeError(
-                "You need to install [dataproc] extras to run python model in dbt-bigquery"
-            )
         # validate all additional stuff for python is set
         schema = parsed_model["schema"]
         identifier = parsed_model["alias"]

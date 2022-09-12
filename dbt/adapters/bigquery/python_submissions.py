@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Union
 
 from dbt.adapters.base import PythonJobHelper
 from dbt.adapters.bigquery import BigQueryConnectionManager, BigQueryCredentials
@@ -61,7 +61,7 @@ class BaseDataProcHelper(PythonJobHelper):
         blob = bucket.blob(filename)
         blob.upload_from_string(compiled_code)
 
-    def submit(self, compiled_code: str):
+    def submit(self, compiled_code: str) -> dataproc_v1.types.jobs.Job:
         # upload python file to GCS
         self._upload_to_gcs(self.model_file_name, compiled_code)
         # submit dataproc job
@@ -69,15 +69,15 @@ class BaseDataProcHelper(PythonJobHelper):
 
     def _get_job_client(
         self,
-    ):
+    ) -> Union[dataproc_v1.JobControllerClient, dataproc_v1.BatchControllerClient]:
         raise NotImplementedError("_get_job_client not implemented")
 
-    def _submit_dataproc_job(self):
+    def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
         raise NotImplementedError("_submit_dataproc_job not implemented")
 
 
 class ClusterDataprocHelper(BaseDataProcHelper):
-    def _get_job_client(self):
+    def _get_job_client(self) -> dataproc_v1.JobControllerClient:
         if not self._get_cluster_name():
             raise ValueError(
                 "Need to supply dataproc_cluster_name in profile or config to submit python job with cluster submission method"
@@ -91,7 +91,7 @@ class ClusterDataprocHelper(BaseDataProcHelper):
             "dataproc_cluster_name", self.credential.dataproc_cluster_name
         )
 
-    def _submit_dataproc_job(self):
+    def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
         job = {
             "placement": {"cluster_name": self._get_cluster_name()},
             "pyspark_job": {
@@ -110,12 +110,12 @@ class ClusterDataprocHelper(BaseDataProcHelper):
 
 
 class ServerlessDataProcHelper(BaseDataProcHelper):
-    def _get_job_client(self):
+    def _get_job_client(self) -> dataproc_v1.BatchControllerClient:
         return dataproc_v1.BatchControllerClient(
             client_options=self.client_options, credentials=self.GoogleCredentials
         )
 
-    def _submit_dataproc_job(self):
+    def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
         # create the Dataproc Serverless job config
         batch = dataproc_v1.Batch()
         batch.pyspark_batch.main_python_file_uri = self.gcs_location

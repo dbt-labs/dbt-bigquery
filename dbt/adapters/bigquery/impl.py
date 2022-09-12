@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Any, Set, Union
+from typing import Dict, List, Optional, Any, Set, Union, Type
 from dbt.dataclass_schema import dbtClassMixin, ValidationError
 
 import dbt.deprecations
@@ -7,14 +7,24 @@ import dbt.exceptions
 import dbt.clients.agate_helper
 
 from dbt import ui  # type: ignore
-from dbt.adapters.base import BaseAdapter, available, RelationType, SchemaSearchMap, AdapterConfig
-from dbt.adapters.base.impl import log_code_execution
+from dbt.adapters.base import (
+    BaseAdapter,
+    available,
+    RelationType,
+    SchemaSearchMap,
+    AdapterConfig,
+    PythonJobHelper,
+)
 
 from dbt.adapters.cache import _make_key
 
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery import BigQueryColumn
 from dbt.adapters.bigquery import BigQueryConnectionManager
+from dbt.adapters.bigquery.python_submissions import (
+    ClusterDataprocHelper,
+    ServerlessDataProcHelper,
+)
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse
 from dbt.contracts.graph.manifest import Manifest
 from dbt.events import AdapterLogger
@@ -835,108 +845,16 @@ class BigQueryAdapter(BaseAdapter):
         else:
             return list(res)
 
-    @available.parse_none
-    @log_code_execution
-    def submit_python_job(self, parsed_model: dict, compiled_code: str):
-        # TODO improve the typing here.  N.B. Jinja returns a `jinja2.runtime.Undefined` instead
-        # of `None` which evaluates to True!
+    def generate_python_submission_response(self, submission_result) -> BigQueryAdapterResponse:
+        return BigQueryAdapterResponse(_message="OK")  # type: ignore[call-arg]
 
-        # TODO limit this function to run only when doing the materialization of python nodes
-        # TODO should we also to timeout here?
+    @property
+    def default_python_submission_method(self) -> str:
+        return "serverless"
 
-        # validate all additional stuff for python is set
-        schema = getattr(parsed_model, "schema", self.config.credentials.schema)
-        identifier = parsed_model["alias"]
-        python_required_configs = [
-            "dataproc_region",
-            "dataproc_cluster_name",
-            "gcs_bucket",
-        ]
-        for required_config in python_required_configs:
-            if not getattr(self.connections.profile.credentials, required_config):
-                raise ValueError(
-                    f"Need to supply {required_config} in profile to submit python job"
-                )
-        if not hasattr(self, "dataproc_helper"):
-            self.dataproc_helper = DataProcHelper(self.connections.profile.credentials)
-        model_file_name = f"{schema}/{identifier}.py"
-        # upload python file to GCS
-        self.dataproc_helper.upload_to_gcs(model_file_name, compiled_code)
-        # submit dataproc job
-        self.dataproc_helper.submit_dataproc_job(model_file_name)
-
-        # TODO proper result for this
-        message = "OK"
-        code = None
-        num_rows = None
-        bytes_processed = None
-        return BigQueryAdapterResponse(  # type: ignore[call-arg]
-            _message=message,
-            rows_affected=num_rows,
-            code=code,
-            bytes_processed=bytes_processed,
-        )
-
-
-class DataProcHelper:
-    def __init__(self, credential):
-        """_summary_
-
-        Args:
-            credential (_type_): _description_
-        """
-        try:
-            # Library only needed for python models
-            from google.cloud import dataproc_v1
-            from google.cloud import storage
-        except ImportError:
-            raise RuntimeError(
-                "You need to install [dataproc] extras to run python model in dbt-bigquery"
-            )
-        self.credential = credential
-        self.GoogleCredentials = BigQueryConnectionManager.get_credentials(credential)
-        self.storage_client = storage.Client(
-            project=self.credential.database, credentials=self.GoogleCredentials
-        )
-        self.job_client = dataproc_v1.JobControllerClient(
-            client_options={
-                "api_endpoint": "{}-dataproc.googleapis.com:443".format(
-                    self.credential.dataproc_region
-                )
-            },
-            credentials=self.GoogleCredentials,
-        )
-
-    def upload_to_gcs(self, filename: str, compiled_code: str):
-        bucket = self.storage_client.get_bucket(self.credential.gcs_bucket)
-        blob = bucket.blob(filename)
-        blob.upload_from_string(compiled_code)
-
-    def submit_dataproc_job(self, filename: str):
-        # Create the job config.
-        job = {
-            "placement": {"cluster_name": self.credential.dataproc_cluster_name},
-            "pyspark_job": {
-                "main_python_file_uri": "gs://{}/{}".format(self.credential.gcs_bucket, filename)
-            },
+    @property
+    def python_submission_helpers(self) -> Dict[str, Type[PythonJobHelper]]:
+        return {
+            "cluster": ClusterDataprocHelper,
+            "serverless": ServerlessDataProcHelper,
         }
-        operation = self.job_client.submit_job_as_operation(
-            request={
-                "project_id": self.credential.database,
-                "region": self.credential.dataproc_region,
-                "job": job,
-            }
-        )
-        response = operation.result()
-        return response
-
-        # TODO: there might be useful results here that we can parse and return
-        # Dataproc job output is saved to the Cloud Storage bucket
-        # allocated to the job. Use regex to obtain the bucket and blob info.
-        # matches = re.match("gs://(.*?)/(.*)", response.driver_output_resource_uri)
-        # output = (
-        #     self.storage_client
-        #     .get_bucket(matches.group(1))
-        #     .blob(f"{matches.group(2)}.000000000")
-        #     .download_as_string()
-        # )

@@ -10,6 +10,10 @@ try:
     from google.cloud import storage, dataproc_v1  # type: ignore
 except ImportError:
     _has_dataproc_lib = False
+    from unittest.mock import MagicMock
+
+    dataproc_v1 = MagicMock()
+    storage = MagicMock()
 else:
     _has_dataproc_lib = True
 

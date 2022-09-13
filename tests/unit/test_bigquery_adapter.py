@@ -107,6 +107,14 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
                     'threads': 1,
                     'location': 'Solar Station',
                 },
+                'aws-file': {
+                    'type': 'bigquery',
+                    'method': 'aws-file',
+                    'project': 'dbt-unit-000000',
+                    'schema': 'dummy_schema',
+                    'keyfile': '/tmp/dummy-aws-file.json',
+                    'threads': 1,
+                }
             },
             'target': 'oauth',
         }
@@ -265,6 +273,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         mock_open_connection.assert_not_called()
         connection.handle
         mock_open_connection.assert_called_once()
+    
 
     @patch('dbt.adapters.bigquery.BigQueryConnectionManager.open', return_value=_bq_conn())
     def test_acquire_connection_maximum_bytes_billed(self, mock_open_connection):
@@ -314,6 +323,20 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         mock_client.assert_called_once_with('dbt-unit-000000', creds,
                                             location='Luna Station',
                                             client_info=HasUserAgent())
+    
+    @patch('dbt.adapters.bigquery.BigQueryConnectionManager.open', return_value=_bq_conn())
+    def test_acquire_connection_aws_file_credentials_validations(self, mock_open_connection):
+        adapter = self.get_adapter('aws-file')
+        try:
+            connection = adapter.acquire_connection('dummy')
+            self.assertEqual(connection.type, 'bigquery')
+
+        except dbt.exceptions.ValidationException as e:
+            self.fail('got ValidationException: {}'.format(str(e)))
+
+        mock_open_connection.assert_not_called()
+        connection.handle
+        mock_open_connection.assert_called_once()
 
 
 class HasUserAgent:

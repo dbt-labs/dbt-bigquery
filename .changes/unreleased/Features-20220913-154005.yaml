@@ -1,0 +1,7 @@
+kind: Features
+body: Adds the ability to connect to BigQuery via an AWS Credentials File
+time: 2022-09-13T15:40:05.925664-05:00
+custom:
+  Author: siephen
+  Issue: "86"
+  PR: "186"

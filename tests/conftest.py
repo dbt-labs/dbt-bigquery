@@ -44,6 +44,6 @@ def service_account_target():
         'keyfile_json': credentials,
         # following 3 for python model
         'dataproc_region': os.getenv("DATAPROC_REGION"),
-        'dataproc_cluster_name': os.getenv("DATAPROC_CLUSTER_NAME"),
+        'dataproc_cluster_name': os.getenv("DATAPROC_CLUSTER_NAME"), # only needed for cluster submission method
         'gcs_bucket': os.getenv("GCS_BUCKET")
     }

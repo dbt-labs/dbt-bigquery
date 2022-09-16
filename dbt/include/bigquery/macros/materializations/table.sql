@@ -75,6 +75,6 @@ if importlib.util.find_spec(package_name):
 df.write \
   .mode("overwrite") \
   .format("bigquery") \
-  .option("writeMethod", "direct") \
+  .option("writeMethod", "direct").option("writeDisposition", 'WRITE_TRUNCATE') \
   .save("{{target_relation}}")
 {% endmacro %}

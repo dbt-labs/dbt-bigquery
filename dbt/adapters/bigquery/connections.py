@@ -184,10 +184,8 @@ class BigQueryCredentials(Credentials):
 class BigQueryConnectionManager(BaseConnectionManager):
     TYPE = "bigquery"
 
-    QUERY_TIMEOUT = 300
-    RETRIES = 1
     DEFAULT_INITIAL_DELAY = 1.0  # Seconds
-    DEFAULT_MAXIMUM_DELAY = 1.0  # Seconds
+    DEFAULT_MAXIMUM_DELAY = 3.0  # Seconds
 
     @classmethod
     def handle_error(cls, error, message):

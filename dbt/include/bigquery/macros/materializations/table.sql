@@ -63,10 +63,18 @@ df = model(dbt, spark)
 # COMMAND ----------
 # this is materialization code dbt generated, please do not modify
 
+# make sure pandas exists
+import importlib.util
+package_name = 'pandas'
+if importlib.util.find_spec(package_name):
+    import pandas
+    if isinstance(df, pandas.core.frame.DataFrame):
+      # convert to pyspark.DataFrame
+      df = spark.createDataFrame(df)
 
 df.write \
   .mode("overwrite") \
   .format("bigquery") \
-  .option("writeMethod", "direct") \
+  .option("writeMethod", "direct").option("writeDisposition", 'WRITE_TRUNCATE') \
   .save("{{target_relation}}")
 {% endmacro %}

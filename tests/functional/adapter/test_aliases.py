@@ -1,5 +1,5 @@
 import pytest
-from dbt.tests.adapter.aliases.test_aliases import TestAliases, TestSameAliasDifferentSchemas
+from dbt.tests.adapter.aliases.test_aliases import BaseAliases, BaseSameAliasDifferentSchemas
 
 _MACROS__BIGQUERY_CAST_SQL = """
 
@@ -9,14 +9,14 @@ _MACROS__BIGQUERY_CAST_SQL = """
 
 """
 
-class TestAliasesBigQuery(TestAliases):
+class TestAliasesBigQuery(BaseAliases):
     @pytest.fixture(scope="class")
     def macros(self):
         return {"bigquery_cast.sql": _MACROS__BIGQUERY_CAST_SQL}
 
     pass
 
-class TestSameTestSameAliasDifferentSchemasBigQuery(TestSameAliasDifferentSchemas):
+class TestSameTestSameAliasDifferentSchemasBigQuery(BaseSameAliasDifferentSchemas):
     @pytest.fixture(scope="class")
     def macros(self):
         return {"bigquery_cast.sql": _MACROS__BIGQUERY_CAST_SQL}

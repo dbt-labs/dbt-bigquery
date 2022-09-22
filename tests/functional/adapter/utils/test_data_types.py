@@ -5,6 +5,7 @@ from dbt.tests.adapter.utils.data_types.test_type_int import BaseTypeInt
 from dbt.tests.adapter.utils.data_types.test_type_numeric import BaseTypeNumeric
 from dbt.tests.adapter.utils.data_types.test_type_string import BaseTypeString
 from dbt.tests.adapter.utils.data_types.test_type_timestamp import BaseTypeTimestamp
+from dbt.tests.adapter.utils.data_types.test_type_boolean import BaseTypeBoolean
 
 
 class TestTypeBigInt(BaseTypeBigInt):
@@ -29,6 +30,10 @@ class TestTypeString(BaseTypeString):
 
     
 class TestTypeTimestamp(BaseTypeTimestamp):
+    pass
+
+
+class TestTypeBoolean(BaseTypeBoolean):
     pass
 
     

@@ -24,6 +24,19 @@ from dbt.tests.adapter.utils.test_right import BaseRight
 from dbt.tests.adapter.utils.test_safe_cast import BaseSafeCast
 from dbt.tests.adapter.utils.test_split_part import BaseSplitPart
 from dbt.tests.adapter.utils.test_string_literal import BaseStringLiteral
+from tests.functional.adapter.utils.fixture_array_append import (
+    models__array_append_actual_sql,
+    models__array_append_expected_sql,
+)
+from tests.functional.adapter.utils.fixture_array_concat import (
+    models__array_concat_actual_sql,
+    models__array_concat_expected_sql,
+)
+from tests.functional.adapter.utils.fixture_array_construct import (
+    models__array_construct_actual_sql,
+    models__array_construct_expected_sql,
+    macros__array_to_string_sql,
+)
 
 
 class TestAnyValue(BaseAnyValue):
@@ -31,15 +44,48 @@ class TestAnyValue(BaseAnyValue):
 
 
 class TestArrayAppend(BaseArrayAppend):
-    pass
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "actual.sql": models__array_append_actual_sql,
+            "expected.sql": models__array_append_expected_sql,
+        }
+
+    @pytest.fixture(scope="class")
+    def macros(self):
+        return {
+            "array_to_string.sql": macros__array_to_string_sql,
+        }
 
 
 class TestArrayConcat(BaseArrayConcat):
-    pass
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "actual.sql": models__array_concat_actual_sql,
+            "expected.sql": models__array_concat_expected_sql,
+        }
+
+    @pytest.fixture(scope="class")
+    def macros(self):
+        return {
+            "array_to_string.sql": macros__array_to_string_sql,
+        }
 
 
 class TestArrayConstruct(BaseArrayConstruct):
-    pass
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "actual.sql": models__array_construct_actual_sql,
+            "expected.sql": models__array_construct_expected_sql,
+        }
+
+    @pytest.fixture(scope="class")
+    def macros(self):
+        return {
+            "array_to_string.sql": macros__array_to_string_sql,
+        }
 
 
 class TestBoolOr(BaseBoolOr):

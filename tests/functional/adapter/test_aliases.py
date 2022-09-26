@@ -1,5 +1,6 @@
 import pytest
-from dbt.tests.adapter.aliases.test_aliases import BaseAliases, BaseSameAliasDifferentSchemas
+import os
+from dbt.tests.adapter.aliases.test_aliases import BaseAliases, BaseSameAliasDifferentDatabases
 
 MACROS__BIGQUERY_CAST_SQL = """
 
@@ -29,7 +30,19 @@ class TestAliasesBigQuery(BaseAliases):
         return {"bigquery_cast.sql": MACROS__BIGQUERY_CAST_SQL, "expect_value.sql": MACROS__EXPECT_VALUE_SQL}
 
 
-class TestSameTestSameAliasDifferentSchemasBigQuery(BaseSameAliasDifferentSchemas):
+class TestSameTestSameAliasDifferentDatabasesBigQuery(BaseSameAliasDifferentDatabases):
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            "config-version": 2,
+            "macro-paths": ["macros"],
+            "models": {
+                "test": {
+                    "alias": "duped_alias",
+                    "model_b": {"database": os.getenv("BIGQUERY_TEST_ALT_DATABASE")},
+                },
+            },
+        }
     @pytest.fixture(scope="class")
     def macros(self):
         return {"bigquery_cast.sql": MACROS__BIGQUERY_CAST_SQL, "expect_value.sql": MACROS__EXPECT_VALUE_SQL}

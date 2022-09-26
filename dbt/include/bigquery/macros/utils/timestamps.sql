@@ -2,7 +2,7 @@
   CURRENT_TIMESTAMP()
 {%- endmacro %}
 
-{% macro bigquery__current_timestamp_utc() -%}
+{% macro bigquery__current_timestamp_in_utc() -%}
   CURRENT_TIMESTAMP()
 {%- endmacro %}
 

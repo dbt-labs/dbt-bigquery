@@ -63,8 +63,6 @@ df = model(dbt, spark)
 # COMMAND ----------
 # this is materialization code dbt generated, please do not modify
 
-import importlib.util
-
 # make sure pandas exists before using it
 try:
   import pandas

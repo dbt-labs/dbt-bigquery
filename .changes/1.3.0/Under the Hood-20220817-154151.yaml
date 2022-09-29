@@ -1,7 +1,0 @@
-kind: Under the Hood
-body: Adding `slot_ms` go `BigQueryAdapterResponse`
-time: 2022-08-17T15:41:51.080936-05:00
-custom:
-  Author: yu-iskw
-  Issue: "194"
-  PR: "195"

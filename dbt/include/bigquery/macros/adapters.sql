@@ -109,17 +109,6 @@
 {%- endmacro %}
 
 
-{% macro bigquery__current_timestamp() -%}
-  CURRENT_TIMESTAMP()
-{%- endmacro %}
-
-
-{% macro bigquery__snapshot_string_as_time(timestamp) -%}
-    {%- set result = 'TIMESTAMP("' ~ timestamp ~ '")' -%}
-    {{ return(result) }}
-{%- endmacro %}
-
-
 {% macro bigquery__list_schemas(database) -%}
   {{ return(adapter.list_schemas(database)) }}
 {% endmacro %}

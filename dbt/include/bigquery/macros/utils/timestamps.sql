@@ -1,5 +1,5 @@
 {% macro bigquery__current_timestamp() -%}
-  CURRENT_TIMESTAMP()
+  current_timestamp()
 {%- endmacro %}
 
 {% macro bigquery__snapshot_string_as_time(timestamp) -%}

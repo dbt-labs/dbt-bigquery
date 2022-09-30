@@ -13,6 +13,6 @@ class TestCurrentTimestampBigQuery(BaseCurrentTimestamps):
 
     @pytest.fixture(scope="class")
     def expected_sql(self):
-        return """select CURRENT_TIMESTAMP() as current_timestamp,
+        return """select current_timestamp() as current_timestamp,
                 current_timestamp as current_timestamp_in_utc_backcompat,
                 current_timestamp as current_timestamp_backcompat"""

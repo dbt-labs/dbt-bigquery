@@ -1,10 +1,14 @@
 from typing import Dict, Union
+import time
 
 from dbt.adapters.base import PythonJobHelper
 from dbt.adapters.bigquery import BigQueryConnectionManager, BigQueryCredentials
 from google.api_core import retry
 from google.api_core.client_options import ClientOptions
 from google.cloud import storage, dataproc_v1  # type: ignore
+
+OPERATION_RETRY_TIME = 10
+OPERATION_RETRY_TIMEOUT = 60 * 60 * 24
 
 
 class BaseDataProcHelper(PythonJobHelper):
@@ -64,6 +68,14 @@ class BaseDataProcHelper(PythonJobHelper):
     def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
         raise NotImplementedError("_submit_dataproc_job not implemented")
 
+    def _wait_operation(self, operation):
+        # can't use due to https://github.com/googleapis/python-api-core/issues/458
+        # response = operation.result(retry=self.retry)
+        # Temp solution to wait for the job to finish
+        start = time.time()
+        while not operation.done(retry=None) and time.time() - start < self.timeout:
+            time.sleep(OPERATION_RETRY_TIME)
+
 
 class ClusterDataprocHelper(BaseDataProcHelper):
     def _get_job_client(self) -> dataproc_v1.JobControllerClient:
@@ -94,7 +106,11 @@ class ClusterDataprocHelper(BaseDataProcHelper):
                 "job": job,
             }
         )
-        response = operation.result(retry=self.retry)
+        self._wait_operation(operation)
+        response = operation.metadata
+        # check if job failed
+        if response.status.state == 6:
+            raise ValueError(response.status.details)
         return response
 
 

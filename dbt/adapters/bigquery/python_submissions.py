@@ -8,7 +8,6 @@ from google.api_core.client_options import ClientOptions
 from google.cloud import storage, dataproc_v1  # type: ignore
 
 OPERATION_RETRY_TIME = 10
-OPERATION_RETRY_TIMEOUT = 60 * 60 * 24
 
 
 class BaseDataProcHelper(PythonJobHelper):

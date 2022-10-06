@@ -50,7 +50,7 @@ def _get_dbt_core_version():
 
 
 package_name = "dbt-bigquery"
-package_version = "1.3.0b2"
+package_version = "1.4.0a1"
 dbt_core_version = _get_dbt_core_version()
 description = """The BigQuery adapter plugin for dbt"""
 

@@ -1,7 +1,0 @@
-kind: Under the Hood
-body: Update BQ job and call retry settings
-time: 2022-09-15T14:52:12.902965-07:00
-custom:
-  Author: colin-rogers-dbt
-  Issue: "311"
-  PR: "310"

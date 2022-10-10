@@ -1,5 +1,5 @@
 kind: Dependencies
-body: Support google-cloud-bigquery < 3.3 dependencies ([#332](https://github.com/dbt-labs/dbt-bigquery/pull/332)
+body: Support google-cloud-bigquery < 3.3 dependency ([#332](https://github.com/dbt-labs/dbt-bigquery/pull/332)
 time: 2022-10-10T18:15:01.113219+01:00
 custom:
   Author: eplus-aolalere

@@ -1,7 +1,0 @@
-kind: Under the Hood
-body: Enable pandas-on-Spark DataFrames for dbt python models
-time: 2022-09-20T15:10:57.712169-06:00
-custom:
-  Author: dbeatty10
-  Issue: "316"
-  PR: "317"

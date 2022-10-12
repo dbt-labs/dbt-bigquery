@@ -1,7 +1,0 @@
-kind: Under the Hood
-body: Implement minimal changes to support dbt Core incremental materialization refactor.
-time: 2022-08-04T15:52:19.342843-05:00
-custom:
-  Author: gshank
-  Issue: "232"
-  PR: "223"

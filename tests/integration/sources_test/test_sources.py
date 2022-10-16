@@ -7,6 +7,7 @@ import yaml
 from dbt.exceptions import CompilationException
 import dbt.tracking
 import dbt.version
+from dbt.events.functions import reset_metadata_vars
 from tests.integration.base import DBTIntegrationTest, use_profile, AnyFloat, \
     AnyStringWith
 
@@ -51,6 +52,7 @@ class BaseSourcesTest(DBTIntegrationTest):
 class SuccessfulSourcesTest(BaseSourcesTest):
     def setUp(self):
         super().setUp()
+        reset_metadata_vars()
         self.run_dbt_with_vars(['seed'])
         self.maxDiff = None
         self._id = 101
@@ -60,6 +62,7 @@ class SuccessfulSourcesTest(BaseSourcesTest):
 
     def tearDown(self):
         super().tearDown()
+        reset_metadata_vars()
         del os.environ['DBT_ENV_CUSTOM_ENV_key']
 
     def _set_updated_at_to(self, delta):

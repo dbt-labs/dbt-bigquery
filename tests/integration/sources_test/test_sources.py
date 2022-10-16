@@ -52,7 +52,6 @@ class BaseSourcesTest(DBTIntegrationTest):
 class TestSourceFreshness(BaseSourcesTest):
     def setUp(self):
         super().setUp()
-        reset_metadata_vars()
         self.run_dbt_with_vars(['seed'])
         self.maxDiff = None
         self._id = 101
@@ -151,6 +150,7 @@ class TestSourceFreshness(BaseSourcesTest):
         # and a freshness of warn_after: 10 hours, error_after: 18 hours
         # by default, our data set is way out of date!
         self.freshness_start_time = datetime.utcnow()
+        reset_metadata_vars()
         results = self.run_dbt_with_vars(
             ['source', 'freshness', '-o', 'target/error_source.json'],
             expect_pass=False
@@ -161,6 +161,7 @@ class TestSourceFreshness(BaseSourcesTest):
 
         self._set_updated_at_to(timedelta(hours=-12))
         self.freshness_start_time = datetime.utcnow()
+        reset_metadata_vars()
         results = self.run_dbt_with_vars(
             ['source', 'freshness', '-o', 'target/warn_source.json'],
         )
@@ -170,6 +171,7 @@ class TestSourceFreshness(BaseSourcesTest):
 
         self._set_updated_at_to(timedelta(hours=-2))
         self.freshness_start_time = datetime.utcnow()
+        reset_metadata_vars()
         results = self.run_dbt_with_vars(
             ['source', 'freshness', '-o', 'target/pass_source.json'],
         )

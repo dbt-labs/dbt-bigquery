@@ -49,7 +49,7 @@ class BaseSourcesTest(DBTIntegrationTest):
         return self.run_dbt(cmd, *args, **kwargs)
 
 
-class SuccessfulSourcesTest(BaseSourcesTest):
+class TestSourceFreshness(BaseSourcesTest):
     def setUp(self):
         super().setUp()
         reset_metadata_vars()
@@ -93,9 +93,6 @@ class SuccessfulSourcesTest(BaseSourcesTest):
         )
         self.last_inserted_time = insert_time.strftime(
             "%Y-%m-%dT%H:%M:%S+00:00")
-
-
-class TestSourceFreshness(SuccessfulSourcesTest):
 
     def _assert_freshness_results(self, path, state):
         self.assertTrue(os.path.exists(path))

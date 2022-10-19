@@ -16,7 +16,7 @@ from dbt.adapters.base import (
     PythonJobHelper,
 )
 
-from dbt.adapters.cache import _make_key
+from dbt.adapters.cache import _make_ref_key_msg
 
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery import BigQueryColumn
@@ -318,7 +318,7 @@ class BigQueryAdapter(BaseAdapter):
         # use SQL 'create schema'
         relation = relation.without_identifier()  # type: ignore
 
-        fire_event(SchemaCreation(relation=_make_key(relation)))
+        fire_event(SchemaCreation(relation=_make_ref_key_msg(relation)))
         kwargs = {
             "relation": relation,
         }
@@ -332,7 +332,7 @@ class BigQueryAdapter(BaseAdapter):
         database = relation.database
         schema = relation.schema
         logger.debug('Dropping schema "{}.{}".', database, schema)  # in lieu of SQL
-        fire_event(SchemaDrop(relation=_make_key(relation)))
+        fire_event(SchemaDrop(relation=_make_ref_key_msg(relation)))
         self.connections.drop_dataset(database, schema)
         self.cache.drop_schema(database, schema)
 

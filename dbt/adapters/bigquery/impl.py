@@ -67,6 +67,7 @@ class PartitionConfig(dbtClassMixin):
     granularity: str = "day"
     range: Optional[Dict[str, Any]] = None
     time_ingestion_partitioning: bool = False
+    copy_partitions: bool = False
 
     def reject_partition_field_column(self, columns: List[Any]) -> List[str]:
         return [c for c in columns if not c.name.upper() == self.field.upper()]
@@ -525,11 +526,16 @@ class BigQueryAdapter(BaseAdapter):
         if not is_partitioned and not conf_partition:
             return True
         elif conf_partition and table.time_partitioning is not None:
-            partioning_field = table.time_partitioning.field or "_PARTITIONTIME"
-            table_field = partioning_field.lower()
+            partitioning_field = table.time_partitioning.field or "_PARTITIONTIME"
+            table_field = partitioning_field.lower()
             table_granularity = table.partitioning_type.lower()
+            conf_table_field = (
+                conf_partition.field
+                if not conf_partition.time_ingestion_partitioning
+                else "_PARTITIONTIME"
+            )
             return (
-                table_field == conf_partition.field.lower()
+                table_field == conf_table_field.lower()
                 and table_granularity == conf_partition.granularity.lower()
             )
         elif conf_partition and table.range_partitioning is not None:

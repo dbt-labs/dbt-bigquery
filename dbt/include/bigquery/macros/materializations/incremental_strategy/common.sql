@@ -7,10 +7,10 @@
   {{ return({'value': partition_value, 'field': partition_by.field}) }}
 {% endmacro %}
 
-{% macro declare_dbt_max_partition(relation, partition_by, complied_code, language='sql') %}
+{% macro declare_dbt_max_partition(relation, partition_by, compiled_code, language='sql') %}
 
   {#-- TODO: revisit partitioning with python models --#}
-  {%- if '_dbt_max_partition' in complied_code and language == 'sql' -%}
+  {%- if '_dbt_max_partition' in compiled_code and language == 'sql' -%}
 
     declare _dbt_max_partition {{ partition_by.data_type }} default (
       select max({{ partition_by.field }}) from {{ this }}

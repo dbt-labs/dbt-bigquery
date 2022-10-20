@@ -66,11 +66,15 @@ class PartitionConfig(dbtClassMixin):
     data_type: str = "date"
     granularity: str = "day"
     range: Optional[Dict[str, Any]] = None
+    time_ingestion_partitioning: bool = False
+
+    def reject_partition_field_column(self, columns: List[Any]) -> List[str]:
+        return [c for c in columns if not c.name.upper() == self.field.upper()]
 
     def render(self, alias: Optional[str] = None):
-        column: str = self.field
+        column: str = self.field if not self.time_ingestion_partitioning else "_PARTITIONTIME"
         if alias:
-            column = f"{alias}.{self.field}"
+            column = f"{alias}.{column}"
 
         if self.data_type.lower() == "int64" or (
             self.data_type.lower() == "date" and self.granularity.lower() == "day"
@@ -78,6 +82,13 @@ class PartitionConfig(dbtClassMixin):
             return column
         else:
             return f"{self.data_type}_trunc({column}, {self.granularity})"
+
+    def render_wrapped(self, alias: Optional[str] = None):
+        """Wrap the partitioning column when time involved to ensure it is properly casted to matching time."""
+        if self.data_type in ("date", "timestamp", "datetime"):
+            return f"{self.data_type}({self.render(alias)})"
+        else:
+            return self.render(alias)
 
     @classmethod
     def parse(cls, raw_partition_by) -> Optional["PartitionConfig"]:  # type: ignore [return]
@@ -235,6 +246,12 @@ class BigQueryAdapter(BaseAdapter):
         except (ValueError, google.cloud.exceptions.NotFound) as e:
             logger.debug("get_columns_in_relation error: {}".format(e))
             return []
+
+    @available.parse(lambda *a, **k: [])
+    def add_time_ingestion_partition_column(self, columns) -> List[BigQueryColumn]:
+        "Add time ingestion partition column to columns list"
+        columns.append(self.Column("_PARTITIONTIME", "TIMESTAMP", None, "NULLABLE"))
+        return columns
 
     def expand_column_types(self, goal: BigQueryRelation, current: BigQueryRelation) -> None:  # type: ignore[override]
         # This is a no-op on BigQuery
@@ -434,6 +451,19 @@ class BigQueryAdapter(BaseAdapter):
 
         return "COPY TABLE with materialization: {}".format(materialization)
 
+    @available.parse(lambda *a, **k: False)
+    def get_columns_in_select_sql(self, select_sql: str) -> List[BigQueryColumn]:
+        try:
+            conn = self.connections.get_thread_connection()
+            client = conn.handle
+            query_job, iterator = self.connections.raw_execute(select_sql)
+            query_table = client.get_table(query_job.destination)
+            return self._get_dbt_columns_from_bq_table(query_table)
+
+        except (ValueError, google.cloud.exceptions.NotFound) as e:
+            logger.debug("get_columns_in_select_sql error: {}".format(e))
+            return []
+
     @classmethod
     def poll_until_job_completes(cls, job, timeout):
         retry_count = timeout
@@ -495,7 +525,8 @@ class BigQueryAdapter(BaseAdapter):
         if not is_partitioned and not conf_partition:
             return True
         elif conf_partition and table.time_partitioning is not None:
-            table_field = table.time_partitioning.field.lower()
+            partioning_field = table.time_partitioning.field or "_PARTITIONTIME"
+            table_field = partioning_field.lower()
             table_granularity = table.partitioning_type.lower()
             return (
                 table_field == conf_partition.field.lower()

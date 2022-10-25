@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from queue import Queue
+import queue
 from typing import Dict, List, Optional, Any, Set, Union, Type
 from dbt.dataclass_schema import dbtClassMixin, ValidationError
 
@@ -44,6 +46,8 @@ import time
 import agate
 import json
 
+from dbt.adapters.bigquery.update_dataset import DATASET_UPDATE_QUEUE, start_dataset_update_thread
+
 logger = AdapterLogger("BigQuery")
 
 # Write dispositions for bigquery.
@@ -51,13 +55,6 @@ WRITE_APPEND = google.cloud.bigquery.job.WriteDisposition.WRITE_APPEND
 WRITE_TRUNCATE = google.cloud.bigquery.job.WriteDisposition.WRITE_TRUNCATE
 
 CREATE_SCHEMA_MACRO_NAME = "create_schema"
-
-
-def sql_escape(string):
-    if not isinstance(string, str):
-        dbt.exceptions.raise_compiler_exception(f"cannot escape a non-string: {string}")
-
-    return json.dumps(string)[1:-1]
 
 
 @dataclass
@@ -149,9 +146,7 @@ class BigQueryAdapter(BaseAdapter):
     Relation = BigQueryRelation
     Column = BigQueryColumn
     ConnectionManager = BigQueryConnectionManager
-
     AdapterSpecificConfigs = BigqueryConfig
-
     ###
     # Implementations of abstract methods
     ###
@@ -800,18 +795,21 @@ class BigQueryAdapter(BaseAdapter):
         opts = self.get_common_options(config, node)
         return opts
 
+    def update_dataset(self, update):
+        start_dataset_update_thread(self.connections.get_thread_connection().handle)
+        DATASET_UPDATE_QUEUE.put(update)
+
     @available.parse_none
     def grant_access_to(self, entity, entity_type, role, grant_target_dict):
         """
         Given an entity, grants it access to a permissioned dataset.
         """
         conn = self.connections.get_thread_connection()
-        client = conn.handle
-
-        GrantTarget.validate(grant_target_dict)
+        client: google.cloud.bigquery.Client = conn.handle
         grant_target = GrantTarget.from_dict(grant_target_dict)
         dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
         dataset = client.get_dataset(dataset_ref)
+        GrantTarget.validate(grant_target_dict)
 
         if entity_type == "view":
             entity = self.get_table_ref_from_relation(entity).to_api_repr()
@@ -825,7 +823,7 @@ class BigQueryAdapter(BaseAdapter):
 
         access_entries.append(AccessEntry(role, entity_type, entity))
         dataset.access_entries = access_entries
-        client.update_dataset(dataset, ["access_entries"])
+        self.update_dataset((dataset, ["access_entries"]))
 
     @available.parse_none
     def get_dataset_location(self, relation):

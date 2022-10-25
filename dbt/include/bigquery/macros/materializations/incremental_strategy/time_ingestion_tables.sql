@@ -1,4 +1,4 @@
-{% macro  wrap_with_time_ingestion_partitioning(partition_time_exp, sql, is_nested) %}
+{% macro wrap_with_time_ingestion_partitioning_sql(partition_time_exp, sql, is_nested) %}
 
   select {{ partition_time_exp['value'] }} as _partitiontime, * EXCEPT({{ partition_time_exp['field'] }}) from (
     {{ sql }}
@@ -6,19 +6,19 @@
 
 {% endmacro %}
 
-{% macro create_ingestion_time_partitioned_table_as(temporary, relation, sql) -%}
+{% macro create_ingestion_time_partitioned_table_as_sql(temporary, relation, sql) -%}
   {%- set raw_partition_by = config.get('partition_by', none) -%}
   {%- set raw_cluster_by = config.get('cluster_by', none) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
 
   {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
 
-  {%- set columns = get_columns_with_types_in_query(sql) -%}
+  {%- set columns = get_columns_with_types_in_query_sql(sql) -%}
   {%- set table_dest_columns_csv = columns_without_partition_fields_csv(partition_config, columns) -%}
 
   {{ sql_header if sql_header is not none }}
 
-  {% set ingestion_time_partition_config_raw = fromjson(tojson(raw_partition_by))  %}
+  {% set ingestion_time_partition_config_raw = fromjson(tojson(raw_partition_by)) %}
   {% do ingestion_time_partition_config_raw.update({'field':'_PARTITIONTIME'}) %}
 
   {%- set ingestion_time_partition_config = adapter.parse_partition_by(ingestion_time_partition_config_raw) -%}
@@ -47,17 +47,17 @@
 
 {%- endmacro -%}
 
-{% macro bq_insert_into_ingestion_time_partitioned_table(target_relation, sql) -%}
+{% macro bq_insert_into_ingestion_time_partitioned_table_sql(target_relation, sql) -%}
   {%- set partition_by = config.get('partition_by', none) -%}
   {% set dest_columns = adapter.get_columns_in_relation(target_relation) %}
   {%- set dest_columns_csv = get_quoted_csv(dest_columns | map(attribute="name")) -%}
 
   insert into {{ target_relation }} (_partitiontime, {{ dest_columns_csv }})
-    {{ wrap_with_time_ingestion_partitioning(build_partition_time_exp(partition_by), sql, False) }}
+    {{ wrap_with_time_ingestion_partitioning_sql(build_partition_time_exp(partition_by), sql, False) }}
 
 {%- endmacro -%}
 
-{% macro get_columns_with_types_in_query(select_sql) %}
+{% macro get_columns_with_types_in_query_sql(select_sql) %}
   {% set sql %}
     select * from (
       {{ select_sql }}

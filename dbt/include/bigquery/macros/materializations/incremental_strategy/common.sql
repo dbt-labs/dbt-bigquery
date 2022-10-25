@@ -1,4 +1,4 @@
-{% macro  build_partition_time_exp(partition_by) %}
+{% macro build_partition_time_exp(partition_by) %}
   {% if partition_by.data_type == 'timestamp' %}
     {% set partition_value = partition_by.field %}
   {% else %}

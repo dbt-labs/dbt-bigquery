@@ -67,7 +67,6 @@ class PartitionConfig(dbtClassMixin):
     granularity: str = "day"
     range: Optional[Dict[str, Any]] = None
     time_ingestion_partitioning: bool = False
-    copy_partitions: bool = False
 
     def reject_partition_field_column(self, columns: List[Any]) -> List[str]:
         return [c for c in columns if not c.name.upper() == self.field.upper()]
@@ -247,6 +246,14 @@ class BigQueryAdapter(BaseAdapter):
         except (ValueError, google.cloud.exceptions.NotFound) as e:
             logger.debug("get_columns_in_relation error: {}".format(e))
             return []
+
+    @available
+    def reformat_column_name(self, column) -> str:
+        "Rename pseudo columns to remove leading underscore"
+        if column[0] == '_':
+            column_alias = column.replace('_','',1)
+            column = column + f' as {column_alias}'
+        return column
 
     @available.parse(lambda *a, **k: [])
     def add_time_ingestion_partition_column(self, columns) -> List[BigQueryColumn]:
@@ -526,16 +533,11 @@ class BigQueryAdapter(BaseAdapter):
         if not is_partitioned and not conf_partition:
             return True
         elif conf_partition and table.time_partitioning is not None:
-            partitioning_field = table.time_partitioning.field or "_PARTITIONTIME"
-            table_field = partitioning_field.lower()
+            partioning_field = table.time_partitioning.field or "_PARTITIONTIME"
+            table_field = partioning_field.lower()
             table_granularity = table.partitioning_type.lower()
-            conf_table_field = (
-                conf_partition.field
-                if not conf_partition.time_ingestion_partitioning
-                else "_PARTITIONTIME"
-            )
             return (
-                table_field == conf_table_field.lower()
+                table_field == conf_partition.field.lower()
                 and table_granularity == conf_partition.granularity.lower()
             )
         elif conf_partition and table.range_partitioning is not None:

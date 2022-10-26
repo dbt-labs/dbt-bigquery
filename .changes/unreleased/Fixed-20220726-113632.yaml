@@ -1,4 +1,0 @@
-kind: Fixed
-body: Using `information_schema` instead of `__TABLES__` to fetch catalog data, which
-  limits permission level needed to generate DBT docs.
-time: 2022-07-26T11:36:32.21915+01:00

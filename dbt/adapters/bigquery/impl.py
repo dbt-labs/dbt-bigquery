@@ -67,6 +67,7 @@ class PartitionConfig(dbtClassMixin):
     granularity: str = "day"
     range: Optional[Dict[str, Any]] = None
     time_ingestion_partitioning: bool = False
+    copy_partitions: bool = False
 
     def reject_partition_field_column(self, columns: List[Any]) -> List[str]:
         return [c for c in columns if not c.name.upper() == self.field.upper()]

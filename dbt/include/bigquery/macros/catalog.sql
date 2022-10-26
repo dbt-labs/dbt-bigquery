@@ -13,15 +13,15 @@
             table_schema as table_schema,
             table_name as original_table_name,
 
-            CONCAT(table_catalog, '.', table_schema, '.', table_name) as relation_id,
+            concat(table_catalog, '.', table_schema, '.', table_name) as relation_id,
 
             0 as row_count,
             0 as size_bytes,
-            case when table_type = 'EXTERNAL' then 'external' ELSE 'table' end as table_type,
+            case when table_type = 'EXTERNAL' then 'external' else 'table' end as table_type,
 
-            REGEXP_CONTAINS(table_name, '^.+[0-9]{8}$') and table_type = 'BASE TABLE' as is_date_shard,
-            REGEXP_EXTRACT(table_name, '^(.+)[0-9]{8}$') as shard_base_name,
-            REGEXP_EXTRACT(table_name, '^.+([0-9]{8})$') as shard_name
+            regexp_contains(table_name, '^.+[0-9]{8}$') and table_type = 'BASE TABLE' as is_date_shard,
+            regexp_extract(table_name, '^(.+)[0-9]{8}$') as shard_base_name,
+            regexp_extract(table_name, '^.+([0-9]{8})$') as shard_name
 
         from {{ information_schema.replace(information_schema_view='INFORMATION_SCHEMA.TABLES') }}
         where (
@@ -37,15 +37,15 @@
             table_schema as table_schema,
             table_name as original_table_name,
 
-            CONCAT(table_catalog, '.', table_schema, '.', table_name) as relation_id,
+            concat(table_catalog, '.', table_schema, '.', table_name) as relation_id,
 
             0 as row_count,
             0 as size_bytes,
             'view' as table_type,
 
             false as is_date_shard,
-            REGEXP_EXTRACT(table_name, '^(.+)[0-9]{8}$') as shard_base_name,
-            REGEXP_EXTRACT(table_name, '^.+([0-9]{8})$') as shard_name
+            regexp_extract(table_name, '^(.+)[0-9]{8}$') as shard_base_name,
+            regexp_extract(table_name, '^.+([0-9]{8})$') as shard_name
 
         from {{ information_schema.replace(information_schema_view='INFORMATION_SCHEMA.VIEWS') }}
         where (

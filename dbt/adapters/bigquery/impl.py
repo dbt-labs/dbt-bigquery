@@ -248,8 +248,8 @@ class BigQueryAdapter(BaseAdapter):
             return []
 
     @available
-    def reformat_column_name(self, column) -> str:
-        "Rename pseudo columns to remove leading underscore"
+    def alias_column_name(self, column) -> str:
+        "Alias pseudo columns to remove leading underscore"
         if column[0] == '_':
             column_alias = column.replace('_','',1)
             column = column + f' as {column_alias}'

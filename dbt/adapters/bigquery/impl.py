@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Any, Set, Union, Type
 from dbt.dataclass_schema import dbtClassMixin, ValidationError
-copy_partitions: bool = False
 
 import dbt.deprecations
 import dbt.exceptions

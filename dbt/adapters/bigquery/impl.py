@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Any, Set, Union, Type
 from dbt.dataclass_schema import dbtClassMixin, ValidationError
+copy_partitions: bool = False
 
 import dbt.deprecations
 import dbt.exceptions
@@ -536,11 +537,16 @@ class BigQueryAdapter(BaseAdapter):
         if not is_partitioned and not conf_partition:
             return True
         elif conf_partition and table.time_partitioning is not None:
-            partioning_field = table.time_partitioning.field or "_PARTITIONTIME"
-            table_field = partioning_field.lower()
+            partitioning_field = table.time_partitioning.field or "_PARTITIONTIME"
+            table_field = partitioning_field.lower()
             table_granularity = table.partitioning_type.lower()
+            conf_table_field = (
+                conf_partition.field
+                if not conf_partition.time_ingestion_partitioning
+                else "_PARTITIONTIME"
+            )            
             return (
-                table_field == conf_partition.field.lower()
+                table_field == conf_table_field.lower()
                 and table_granularity == conf_partition.granularity.lower()
             )
         elif conf_partition and table.range_partitioning is not None:

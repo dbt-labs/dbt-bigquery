@@ -248,12 +248,15 @@ class BigQueryAdapter(BaseAdapter):
             return []
 
     @available
-    def alias_column_name(self, column) -> str:
+    def alias_column(self, column) -> Dict[str, str]:
         "Alias pseudo columns to remove leading underscore"
+        alias = {'column': column, 'column_alias': None, 'statement': None}
         if column[0] == '_':
             column_alias = column.replace('_','',1)
-            column = column + f' as {column_alias}'
-        return column
+            statement = column + f' as {column_alias}'
+            alias['column_alias'] = column_alias 
+            alias['statement'] = statement
+        return alias
 
     @available.parse(lambda *a, **k: [])
     def add_time_ingestion_partition_column(self, columns) -> List[BigQueryColumn]:

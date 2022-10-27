@@ -1,6 +1,4 @@
 from dataclasses import dataclass
-from queue import Queue
-import queue
 from typing import Dict, List, Optional, Any, Set, Union, Type
 from dbt.dataclass_schema import dbtClassMixin, ValidationError
 

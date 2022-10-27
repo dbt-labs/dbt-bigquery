@@ -57,6 +57,13 @@ WRITE_TRUNCATE = google.cloud.bigquery.job.WriteDisposition.WRITE_TRUNCATE
 CREATE_SCHEMA_MACRO_NAME = "create_schema"
 
 
+def sql_escape(string):
+    if not isinstance(string, str):
+        dbt.exceptions.raise_compiler_exception(f"cannot escape a non-string: {string}")
+
+    return json.dumps(string)[1:-1]
+
+
 @dataclass
 class PartitionConfig(dbtClassMixin):
     field: str
@@ -146,7 +153,9 @@ class BigQueryAdapter(BaseAdapter):
     Relation = BigQueryRelation
     Column = BigQueryColumn
     ConnectionManager = BigQueryConnectionManager
+
     AdapterSpecificConfigs = BigqueryConfig
+
     ###
     # Implementations of abstract methods
     ###
@@ -806,10 +815,10 @@ class BigQueryAdapter(BaseAdapter):
         """
         conn = self.connections.get_thread_connection()
         client: google.cloud.bigquery.Client = conn.handle
+        GrantTarget.validate(grant_target_dict)
         grant_target = GrantTarget.from_dict(grant_target_dict)
         dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
         dataset = client.get_dataset(dataset_ref)
-        GrantTarget.validate(grant_target_dict)
 
         if entity_type == "view":
             entity = self.get_table_ref_from_relation(entity).to_api_repr()

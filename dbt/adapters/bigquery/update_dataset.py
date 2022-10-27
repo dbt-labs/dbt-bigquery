@@ -26,8 +26,6 @@ class DatasetAsyncUpdater(Thread):
 def start_dataset_update_thread(client):
     if "thread" in __DATASET_UPDATE_THREAD:
         dataset_update_thread: Thread = __DATASET_UPDATE_THREAD["thread"]
-        if not dataset_update_thread.is_alive():
-            dataset_update_thread.start()
     dataset_update_thread = DatasetAsyncUpdater(client=client)
     dataset_update_thread.start()
     __DATASET_UPDATE_THREAD["thread"] = dataset_update_thread

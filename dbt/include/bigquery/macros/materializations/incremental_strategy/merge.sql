@@ -13,7 +13,7 @@
         {%- else -%} {#-- wrap sql in parens to make it a subquery --#}
         (
             {%- if partition_by.time_ingestion_partitioning -%}
-            {{ wrap_with_time_ingestion_partitioning(build_partition_time_exp(partition_by), sql, True) }}
+            {{ wrap_with_time_ingestion_partitioning_sql(build_partition_time_exp(partition_by), sql, True) }}
             {%- else -%}
             {{sql}}
             {%- endif -%}

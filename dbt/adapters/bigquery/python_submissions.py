@@ -34,7 +34,7 @@ class BaseDataProcHelper(PythonJobHelper):
         self.credential = credential
         self.GoogleCredentials = BigQueryConnectionManager.get_credentials(credential)
         self.storage_client = storage.Client(
-            project=self.credential.database, credentials=self.GoogleCredentials
+            project=self.credential.execution_project, credentials=self.GoogleCredentials
         )
         self.gcs_location = "gs://{}/{}".format(self.credential.gcs_bucket, self.model_file_name)
 
@@ -100,7 +100,7 @@ class ClusterDataprocHelper(BaseDataProcHelper):
         }
         operation = self.job_client.submit_job_as_operation(  # type: ignore
             request={
-                "project_id": self.credential.database,
+                "project_id": self.credential.execution_project,
                 "region": self.credential.dataproc_region,
                 "job": job,
             }
@@ -136,7 +136,7 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         batch.runtime_config.properties = {
             "spark.executor.instances": "2",
         }
-        parent = f"projects/{self.credential.database}/locations/{self.credential.dataproc_region}"
+        parent = f"projects/{self.credential.execution_project}/locations/{self.credential.dataproc_region}"
         request = dataproc_v1.CreateBatchRequest(
             parent=parent,
             batch=batch,

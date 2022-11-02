@@ -137,6 +137,11 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
             "spark.executor.instances": "2",
         }
         parent = f"projects/{self.credential.execution_project}/locations/{self.credential.dataproc_region}"
+
+        batch.environment_config.execution_config.service_account = self.credential.dataproc_execution_config_service_account
+        batch.environment_config.execution_config.network_uri = self.credential.dataproc_execution_config_network_uri
+        batch.environment_config.execution_config.subnetwork_uri = self.credential.dataproc_execution_config_subnetwork_uri
+
         request = dataproc_v1.CreateBatchRequest(
             parent=parent,
             batch=batch,

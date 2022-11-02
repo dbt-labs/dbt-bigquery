@@ -123,6 +123,10 @@ class BigQueryCredentials(Credentials):
     dataproc_region: Optional[str] = None
     dataproc_cluster_name: Optional[str] = None
     gcs_bucket: Optional[str] = None
+    dataproc_execution_config_service_account: Optional[str] = None
+    dataproc_execution_config_network_uri: Optional[str] = None
+    dataproc_execution_config_subnetwork_uri: Optional[str] = None
+
 
     scopes: Optional[Tuple[str, ...]] = (
         "https://www.googleapis.com/auth/bigquery",

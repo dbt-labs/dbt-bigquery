@@ -89,6 +89,7 @@ class BigQueryAdapterResponse(AdapterResponse):
     location: Optional[str] = None
     project_id: Optional[str] = None
     job_id: Optional[str] = None
+    slot_ms: Optional[int] = None
 
 
 @dataclass
@@ -183,10 +184,8 @@ class BigQueryCredentials(Credentials):
 class BigQueryConnectionManager(BaseConnectionManager):
     TYPE = "bigquery"
 
-    QUERY_TIMEOUT = 300
-    RETRIES = 1
     DEFAULT_INITIAL_DELAY = 1.0  # Seconds
-    DEFAULT_MAXIMUM_DELAY = 1.0  # Seconds
+    DEFAULT_MAXIMUM_DELAY = 3.0  # Seconds
 
     @classmethod
     def handle_error(cls, error, message):
@@ -460,6 +459,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         project_id = None
         num_rows_formatted = None
         processed_bytes = None
+        slot_ms = None
 
         if query_job.statement_type == "CREATE_VIEW":
             code = "CREATE VIEW"
@@ -488,6 +488,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         # set common attributes
         bytes_processed = query_job.total_bytes_processed
+        slot_ms = query_job.slot_millis
         processed_bytes = self.format_bytes(bytes_processed)
         location = query_job.location
         job_id = query_job.job_id
@@ -501,7 +502,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             message = f"{code}"
 
         if location is not None and job_id is not None and project_id is not None:
-            logger.debug(self._bq_job_link(job_id, project_id, location))
+            logger.debug(self._bq_job_link(location, project_id, job_id))
 
         response = BigQueryAdapterResponse(  # type: ignore[call-arg]
             _message=message,
@@ -511,6 +512,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             location=location,
             project_id=project_id,
             job_id=job_id,
+            slot_ms=slot_ms,
         )
 
         return response, table

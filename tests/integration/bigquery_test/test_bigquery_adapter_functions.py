@@ -26,6 +26,7 @@ class TestBigqueryAdapterFunctions(DBTIntegrationTest):
             assert result.adapter_response["location"] is not None
             assert result.adapter_response["project_id"] is not None
             assert result.adapter_response["job_id"] is not None
+            assert result.adapter_response["slot_ms"] is not None
 
         test_results = self.run_dbt(['test'])
 

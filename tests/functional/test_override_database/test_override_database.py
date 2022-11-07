@@ -31,7 +31,7 @@ class BaseOverrideDatabase:
             }
         }
 
-    def delete_alt_database_relation(self,project):
+    def delete_alt_database_relation(self, project):
         relation = project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema)
         project.adapter.drop_schema(relation)
 

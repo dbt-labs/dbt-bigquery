@@ -31,6 +31,10 @@ class BaseOverrideDatabase:
             }
         }
 
+    def delete_alt_database_relation(self,project):
+        relation = project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema)
+        project.adapter.drop_schema(relation)
+
 
 class TestModelOverrideBigQuery(BaseOverrideDatabase):
     def run_database_override(self, project):
@@ -47,6 +51,8 @@ class TestModelOverrideBigQuery(BaseOverrideDatabase):
 
     def test_bigquery_database_override(self, project):
         self.run_database_override(project)
+        self.delete_alt_database_relation(project)
+
 
 
 class BaseTestProjectModelOverrideBigQuery(BaseOverrideDatabase):
@@ -96,6 +102,7 @@ class TestProjectModelOverrideBigQuery(BaseTestProjectModelOverrideBigQuery):
 
     def test_bigquery_database_override(self, project):
         self.run_database_override(project)
+        self.delete_alt_database_relation(project)
 
 
 class TestProjectModelAliasOverrideBigQuery(BaseTestProjectModelOverrideBigQuery):
@@ -128,6 +135,7 @@ class TestProjectModelAliasOverrideBigQuery(BaseTestProjectModelOverrideBigQuery
 
     def test_bigquery_project_override(self, project):
         self.run_database_override(project)
+        self.delete_alt_database_relation(project)
 
 
 class TestProjectSeedOverrideBigQuery(BaseOverrideDatabase):
@@ -156,3 +164,4 @@ class TestProjectSeedOverrideBigQuery(BaseOverrideDatabase):
 
     def test_bigquery_database_override(self, project):
         self.run_database_override(project)
+        self.delete_alt_database_relation(project)

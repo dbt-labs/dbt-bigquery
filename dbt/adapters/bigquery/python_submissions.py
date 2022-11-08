@@ -119,6 +119,31 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
             client_options=self.client_options, credentials=self.GoogleCredentials
         )
 
+    def _configure_batch(self, configDict, target):
+        for key, value in configDict.items():
+            if hasattr(target, key):
+                attr = getattr(target, key)
+
+                # Basic types we just set as-is.
+                if type(value) in [str, int, float]:
+                    setattr(target, key, type(attr)(value))
+
+                # For lists, we assume target to be a a protobuf repeated field.
+                # The types must match.
+                elif isinstance(value, list):
+                    for v in value:
+                        attr.append(v)
+
+                elif isinstance(value, dict):
+                    # The target is a protobuf map. Cast to expected type and set.
+                    if "ScalarMapContainer" in type(attr).__name__:
+                        for k, v in value.items():
+                            attr[k] = type(attr[k])(v)
+
+                    # Target is another configuraiton object. Recurse.
+                    else:
+                        self._configure_batch(value, attr)
+
     def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
         # create the Dataproc Serverless job config
         batch = dataproc_v1.Batch()
@@ -137,6 +162,14 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
             "spark.executor.instances": "2",
         }
         parent = f"projects/{self.credential.execution_project}/locations/{self.credential.dataproc_region}"
+
+        if self.credential.dataproc_batch:
+            try:
+                self._configure_batch(self.credential.dataproc_batch, batch)
+            except Exception as e:
+                docurl = "https://cloud.google.com/dataproc-serverless/docs/reference/rpc/google.cloud.dataproc.v1#google.cloud.dataproc.v1.Batch"
+                raise ValueError(f"Unable to parse dataproc_batch as valid batch specification. See {docurl}. {str(e)}") from e
+
         request = dataproc_v1.CreateBatchRequest(
             parent=parent,
             batch=batch,

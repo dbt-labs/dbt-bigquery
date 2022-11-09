@@ -1,5 +1,6 @@
 import pytest
 import os
+from dbt.tests.util import run_dbt
 from dbt.tests.adapter.aliases.test_aliases import BaseAliases, BaseSameAliasDifferentDatabases
 
 MACROS__BIGQUERY_CAST_SQL = """
@@ -24,6 +25,29 @@ where {{ field }} != '{{ value }}'
 
 """
 
+MODELS_DUPE_CUSTOM_DATABASE_A = """
+select {{ string_literal(this.name) }} as tablename
+"""
+
+MODELS_DUPE_CUSTOM_DATABASE_B = """
+select {{ string_literal(this.name) }} as tablename
+"""
+
+MODELS_SCHEMA_YML = """
+version: 2
+models:
+- name: model_a
+  tests:
+  - expect_value:
+      field: tablename
+      value: duped_alias
+- name: model_b
+  tests:
+  - expect_value:
+      field: tablename
+      value: duped_alias
+"""
+
 class TestAliasesBigQuery(BaseAliases):
     @pytest.fixture(scope="class")
     def macros(self):
@@ -46,3 +70,23 @@ class TestSameTestSameAliasDifferentDatabasesBigQuery(BaseSameAliasDifferentData
     @pytest.fixture(scope="class")
     def macros(self):
         return {"bigquery_cast.sql": MACROS__BIGQUERY_CAST_SQL, "expect_value.sql": MACROS__EXPECT_VALUE_SQL}
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "schema.yml": MODELS_SCHEMA_YML,
+            "model_a.sql": MODELS_DUPE_CUSTOM_DATABASE_A,
+            "model_b.sql": MODELS_DUPE_CUSTOM_DATABASE_B
+        }
+
+    def delete_alt_database_relation(self, project):
+        relation = project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema)
+        project.adapter.drop_schema(relation)
+
+    def test_alias_model_name_diff_database(self, project):
+        results = run_dbt(["run"])
+        assert len(results) == 2
+        res = run_dbt(["test"])
+        assert len(res) > 0
+        run_dbt(["run"])
+        self.delete_alt_database_relation(project)

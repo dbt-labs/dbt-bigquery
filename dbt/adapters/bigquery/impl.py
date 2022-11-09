@@ -334,6 +334,7 @@ class BigQueryAdapter(BaseAdapter):
         schema = relation.schema
         logger.debug('Dropping schema "{}.{}".', database, schema)  # in lieu of SQL
         fire_event(SchemaDrop(relation=_make_ref_key_msg(relation)))
+        # breakpoint()
         self.connections.drop_dataset(database, schema)
         self.cache.drop_schema(database, schema)
 

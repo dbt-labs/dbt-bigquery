@@ -119,56 +119,9 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
             client_options=self.client_options, credentials=self.GoogleCredentials
         )
 
-    def _configure_batch(self, configDict, target):
-        for key, value in configDict.items():
-            if hasattr(target, key):
-                attr = getattr(target, key)
-
-                # Basic types we just set as-is.
-                if type(value) in [str, int, float]:
-                    setattr(target, key, type(attr)(value))
-
-                # For lists, we assume target to be a a protobuf repeated field.
-                # The types must match.
-                elif isinstance(value, list):
-                    for v in value:
-                        attr.append(v)
-
-                elif isinstance(value, dict):
-                    # The target is a protobuf map. Cast to expected type and set.
-                    if "ScalarMapContainer" in type(attr).__name__:
-                        for k, v in value.items():
-                            attr[k] = type(attr[k])(v)
-
-                    # Target is another configuraiton object. Recurse.
-                    else:
-                        self._configure_batch(value, attr)
-
     def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
-        # create the Dataproc Serverless job config
-        batch = dataproc_v1.Batch()
-        batch.pyspark_batch.main_python_file_uri = self.gcs_location
-        # how to keep this up to date?
-        # we should probably also open this up to be configurable
-        jar_file_uri = self.parsed_model["config"].get(
-            "jar_file_uri",
-            "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-0.21.1.jar",
-        )
-        batch.pyspark_batch.jar_file_uris = [jar_file_uri]
-        # should we make all of these spark/dataproc properties configurable?
-        # https://cloud.google.com/dataproc-serverless/docs/concepts/properties
-        # https://cloud.google.com/dataproc-serverless/docs/reference/rest/v1/projects.locations.batches#runtimeconfig
-        batch.runtime_config.properties = {
-            "spark.executor.instances": "2",
-        }
+        batch = self._configure_batch()
         parent = f"projects/{self.credential.execution_project}/locations/{self.credential.dataproc_region}"
-
-        if self.credential.dataproc_batch:
-            try:
-                self._configure_batch(self.credential.dataproc_batch, batch)
-            except Exception as e:
-                docurl = "https://cloud.google.com/dataproc-serverless/docs/reference/rpc/google.cloud.dataproc.v1#google.cloud.dataproc.v1.Batch"
-                raise ValueError(f"Unable to parse dataproc_batch as valid batch specification. See {docurl}. {str(e)}") from e
 
         request = dataproc_v1.CreateBatchRequest(
             parent=parent,
@@ -189,3 +142,57 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         #     .blob(f"{matches.group(2)}.000000000")
         #     .download_as_string()
         # )
+
+    def _configure_batch(self):
+        # create the Dataproc Serverless job config
+        batch = dataproc_v1.Batch()
+
+        # Apply defaults
+        batch.pyspark_batch.main_python_file_uri = self.gcs_location
+        jar_file_uri = self.parsed_model["config"].get(
+            "jar_file_uri",
+            "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-0.21.1.jar",
+        )
+        batch.pyspark_batch.jar_file_uris = [jar_file_uri]
+
+        # https://cloud.google.com/dataproc-serverless/docs/concepts/properties
+        # https://cloud.google.com/dataproc-serverless/docs/reference/rest/v1/projects.locations.batches#runtimeconfig
+        batch.runtime_config.properties = {
+            "spark.executor.instances": "2",
+        }
+
+        # Apply configuration from dataproc_batch key, possibly overriding defaults.
+        if self.credential.dataproc_batch:
+            try:
+                self._configure_batch_from_config(self.credential.dataproc_batch, batch)
+            except Exception as e:
+                docurl = "https://cloud.google.com/dataproc-serverless/docs/reference/rpc/google.cloud.dataproc.v1#google.cloud.dataproc.v1.Batch"
+                raise ValueError(f"Unable to parse dataproc_batch as valid batch specification. See {docurl}. {str(e)}") from e
+
+        return batch
+
+    @classmethod
+    def _configure_batch_from_config(cls, configDict, target):
+        for key, value in configDict.items():
+            if hasattr(target, key):
+                attr = getattr(target, key)
+
+                # Basic types we just set as-is.
+                if type(value) in [str, int, float]:
+                    setattr(target, key, type(attr)(value))
+
+                # For lists, we assume target to be a a protobuf repeated field.
+                # The types must match.
+                elif isinstance(value, list):
+                    for v in value:
+                        attr.append(v)
+
+                elif isinstance(value, dict):
+                    # The target is a protobuf map. Cast to expected type and set.
+                    if "ScalarMapContainer" in type(attr).__name__:
+                        for k, v in value.items():
+                            attr[k] = type(attr[k])(v)
+
+                    # Target is another configuration object. Recurse.
+                    else:
+                        cls._configure_batch_from_config(value, attr)

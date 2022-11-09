@@ -130,7 +130,7 @@ class BigQueryCredentials(Credentials):
     dataproc_cluster_name: Optional[str] = None
     gcs_bucket: Optional[str] = None
 
-    dataproc_batch: DataprocBatchConfig = field(
+    dataproc_batch: Optional[DataprocBatchConfig] = field(
         metadata={
             "serialization_strategy": pass_through,
         },

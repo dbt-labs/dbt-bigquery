@@ -125,11 +125,11 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
                         },
                         'labels': {
                             'dbt': 'rocks',
-                            'number': 1
+                            'number': '1'
                         },
                         'runtime_config': {
                             'properties': {
-                                'spark.executor.instances': 4,
+                                'spark.executor.instances': '4',
                                 'spark.driver.memory': '1g'
                             }
                         }

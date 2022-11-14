@@ -26,3 +26,4 @@ wheel
 # For dataproc running
 google-cloud-storage[dataproc]>=2.4.0
 google-cloud-dataproc[dataproc]>=4.0.3
+protobuf[dataproc]

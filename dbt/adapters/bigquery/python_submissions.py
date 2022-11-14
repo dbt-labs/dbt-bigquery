@@ -1,10 +1,13 @@
 from typing import Dict, Union
+import time
 
 from dbt.adapters.base import PythonJobHelper
 from dbt.adapters.bigquery import BigQueryConnectionManager, BigQueryCredentials
 from google.api_core import retry
 from google.api_core.client_options import ClientOptions
 from google.cloud import storage, dataproc_v1  # type: ignore
+
+OPERATION_RETRY_TIME = 10
 
 
 class BaseDataProcHelper(PythonJobHelper):
@@ -31,7 +34,7 @@ class BaseDataProcHelper(PythonJobHelper):
         self.credential = credential
         self.GoogleCredentials = BigQueryConnectionManager.get_credentials(credential)
         self.storage_client = storage.Client(
-            project=self.credential.database, credentials=self.GoogleCredentials
+            project=self.credential.execution_project, credentials=self.GoogleCredentials
         )
         self.gcs_location = "gs://{}/{}".format(self.credential.gcs_bucket, self.model_file_name)
 
@@ -64,6 +67,14 @@ class BaseDataProcHelper(PythonJobHelper):
     def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
         raise NotImplementedError("_submit_dataproc_job not implemented")
 
+    def _wait_operation(self, operation):
+        # can't use due to https://github.com/googleapis/python-api-core/issues/458
+        # response = operation.result(retry=self.retry)
+        # Temp solution to wait for the job to finish
+        start = time.time()
+        while not operation.done(retry=None) and time.time() - start < self.timeout:
+            time.sleep(OPERATION_RETRY_TIME)
+
 
 class ClusterDataprocHelper(BaseDataProcHelper):
     def _get_job_client(self) -> dataproc_v1.JobControllerClient:
@@ -89,12 +100,16 @@ class ClusterDataprocHelper(BaseDataProcHelper):
         }
         operation = self.job_client.submit_job_as_operation(  # type: ignore
             request={
-                "project_id": self.credential.database,
+                "project_id": self.credential.execution_project,
                 "region": self.credential.dataproc_region,
                 "job": job,
             }
         )
-        response = operation.result(retry=self.retry)
+        self._wait_operation(operation)
+        response = operation.metadata
+        # check if job failed
+        if response.status.state == 6:
+            raise ValueError(response.status.details)
         return response
 
 
@@ -121,7 +136,7 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         batch.runtime_config.properties = {
             "spark.executor.instances": "2",
         }
-        parent = f"projects/{self.credential.database}/locations/{self.credential.dataproc_region}"
+        parent = f"projects/{self.credential.execution_project}/locations/{self.credential.dataproc_region}"
         request = dataproc_v1.CreateBatchRequest(
             parent=parent,
             batch=batch,

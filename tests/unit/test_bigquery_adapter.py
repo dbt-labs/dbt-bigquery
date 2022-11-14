@@ -545,7 +545,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         'dbt.adapters.bigquery.connections._is_retryable', return_value=True)
     def test_retry_and_handle(self, is_retryable):
         self.connections.DEFAULT_MAXIMUM_DELAY = 2.0
-    
+
         @contextmanager
         def dummy_handler(msg):
             yield
@@ -709,7 +709,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "day"
+                "granularity": "day",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
 
@@ -720,7 +722,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "day"
+                "granularity": "day",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
 
@@ -733,10 +737,12 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "MONTH"
+                "granularity": "MONTH",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
-        
+
         self.assertEqual(
             adapter.parse_partition_by({
                 "field": "ts",
@@ -746,7 +752,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "YEAR"
+                "granularity": "YEAR",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
 
@@ -759,7 +767,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "timestamp",
-                "granularity": "HOUR"
+                "granularity": "HOUR",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
 
@@ -773,7 +783,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                 ), {
                 "field": "ts",
                 "data_type": "timestamp",
-                "granularity": "MONTH"
+                "granularity": "MONTH",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
 
@@ -786,7 +798,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "timestamp",
-                "granularity": "YEAR"
+                "granularity": "YEAR",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
 
@@ -799,7 +813,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "datetime",
-                "granularity": "HOUR"
+                "granularity": "HOUR",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
 
@@ -812,7 +828,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "datetime",
-                "granularity": "MONTH"
+                "granularity": "MONTH",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
 
@@ -825,7 +843,24 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "datetime",
-                "granularity": "YEAR"
+                "granularity": "YEAR",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
+            }
+        )
+
+        self.assertEqual(
+            adapter.parse_partition_by({
+                "field": "ts",
+                "time_ingestion_partitioning": True,
+                "copy_partitions": True
+
+            }).to_dict(omit_none=True), {
+                "field": "ts",
+                "data_type": "date",
+                "granularity": "day",
+                "time_ingestion_partitioning": True,
+                "copy_partitions": True
             }
         )
 
@@ -852,7 +887,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                     "start": 1,
                     "end": 100,
                     "interval": 20
-                }
+                },
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
 
@@ -897,7 +934,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         actual = adapter.get_table_options(mock_config, node={}, temporary=False)
         self.assertEqual(expected, actual)
 
-        
+
     def test_view_kms_key_name(self):
         adapter = self.get_adapter('oauth')
         mock_config = create_autospec(

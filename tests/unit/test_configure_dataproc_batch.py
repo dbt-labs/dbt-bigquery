@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from dbt.adapters.bigquery.python_submissions import ServerlessDataProcHelper
 from google.cloud import dataproc_v1
 
@@ -9,8 +11,11 @@ from .test_bigquery_adapter import BaseTestBigQueryAdapter
 # parsed credentials
 class TestConfigureDataprocBatch(BaseTestBigQueryAdapter):
 
-    def test_configure_dataproc_serverless_batch(self):
+    @patch('dbt.adapters.bigquery.connections.get_bigquery_defaults', return_value=('credentials', 'project_id'))
+    def test_configure_dataproc_serverless_batch(self, mock_get_bigquery_defaults):
         adapter = self.get_adapter('dataproc-serverless-configured')
+        mock_get_bigquery_defaults.assert_called_once()
+
         credentials = adapter.acquire_connection('dummy').credentials
         self.assertIsNotNone(credentials)
 
@@ -37,11 +42,14 @@ class TestConfigureDataprocBatch(BaseTestBigQueryAdapter):
         self.assertEqual(batch.environment_config.execution_config.subnetwork_uri, raw_execution_config['subnetwork_uri'])
         self.assertEqual(batch.environment_config.execution_config.network_tags, raw_execution_config['network_tags'])
         self.assertEqual(batch.labels, to_str_values(raw_labels))
-        self.assertEquals(batch.runtime_config.properties, to_str_values(raw_rt_config['properties']))
+        self.assertEqual(batch.runtime_config.properties, to_str_values(raw_rt_config['properties']))
 
 
-    def test_default_dataproc_serverless_batch(self):
+    @patch('dbt.adapters.bigquery.connections.get_bigquery_defaults', return_value=('credentials', 'project_id'))
+    def test_default_dataproc_serverless_batch(self, mock_get_bigquery_defaults):
         adapter = self.get_adapter('dataproc-serverless-default')
+        mock_get_bigquery_defaults.assert_called_once()
+
         credentials = adapter.acquire_connection('dummy').credentials
         self.assertIsNotNone(credentials)
 

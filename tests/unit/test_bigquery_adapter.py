@@ -220,9 +220,11 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         connection.handle
         mock_open_connection.assert_called_once()
 
+    @patch('dbt.adapters.bigquery.connections.get_bigquery_defaults', return_value=('credentials', 'project_id'))
     @patch('dbt.adapters.bigquery.BigQueryConnectionManager.open', return_value=_bq_conn())
-    def test_acquire_connection_dataproc_serverless(self, mock_open_connection):
+    def test_acquire_connection_dataproc_serverless(self, mock_open_connection, mock_get_bigquery_defaults):
         adapter = self.get_adapter('dataproc-serverless-configured')
+        mock_get_bigquery_defaults.assert_called_once()
         try:
             connection = adapter.acquire_connection('dummy')
             self.assertEqual(connection.type, 'bigquery')

@@ -168,7 +168,9 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
                 self._configure_batch_from_config(self.credential.dataproc_batch, batch)
             except Exception as e:
                 docurl = "https://cloud.google.com/dataproc-serverless/docs/reference/rpc/google.cloud.dataproc.v1#google.cloud.dataproc.v1.Batch"
-                raise ValueError(f"Unable to parse dataproc_batch as valid batch specification. See {docurl}. {str(e)}") from e
+                raise ValueError(
+                    f"Unable to parse dataproc_batch as valid batch specification. See {docurl}. {str(e)}"
+                ) from e
 
         return batch
 

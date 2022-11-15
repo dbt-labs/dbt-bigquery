@@ -93,10 +93,12 @@ class BigQueryAdapterResponse(AdapterResponse):
     job_id: Optional[str] = None
     slot_ms: Optional[int] = None
 
+
 @dataclass
 class DataprocBatchConfig(ExtensibleDbtClassMixin):
     def __init__(self, batch_config):
         self.batch_config = batch_config
+
 
 @dataclass
 class BigQueryCredentials(Credentials):
@@ -134,7 +136,7 @@ class BigQueryCredentials(Credentials):
         metadata={
             "serialization_strategy": pass_through,
         },
-        default = None
+        default=None
     )
 
     scopes: Optional[Tuple[str, ...]] = (

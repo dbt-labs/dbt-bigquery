@@ -1,5 +1,6 @@
-{% materialization table, adapter='bigquery' -%}
+{% materialization table, adapter='bigquery', supported_languages=['sql', 'python']-%}
 
+  {%- set language = model['language'] -%}
   {%- set identifier = model['alias'] -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
   {%- set exists_not_as_table = (old_relation is not none and not old_relation.is_table) -%}
@@ -27,9 +28,11 @@
     {% do log("Hard refreshing " ~ old_relation ~ " because it is not replaceable") %}
     {% do adapter.drop_relation(old_relation) %}
   {% endif %}
-  {% call statement('main') -%}
-    {{ create_table_as(False, target_relation, sql) }}
-  {% endcall -%}
+
+  -- build model
+  {%- call statement('main', language=language) -%}
+    {{ create_table_as(False, target_relation, compiled_code, language) }}
+  {%- endcall -%}
 
   {{ run_hooks(post_hooks) }}
 
@@ -41,3 +44,71 @@
   {{ return({'relations': [target_relation]}) }}
 
 {% endmaterialization %}
+
+-- TODO dataproc requires a temp bucket to perform BQ write
+-- this is hard coded to internal testing ATM. need to adjust to render
+-- or find another way around
+{% macro py_write_table(compiled_code, target_relation) %}
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder.appName('smallTest').getOrCreate()
+
+spark.conf.set("viewsEnabled","true")
+spark.conf.set("temporaryGcsBucket","{{target.gcs_bucket}}")
+
+{{ compiled_code }}
+dbt = dbtObj(spark.read.format("bigquery").load)
+df = model(dbt, spark)
+
+# COMMAND ----------
+# this is materialization code dbt generated, please do not modify
+
+import pyspark
+# make sure pandas exists before using it
+try:
+  import pandas
+  pandas_available = True
+except ImportError:
+  pandas_available = False
+
+# make sure pyspark.pandas exists before using it
+try:
+  import pyspark.pandas
+  pyspark_pandas_api_available = True
+except ImportError:
+  pyspark_pandas_api_available = False
+
+# make sure databricks.koalas exists before using it
+try:
+  import databricks.koalas
+  koalas_available = True
+except ImportError:
+  koalas_available = False
+
+# preferentially convert pandas DataFrames to pandas-on-Spark or Koalas DataFrames first
+# since they know how to convert pandas DataFrames better than `spark.createDataFrame(df)`
+# and converting from pandas-on-Spark to Spark DataFrame has no overhead
+if pyspark_pandas_api_available and pandas_available and isinstance(df, pandas.core.frame.DataFrame):
+  df = pyspark.pandas.frame.DataFrame(df)
+elif koalas_available and pandas_available and isinstance(df, pandas.core.frame.DataFrame):
+  df = databricks.koalas.frame.DataFrame(df)
+
+# convert to pyspark.sql.dataframe.DataFrame
+if isinstance(df, pyspark.sql.dataframe.DataFrame):
+  pass  # since it is already a Spark DataFrame
+elif pyspark_pandas_api_available and isinstance(df, pyspark.pandas.frame.DataFrame):
+  df = df.to_spark()
+elif koalas_available and isinstance(df, databricks.koalas.frame.DataFrame):
+  df = df.to_spark()
+elif pandas_available and isinstance(df, pandas.core.frame.DataFrame):
+  df = spark.createDataFrame(df)
+else:
+  msg = f"{type(df)} is not a supported type for dbt Python materialization"
+  raise Exception(msg)
+
+df.write \
+  .mode("overwrite") \
+  .format("bigquery") \
+  .option("writeMethod", "direct").option("writeDisposition", 'WRITE_TRUNCATE') \
+  .save("{{target_relation}}")
+{% endmacro %}

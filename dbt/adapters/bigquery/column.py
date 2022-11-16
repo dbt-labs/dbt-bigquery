@@ -15,6 +15,7 @@ class BigQueryColumn(Column):
         "TIMESTAMP": "TIMESTAMP",
         "FLOAT": "FLOAT64",
         "INTEGER": "INT64",
+        "BOOLEAN": "BOOLEAN",
         "RECORD": "RECORD",
     }
     fields: List[Self]  # type: ignore

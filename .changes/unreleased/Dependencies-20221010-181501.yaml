@@ -1,0 +1,7 @@
+kind: Dependencies
+body: Bump google-cloud-bigquery dependency to < 3.3.3
+time: 2022-10-10T18:15:01.113219+01:00
+custom:
+  Author: eplus-aolalere
+  Issue: "269"
+  PR: "332"

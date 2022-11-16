@@ -41,22 +41,35 @@
   {%- do return(bigquery_options(opts)) -%}
 {%- endmacro -%}
 
-{% macro bigquery__create_table_as(temporary, relation, sql) -%}
-  {%- set raw_partition_by = config.get('partition_by', none) -%}
-  {%- set raw_cluster_by = config.get('cluster_by', none) -%}
-  {%- set sql_header = config.get('sql_header', none) -%}
+{% macro bigquery__create_table_as(temporary, relation, compiled_code, language='sql') -%}
+  {%- if language == 'sql' -%}
+    {%- set raw_partition_by = config.get('partition_by', none) -%}
+    {%- set raw_cluster_by = config.get('cluster_by', none) -%}
+    {%- set sql_header = config.get('sql_header', none) -%}
 
-  {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
+    {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
 
-  {{ sql_header if sql_header is not none }}
+    {{ sql_header if sql_header is not none }}
 
-  create or replace table {{ relation }}
-  {{ partition_by(partition_config) }}
-  {{ cluster_by(raw_cluster_by) }}
-  {{ bigquery_table_options(config, model, temporary) }}
-  as (
-    {{ sql }}
-  );
+    create or replace table {{ relation }}
+    {{ partition_by(partition_config) }}
+    {{ cluster_by(raw_cluster_by) }}
+    {{ bigquery_table_options(config, model, temporary) }}
+    as (
+      {{ compiled_code }}
+    );
+  {%- elif language == 'python' -%}
+    {#--
+    N.B. Python models _can_ write to temp views HOWEVER they use a different session
+    and have already expired by the time they need to be used (I.E. in merges for incremental models)
+
+    TODO: Deep dive into spark sessions to see if we can reuse a single session for an entire
+    dbt invocation.
+     --#}
+    {{ py_write_table(compiled_code=compiled_code, target_relation=relation.quote(database=False, schema=False, identifier=False)) }}
+  {%- else -%}
+    {% do exceptions.raise_compiler_error("bigquery__create_table_as macro didn't get supported language, it got %s" % language) %}
+  {%- endif -%}
 
 {%- endmacro -%}
 
@@ -93,17 +106,6 @@
 
 {% macro bigquery__list_relations_without_caching(schema_relation) -%}
   {{ return(adapter.list_relations_without_caching(schema_relation)) }}
-{%- endmacro %}
-
-
-{% macro bigquery__current_timestamp() -%}
-  CURRENT_TIMESTAMP()
-{%- endmacro %}
-
-
-{% macro bigquery__snapshot_string_as_time(timestamp) -%}
-    {%- set result = 'TIMESTAMP("' ~ timestamp ~ '")' -%}
-    {{ return(result) }}
 {%- endmacro %}
 
 

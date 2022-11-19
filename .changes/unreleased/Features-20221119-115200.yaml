@@ -1,0 +1,7 @@
+kind: Features
+body: Support BigQuery 'labels' and 'hours_to_expiration' configs for seeds.
+time: 2022-11-19T11:52:00.80272+11:00
+custom:
+  Author: darrylng
+  Issue: "125"
+  PR: "133"

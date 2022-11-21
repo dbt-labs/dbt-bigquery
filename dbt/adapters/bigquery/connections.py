@@ -136,7 +136,7 @@ class BigQueryCredentials(Credentials):
         metadata={
             "serialization_strategy": pass_through,
         },
-        default=None
+        default=None,
     )
 
     scopes: Optional[Tuple[str, ...]] = (

@@ -8,8 +8,6 @@ from tests.functional.test_override_database.fixtures import (
 import os
 
 
-
-
 class BaseOverrideDatabase:
     @pytest.fixture(scope="class")
     def model_path(self):
@@ -31,7 +29,9 @@ class BaseOverrideDatabase:
             }
         }
 
-    def delete_alt_database_relation(self, project):
+    @pytest.fixture(scope="class")
+    def clear_test_schema(self, project):
+        yield
         relation = project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema)
         project.adapter.drop_schema(relation)
 
@@ -48,15 +48,11 @@ class TestModelOverrideBigQuery(BaseOverrideDatabase):
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_4")
         ])
 
-
-    def test_bigquery_database_override(self, project):
+    def test_bigquery_database_override(self, clear_test_schema, project):
         self.run_database_override(project)
-        self.delete_alt_database_relation(project)
-
 
 
 class BaseTestProjectModelOverrideBigQuery(BaseOverrideDatabase):
-
     def run_database_override(self, project):
         run_dbt(["seed"])
         assert len(run_dbt(["run"])) == 4
@@ -100,9 +96,8 @@ class TestProjectModelOverrideBigQuery(BaseTestProjectModelOverrideBigQuery):
             }
         }
 
-    def test_bigquery_database_override(self, project):
+    def test_bigquery_database_override(self, clear_test_schema, project):
         self.run_database_override(project)
-        self.delete_alt_database_relation(project)
 
 
 class TestProjectModelAliasOverrideBigQuery(BaseTestProjectModelOverrideBigQuery):
@@ -133,9 +128,8 @@ class TestProjectModelAliasOverrideBigQuery(BaseTestProjectModelOverrideBigQuery
             }
         }
 
-    def test_bigquery_project_override(self, project):
+    def test_bigquery_project_override(self, clear_test_schema, project):
         self.run_database_override(project)
-        self.delete_alt_database_relation(project)
 
 
 class TestProjectSeedOverrideBigQuery(BaseOverrideDatabase):
@@ -151,6 +145,7 @@ class TestProjectSeedOverrideBigQuery(BaseOverrideDatabase):
                 "database": os.getenv("BIGQUERY_TEST_ALT_DATABASE")
             }
         }
+
     def run_database_override(self, project):
         run_dbt(["seed"])
         assert len(run_dbt(["run"])) == 4
@@ -162,6 +157,5 @@ class TestProjectSeedOverrideBigQuery(BaseOverrideDatabase):
             project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_4")
         ])
 
-    def test_bigquery_database_override(self, project):
+    def test_bigquery_database_override(self, clear_test_schema, project):
         self.run_database_override(project)
-        self.delete_alt_database_relation(project)

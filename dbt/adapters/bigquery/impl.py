@@ -44,7 +44,7 @@ import time
 import agate
 import json
 
-from dbt.adapters.bigquery.update_dataset import DATASET_UPDATE_QUEUE, start_dataset_update_thread
+from dbt.adapters.bigquery.dataset import update_dataset
 
 logger = AdapterLogger("BigQuery")
 
@@ -802,10 +802,6 @@ class BigQueryAdapter(BaseAdapter):
         opts = self.get_common_options(config, node)
         return opts
 
-    def update_dataset(self, update):
-        start_dataset_update_thread(self.connections.get_thread_connection().handle)
-        DATASET_UPDATE_QUEUE.put(update)
-
     @available.parse_none
     def grant_access_to(self, entity, entity_type, role, grant_target_dict):
         """
@@ -830,7 +826,7 @@ class BigQueryAdapter(BaseAdapter):
 
         access_entries.append(AccessEntry(role, entity_type, entity))
         dataset.access_entries = access_entries
-        self.update_dataset((dataset, ["access_entries"]))
+        update_dataset(client, (dataset, ["access_entries"]))
 
     @available.parse_none
     def get_dataset_location(self, relation):

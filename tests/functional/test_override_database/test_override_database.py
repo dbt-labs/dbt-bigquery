@@ -7,6 +7,8 @@ from tests.functional.test_override_database.fixtures import (
 )
 import os
 
+ALT_DATABASE = os.getenv("BIGQUERY_TEST_ALT_DATABASE")
+
 
 class BaseOverrideDatabase:
     @pytest.fixture(scope="class")
@@ -19,7 +21,7 @@ class BaseOverrideDatabase:
             "config-version": 2,
             "seed-paths": ["seeds"],
             "vars": {
-                "alternate_db": os.getenv("BIGQUERY_TEST_ALT_DATABASE"),
+                "alternate_db": ALT_DATABASE,
             },
             "quoting": {
                 "database": True,
@@ -30,9 +32,9 @@ class BaseOverrideDatabase:
         }
 
     @pytest.fixture(scope="class")
-    def clear_test_schema(self, project):
+    def clear_alt_test_schema(self, project):
         yield
-        relation = project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema)
+        relation = project.adapter.Relation.create(database=ALT_DATABASE, schema=project.test_schema)
         project.adapter.drop_schema(relation)
 
 
@@ -42,13 +44,13 @@ class TestModelOverrideBigQuery(BaseOverrideDatabase):
         assert len(run_dbt(["run"])) == 4
         check_relations_equal_with_relations(project.adapter, [
             project.adapter.Relation.create(schema=project.test_schema, identifier="seed"),
-            project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_2"),
+            project.adapter.Relation.create(database=ALT_DATABASE, schema=project.test_schema, identifier="view_2"),
             project.adapter.Relation.create(schema=project.test_schema, identifier="view_1"),
             project.adapter.Relation.create(schema=project.test_schema, identifier="view_3"),
-            project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_4")
+            project.adapter.Relation.create(database=ALT_DATABASE, schema=project.test_schema, identifier="view_4")
         ])
 
-    def test_bigquery_database_override(self, clear_test_schema, project):
+    def test_bigquery_database_override(self, clear_alt_test_schema, project):
         self.run_database_override(project)
 
 
@@ -61,10 +63,10 @@ class BaseTestProjectModelOverrideBigQuery(BaseOverrideDatabase):
     def assertExpectedRelations(self, project):
         check_relations_equal_with_relations(project.adapter, [
             project.adapter.Relation.create(schema=project.test_schema, identifier="seed"),
-            project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_2"),
-            project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_1"),
+            project.adapter.Relation.create(database=ALT_DATABASE, schema=project.test_schema, identifier="view_2"),
+            project.adapter.Relation.create(database=ALT_DATABASE, schema=project.test_schema, identifier="view_1"),
             project.adapter.Relation.create(schema=project.test_schema, identifier="view_3"),
-            project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_4")
+            project.adapter.Relation.create(database=ALT_DATABASE, schema=project.test_schema, identifier="view_4")
         ])
 
 
@@ -74,10 +76,10 @@ class TestProjectModelOverrideBigQuery(BaseTestProjectModelOverrideBigQuery):
         return {
             "config-version": 2,
             "vars": {
-                "alternate_db": os.getenv("BIGQUERY_TEST_ALT_DATABASE"),
+                "alternate_db": ALT_DATABASE,
             },
             "models": {
-                "database": os.getenv("BIGQUERY_TEST_ALT_DATABASE"),
+                "database": ALT_DATABASE,
                 "test": {
                     "subfolder": {
                         "database": "{{ target.database }}"
@@ -86,7 +88,7 @@ class TestProjectModelOverrideBigQuery(BaseTestProjectModelOverrideBigQuery):
             },
             "seed-paths": ["seeds"],
             "vars": {
-                "alternate_db": os.getenv("BIGQUERY_TEST_ALT_DATABASE"),
+                "alternate_db": ALT_DATABASE,
             },
             "quoting": {
                 "database": True,
@@ -96,7 +98,7 @@ class TestProjectModelOverrideBigQuery(BaseTestProjectModelOverrideBigQuery):
             }
         }
 
-    def test_bigquery_database_override(self, clear_test_schema, project):
+    def test_bigquery_database_override(self, clear_alt_test_schema, project):
         self.run_database_override(project)
 
 
@@ -106,10 +108,10 @@ class TestProjectModelAliasOverrideBigQuery(BaseTestProjectModelOverrideBigQuery
         return {
             "config-version": 2,
             "vars": {
-                "alternate_db": os.getenv("BIGQUERY_TEST_ALT_DATABASE"),
+                "alternate_db": ALT_DATABASE,
             },
             "models": {
-                "project": os.getenv("BIGQUERY_TEST_ALT_DATABASE"),
+                "project": ALT_DATABASE,
                 "test": {
                     "subfolder": {
                         "project": "{{ target.database }}"
@@ -118,7 +120,7 @@ class TestProjectModelAliasOverrideBigQuery(BaseTestProjectModelOverrideBigQuery
             },
             "seed-paths": ["seeds"],
             "vars": {
-                "alternate_db": os.getenv("BIGQUERY_TEST_ALT_DATABASE"),
+                "alternate_db": ALT_DATABASE,
             },
             "quoting": {
                 "database": True,
@@ -128,7 +130,7 @@ class TestProjectModelAliasOverrideBigQuery(BaseTestProjectModelOverrideBigQuery
             }
         }
 
-    def test_bigquery_project_override(self, clear_test_schema, project):
+    def test_bigquery_project_override(self, clear_alt_test_schema, project):
         self.run_database_override(project)
 
 
@@ -139,10 +141,10 @@ class TestProjectSeedOverrideBigQuery(BaseOverrideDatabase):
             "config-version": 2,
             "seed-paths": ["seeds"],
             "vars": {
-                "alternate_db": os.getenv("BIGQUERY_TEST_ALT_DATABASE"),
+                "alternate_db": ALT_DATABASE,
             },
             "seeds": {
-                "database": os.getenv("BIGQUERY_TEST_ALT_DATABASE")
+                "database": ALT_DATABASE
             }
         }
 
@@ -150,12 +152,12 @@ class TestProjectSeedOverrideBigQuery(BaseOverrideDatabase):
         run_dbt(["seed"])
         assert len(run_dbt(["run"])) == 4
         check_relations_equal_with_relations(project.adapter, [
-            project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="seed"),
-            project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_2"),
+            project.adapter.Relation.create(database=ALT_DATABASE, schema=project.test_schema, identifier="seed"),
+            project.adapter.Relation.create(database=ALT_DATABASE, schema=project.test_schema, identifier="view_2"),
             project.adapter.Relation.create(schema=project.test_schema, identifier="view_1"),
             project.adapter.Relation.create(schema=project.test_schema, identifier="view_3"),
-            project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema, identifier="view_4")
+            project.adapter.Relation.create(database=ALT_DATABASE, schema=project.test_schema, identifier="view_4")
         ])
 
-    def test_bigquery_database_override(self, clear_test_schema, project):
+    def test_bigquery_database_override(self, clear_alt_test_schema, project):
         self.run_database_override(project)

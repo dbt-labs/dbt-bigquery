@@ -1,0 +1,7 @@
+kind: Fixes
+body: Run all grant access updates serially in a separate thread.
+time: 2022-11-23T15:49:48.078613-08:00
+custom:
+  Author: colin-rogers-dbt
+  Issue: "266"
+  PR: "359"

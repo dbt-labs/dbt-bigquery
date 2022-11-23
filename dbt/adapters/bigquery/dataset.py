@@ -7,24 +7,24 @@ from typing import Dict
 
 from dbt.events import AdapterLogger
 
-__DATASET_UPDATE_QUEUE = queue.SimpleQueue()
-__DATASET_UPDATE_THREAD: Dict[str, Thread] = {}
-__DATASET_UPDATE_LOCK = threading.Lock()
+_dataset_update_queue: queue.SimpleQueue = queue.SimpleQueue()
+_dataset_update_thread_store: Dict[str, Thread] = {}
+_dataset_update_lock: threading.Lock = threading.Lock()
 
 logger: AdapterLogger = AdapterLogger("BigQuery")
 
 
 def update_dataset(client: google.cloud.bigquery.Client, update):
     _start_dataset_update_thread(client)
-    __DATASET_UPDATE_QUEUE.put(update)
+    _dataset_update_queue.put(update)
 
 
 def _start_dataset_update_thread(client: google.cloud.bigquery.Client) -> None:
-    with __DATASET_UPDATE_LOCK:
-        if "thread" not in __DATASET_UPDATE_THREAD:
-            dataset_update_thread = DatasetAsyncUpdater(client=client, queue=__DATASET_UPDATE_QUEUE)
+    with _dataset_update_lock:
+        if "thread" not in _dataset_update_thread_store:
+            dataset_update_thread = DatasetAsyncUpdater(client=client, queue=_dataset_update_queue)
             dataset_update_thread.start()
-            __DATASET_UPDATE_THREAD["thread"] = dataset_update_thread
+            _dataset_update_thread_store["thread"] = dataset_update_thread
 
 
 class DatasetAsyncUpdater(Thread):

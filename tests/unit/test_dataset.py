@@ -28,7 +28,7 @@ def test_update_dataset_handles_bq_client_error(mock_client, mock_dataset, monke
     expected_error = ValueError("something went wrong")
     mock_client.update_dataset.side_effect = expected_error
     #we need to overwrite the updater's client with our new mock
-    dataset.__DATASET_UPDATE_THREAD["thread"].client = mock_client
+    dataset.dataset_update_thread_store["thread"].client = mock_client
     update_request = (mock_dataset, ["access_entries"])
     mock_logger = MagicMock()
     monkeypatch.setattr(dataset, "logger", mock_logger)

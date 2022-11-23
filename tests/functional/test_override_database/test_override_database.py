@@ -1,11 +1,14 @@
 import pytest
-from dbt.tests.util import run_dbt, check_relations_equal, check_relations_equal_with_relations
+import os
+from dbt.tests.util import (
+    run_dbt,
+    check_relations_equal_with_relations
+)
 from tests.functional.test_override_database.fixtures import (
     models,
     seeds,
     project_files
 )
-import os
 
 ALT_DATABASE = os.getenv("BIGQUERY_TEST_ALT_DATABASE")
 
@@ -31,8 +34,8 @@ class BaseOverrideDatabase:
             }
         }
 
-    @pytest.fixture(scope="class")
-    def clear_alt_test_schema(self, project):
+    @pytest.fixture(scope="function")
+    def clean_up(self, project):
         yield
         relation = project.adapter.Relation.create(database=ALT_DATABASE, schema=project.test_schema)
         project.adapter.drop_schema(relation)
@@ -50,7 +53,7 @@ class TestModelOverrideBigQuery(BaseOverrideDatabase):
             project.adapter.Relation.create(database=ALT_DATABASE, schema=project.test_schema, identifier="view_4")
         ])
 
-    def test_bigquery_database_override(self, clear_alt_test_schema, project):
+    def test_bigquery_database_override(self, project, clean_up):
         self.run_database_override(project)
 
 
@@ -98,7 +101,7 @@ class TestProjectModelOverrideBigQuery(BaseTestProjectModelOverrideBigQuery):
             }
         }
 
-    def test_bigquery_database_override(self, clear_alt_test_schema, project):
+    def test_bigquery_database_override(self, project, clean_up):
         self.run_database_override(project)
 
 
@@ -130,7 +133,7 @@ class TestProjectModelAliasOverrideBigQuery(BaseTestProjectModelOverrideBigQuery
             }
         }
 
-    def test_bigquery_project_override(self, clear_alt_test_schema, project):
+    def test_bigquery_project_override(self, project, clean_up):
         self.run_database_override(project)
 
 
@@ -159,5 +162,5 @@ class TestProjectSeedOverrideBigQuery(BaseOverrideDatabase):
             project.adapter.Relation.create(database=ALT_DATABASE, schema=project.test_schema, identifier="view_4")
         ])
 
-    def test_bigquery_database_override(self, clear_alt_test_schema, project):
+    def test_bigquery_database_override(self, project, clean_up):
         self.run_database_override(project)

@@ -1,18 +1,18 @@
 import pytest
 import os
 from dbt.tests.util import run_dbt
-from dbt.tests.adapter.aliases.test_aliases import BaseAliases, BaseSameAliasDifferentDatabases
+from dbt.tests.adapter.aliases.test_aliases import (
+    BaseAliases,
+    BaseSameAliasDifferentDatabases
+)
 
 MACROS__BIGQUERY_CAST_SQL = """
-
 {% macro bigquery__string_literal(s) %}
     cast('{{ s }}' as string)
 {% endmacro %}
-
 """
 
 MACROS__EXPECT_VALUE_SQL = """
-
 -- cross-db compatible test, similar to accepted_values
 
 {% test expect_value(model, field, value) %}
@@ -22,7 +22,6 @@ from {{ model }}
 where {{ field }} != '{{ value }}'
 
 {% endtest %}
-
 """
 
 MODELS_DUPE_CUSTOM_DATABASE_A = """
@@ -51,7 +50,15 @@ models:
 class TestAliasesBigQuery(BaseAliases):
     @pytest.fixture(scope="class")
     def macros(self):
-        return {"bigquery_cast.sql": MACROS__BIGQUERY_CAST_SQL, "expect_value.sql": MACROS__EXPECT_VALUE_SQL}
+        return {
+            "bigquery_cast.sql": MACROS__BIGQUERY_CAST_SQL,
+            "expect_value.sql": MACROS__EXPECT_VALUE_SQL
+        }
+
+    def test_alias_model_name(self, project):
+        results = run_dbt(["run"])
+        assert len(results) == 4
+        run_dbt(["test"])
 
 
 class TestSameTestSameAliasDifferentDatabasesBigQuery(BaseSameAliasDifferentDatabases):
@@ -67,9 +74,13 @@ class TestSameTestSameAliasDifferentDatabasesBigQuery(BaseSameAliasDifferentData
                 },
             },
         }
+
     @pytest.fixture(scope="class")
     def macros(self):
-        return {"bigquery_cast.sql": MACROS__BIGQUERY_CAST_SQL, "expect_value.sql": MACROS__EXPECT_VALUE_SQL}
+        return {
+            "bigquery_cast.sql": MACROS__BIGQUERY_CAST_SQL,
+            "expect_value.sql": MACROS__EXPECT_VALUE_SQL
+        }
 
     @pytest.fixture(scope="class")
     def models(self):
@@ -79,14 +90,15 @@ class TestSameTestSameAliasDifferentDatabasesBigQuery(BaseSameAliasDifferentData
             "model_b.sql": MODELS_DUPE_CUSTOM_DATABASE_B
         }
 
-    def delete_alt_database_relation(self, project):
-        relation = project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema)
-        project.adapter.drop_schema(relation)
+    @pytest.fixture(scope="function")
+    def clean_up(self, project):
+        yield
+        with project.adapter.connection_named('__test'):
+            relation = project.adapter.Relation.create(database=os.getenv("BIGQUERY_TEST_ALT_DATABASE"), schema=project.test_schema)
+            project.adapter.drop_schema(relation)
 
-    def test_alias_model_name_diff_database(self, project):
+    def test_alias_model_name_diff_database(self, project, clean_up):
         results = run_dbt(["run"])
         assert len(results) == 2
         res = run_dbt(["test"])
         assert len(res) > 0
-        run_dbt(["run"])
-        self.delete_alt_database_relation(project)

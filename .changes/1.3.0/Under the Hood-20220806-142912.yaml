@@ -1,7 +1,0 @@
-kind: Under the Hood
-body: Add location/job_id/project_id to adapter response to enable easy job linking
-time: 2022-08-06T14:29:12.271054+02:00
-custom:
-  Author: Kayrnt
-  Issue: "92"
-  PR: "250"

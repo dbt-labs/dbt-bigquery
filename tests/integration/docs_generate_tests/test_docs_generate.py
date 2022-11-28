@@ -99,6 +99,8 @@ class TestDocsGenerate(DBTIntegrationTest):
         os.environ['DBT_ENV_CUSTOM_ENV_env_key'] = 'env_value'
 
     def tearDown(self):
+        with self.adapter.connection_named('__test'):
+            self._drop_schema_named(self.default_database, self.alternate_schema)
         super().tearDown()
         del os.environ['DBT_ENV_CUSTOM_ENV_env_key']
 
@@ -1835,7 +1837,7 @@ class TestDocsGenerate(DBTIntegrationTest):
             else:
                 self.assertIn(key, expected_manifest)  # sanity check
                 self.assertEqual(manifest[key], expected_manifest[key])
-                
+
     def _quote(self, value):
         quote_char = '`'
         return '{0}{1}{0}'.format(quote_char, value)
@@ -1940,7 +1942,6 @@ class TestDocsGenerate(DBTIntegrationTest):
     @use_profile('bigquery')
     def test__bigquery__run_and_generate(self):
         self.run_and_generate()
-
         self.verify_catalog(self.expected_bigquery_catalog())
         self.verify_manifest(self.expected_seeded_manifest())
         self.verify_run_results(self.expected_run_results())

@@ -73,7 +73,7 @@
   {%- set cluster_by = config.get('cluster_by', none) -%}
 
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
-  {% set incremental_predicates = config.get('incremental_predicates', default=none) %}
+  {% set incremental_predicates = config.get('predicates', default=none) or config.get('incremental_predicates', default=none) %}
 
    -- grab current tables grants config for comparison later on
   {% set grant_config = config.get('grants') %}

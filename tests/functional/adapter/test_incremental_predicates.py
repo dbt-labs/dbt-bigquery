@@ -13,3 +13,15 @@ class TestIncrementalPredicatesMergeBigQuery(BaseIncrementalPredicates):
                 "+incremental_strategy": "merge"
             }
         }
+
+class TestPredicatesMergeBigQuery(BaseIncrementalPredicates):
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            "models": { 
+                "+predicates": [
+                    "dbt_internal_dest.id != 2"
+                    ],
+                "+incremental_strategy": "merge"
+            }
+        }

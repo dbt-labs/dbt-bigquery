@@ -125,4 +125,4 @@ class BigQueryColumn(Column):
             fields = [field.column_to_bq_schema() for field in self.fields]  # type: ignore[attr-defined]
             kwargs = {"fields": fields}
 
-        return SchemaField(self.name, self.dtype, self.mode, **kwargs)
+        return SchemaField(self.name, self.dtype, self.mode, **kwargs)  # type: ignore[arg-type]

@@ -37,6 +37,7 @@ class DatasetAsyncUpdater(Thread):
         self.daemon = True  # will close when the parent process closes
         self.client = client
         self._queue = queue
+        self._completed_tasks = set()
 
     def run(self) -> None:
         while True:

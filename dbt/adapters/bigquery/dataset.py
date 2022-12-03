@@ -30,6 +30,7 @@ def _start_dataset_update_thread(client: google.cloud.bigquery.Client) -> None:
 class DatasetAsyncUpdater(Thread):
     client: google.cloud.bigquery.Client
     _queue: queue.SimpleQueue
+    _completed_tasks: set
 
     def __init__(self, client, queue) -> None:
         super().__init__()
@@ -40,8 +41,9 @@ class DatasetAsyncUpdater(Thread):
     def run(self) -> None:
         while True:
             val = self._queue.get()
-            if val:
+            if val and val not in self._completed_tasks:
                 try:
                     self.client.update_dataset(*val)
+                    self._completed_tasks.add(val)
                 except Exception as e:
                     logger.error(e)

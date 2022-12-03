@@ -42,9 +42,9 @@ class DatasetAsyncUpdater(Thread):
     def run(self) -> None:
         while True:
             val = self._queue.get()
-            if val and val not in self._completed_tasks:
+            if val and str(val) not in self._completed_tasks:
                 try:
                     self.client.update_dataset(*val)
-                    self._completed_tasks.add(val)
+                    self._completed_tasks.add(str(val))
                 except Exception as e:
                     logger.error(e)

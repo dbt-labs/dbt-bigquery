@@ -21,7 +21,7 @@ def test_update_dataset_calls_bq_client_correctly(mock_client, mock_dataset):
     mock_client.update_dataset.assert_called_once_with(*update_request)
     update_dataset(mock_client, update_request)
     sleep(1)
-    assert mock_client.update_dataset.call_count == 2
+    assert mock_client.update_dataset.call_count == 1
 
 
 def test_update_dataset_handles_bq_client_error(mock_client, mock_dataset, monkeypatch):

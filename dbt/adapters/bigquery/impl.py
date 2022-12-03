@@ -16,7 +16,7 @@ from dbt.adapters.base import (
     PythonJobHelper,
 )
 
-from dbt.adapters.cache import _make_key
+from dbt.adapters.cache import _make_ref_key_msg
 
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery import BigQueryColumn
@@ -67,11 +67,16 @@ class PartitionConfig(dbtClassMixin):
     data_type: str = "date"
     granularity: str = "day"
     range: Optional[Dict[str, Any]] = None
+    time_ingestion_partitioning: bool = False
+    copy_partitions: bool = False
+
+    def reject_partition_field_column(self, columns: List[Any]) -> List[str]:
+        return [c for c in columns if not c.name.upper() == self.field.upper()]
 
     def render(self, alias: Optional[str] = None):
-        column: str = self.field
+        column: str = self.field if not self.time_ingestion_partitioning else "_PARTITIONTIME"
         if alias:
-            column = f"{alias}.{self.field}"
+            column = f"{alias}.{column}"
 
         if self.data_type.lower() == "int64" or (
             self.data_type.lower() == "date" and self.granularity.lower() == "day"
@@ -79,6 +84,13 @@ class PartitionConfig(dbtClassMixin):
             return column
         else:
             return f"{self.data_type}_trunc({column}, {self.granularity})"
+
+    def render_wrapped(self, alias: Optional[str] = None):
+        """Wrap the partitioning column when time involved to ensure it is properly casted to matching time."""
+        if self.data_type in ("date", "timestamp", "datetime"):
+            return f"{self.data_type}({self.render(alias)})"
+        else:
+            return self.render(alias)
 
     @classmethod
     def parse(cls, raw_partition_by) -> Optional["PartitionConfig"]:  # type: ignore [return]
@@ -237,6 +249,12 @@ class BigQueryAdapter(BaseAdapter):
             logger.debug("get_columns_in_relation error: {}".format(e))
             return []
 
+    @available.parse(lambda *a, **k: [])
+    def add_time_ingestion_partition_column(self, columns) -> List[BigQueryColumn]:
+        "Add time ingestion partition column to columns list"
+        columns.append(self.Column("_PARTITIONTIME", "TIMESTAMP", None, "NULLABLE"))
+        return columns
+
     def expand_column_types(self, goal: BigQueryRelation, current: BigQueryRelation) -> None:  # type: ignore[override]
         # This is a no-op on BigQuery
         pass
@@ -302,7 +320,7 @@ class BigQueryAdapter(BaseAdapter):
         # use SQL 'create schema'
         relation = relation.without_identifier()  # type: ignore
 
-        fire_event(SchemaCreation(relation=_make_key(relation)))
+        fire_event(SchemaCreation(relation=_make_ref_key_msg(relation)))
         kwargs = {
             "relation": relation,
         }
@@ -316,7 +334,7 @@ class BigQueryAdapter(BaseAdapter):
         database = relation.database
         schema = relation.schema
         logger.debug('Dropping schema "{}.{}".', database, schema)  # in lieu of SQL
-        fire_event(SchemaDrop(relation=_make_key(relation)))
+        fire_event(SchemaDrop(relation=_make_ref_key_msg(relation)))
         self.connections.drop_dataset(database, schema)
         self.cache.drop_schema(database, schema)
 
@@ -381,7 +399,7 @@ class BigQueryAdapter(BaseAdapter):
         for idx, col_name in enumerate(agate_table.column_names):
             inferred_type = self.convert_agate_type(agate_table, idx)
             type_ = column_override.get(col_name, inferred_type)
-            bq_schema.append(SchemaField(col_name, type_))
+            bq_schema.append(SchemaField(col_name, type_))  # type: ignore[arg-type]
         return bq_schema
 
     def _materialize_as_view(self, model: Dict[str, Any]) -> str:
@@ -434,6 +452,19 @@ class BigQueryAdapter(BaseAdapter):
         self.connections.copy_bq_table(source, destination, write_disposition)
 
         return "COPY TABLE with materialization: {}".format(materialization)
+
+    @available.parse(lambda *a, **k: False)
+    def get_columns_in_select_sql(self, select_sql: str) -> List[BigQueryColumn]:
+        try:
+            conn = self.connections.get_thread_connection()
+            client = conn.handle
+            query_job, iterator = self.connections.raw_execute(select_sql)
+            query_table = client.get_table(query_job.destination)
+            return self._get_dbt_columns_from_bq_table(query_table)
+
+        except (ValueError, google.cloud.exceptions.NotFound) as e:
+            logger.debug("get_columns_in_select_sql error: {}".format(e))
+            return []
 
     @classmethod
     def poll_until_job_completes(cls, job, timeout):
@@ -496,10 +527,16 @@ class BigQueryAdapter(BaseAdapter):
         if not is_partitioned and not conf_partition:
             return True
         elif conf_partition and table.time_partitioning is not None:
-            table_field = table.time_partitioning.field.lower()
+            partitioning_field = table.time_partitioning.field or "_PARTITIONTIME"
+            table_field = partitioning_field.lower()
             table_granularity = table.partitioning_type.lower()
+            conf_table_field = (
+                conf_partition.field
+                if not conf_partition.time_ingestion_partitioning
+                else "_PARTITIONTIME"
+            )
             return (
-                table_field == conf_partition.field.lower()
+                table_field == conf_table_field.lower()
                 and table_granularity == conf_partition.granularity.lower()
             )
         elif conf_partition and table.range_partitioning is not None:

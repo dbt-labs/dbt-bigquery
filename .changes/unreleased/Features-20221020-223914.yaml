@@ -1,0 +1,8 @@
+kind: Features
+body: Optimize insert_overwrite incremental strategy with WRITE_TRUNCATE / Partition
+  copy
+time: 2022-10-20T22:39:14.091878+02:00
+custom:
+  Author: Kayrnt
+  Issue: "77"
+  PR: "167"

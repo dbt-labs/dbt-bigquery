@@ -403,7 +403,7 @@ class BigQueryAdapter(BaseAdapter):
         for idx, col_name in enumerate(agate_table.column_names):
             inferred_type = self.convert_agate_type(agate_table, idx)
             type_ = column_override.get(col_name, inferred_type)
-            bq_schema.append(SchemaField(col_name, type_))
+            bq_schema.append(SchemaField(col_name, type_))  # type: ignore[arg-type]
         return bq_schema
 
     def _materialize_as_view(self, model: Dict[str, Any]) -> str:

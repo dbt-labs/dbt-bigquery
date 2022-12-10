@@ -1,5 +1,4 @@
 from typing import Dict, Union
-import time
 
 from dbt.adapters.base import PythonJobHelper
 from dbt.adapters.bigquery import BigQueryConnectionManager, BigQueryCredentials
@@ -67,14 +66,6 @@ class BaseDataProcHelper(PythonJobHelper):
     def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
         raise NotImplementedError("_submit_dataproc_job not implemented")
 
-    def _wait_operation(self, operation):
-        # can't use due to https://github.com/googleapis/python-api-core/issues/458
-        # response = operation.result(retry=self.retry)
-        # Temp solution to wait for the job to finish
-        start = time.time()
-        while not operation.done(retry=None) and time.time() - start < self.timeout:
-            time.sleep(OPERATION_RETRY_TIME)
-
 
 class ClusterDataprocHelper(BaseDataProcHelper):
     def _get_job_client(self) -> dataproc_v1.JobControllerClient:
@@ -105,8 +96,7 @@ class ClusterDataprocHelper(BaseDataProcHelper):
                 "job": job,
             }
         )
-        self._wait_operation(operation)
-        response = operation.metadata
+        response = operation.result(retry=self.retry)
         # check if job failed
         if response.status.state == 6:
             raise ValueError(response.status.details)
@@ -143,7 +133,7 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         )
         # make the request
         operation = self.job_client.create_batch(request=request)  # type: ignore
-        # this takes quite a while, waiting on GCP response to resolve
+        # this takes quite a while, waiting on GCP response to resolve(not a google-api-core issue, more likely a dataproc serverless issue)
         response = operation.result(retry=self.retry)
         return response
         # there might be useful results here that we can parse and return

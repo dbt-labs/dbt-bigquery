@@ -52,6 +52,7 @@ WRITE_APPEND = google.cloud.bigquery.job.WriteDisposition.WRITE_APPEND
 WRITE_TRUNCATE = google.cloud.bigquery.job.WriteDisposition.WRITE_TRUNCATE
 
 CREATE_SCHEMA_MACRO_NAME = "create_schema"
+_dataset_lock = threading.Lock()
 
 
 def sql_escape(string):
@@ -155,7 +156,6 @@ class BigQueryAdapter(BaseAdapter):
 
     def __init__(self, config):
         super().__init__(config)
-        self._update_lock = threading.Lock()
 
     ###
     # Implementations of abstract methods
@@ -818,7 +818,7 @@ class BigQueryAdapter(BaseAdapter):
 
         GrantTarget.validate(grant_target_dict)
         grant_target = GrantTarget.from_dict(grant_target_dict)
-        with self._update_lock:
+        with _dataset_lock:
             dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
             dataset = client.get_dataset(dataset_ref)
 

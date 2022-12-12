@@ -55,6 +55,7 @@
     {{ partition_by(partition_config) }}
     {{ cluster_by(raw_cluster_by) }}
     {{ bigquery_table_options(config, model, temporary) }}
+    {{ get_columns_spec_ddl() }}
     as (
       {{ compiled_code }}
     );

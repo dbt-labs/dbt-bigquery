@@ -69,13 +69,13 @@ setup(
     include_package_data=True,
     install_requires=[
         f"dbt-core~={_dbt_core_version(_dbt_bigquery_version())}",
-        "protobuf~=4.21.11",
-        "google-cloud-cor~=2.3.2",
-        "google-cloud-bigquery~=3.4.1",
+        "protobuf~=4.21.0",
+        "google-cloud-cor~=2.3.0",
+        "google-cloud-bigquery~=3.4.0",
         "google-api-core~=2.11.0",
-        "googleapis-common-protos~=1.5.7",
+        "googleapis-common-protos~=1.5.0",
         "google-cloud-storage~=2.4.0",
-        "google-cloud-dataproc~=5.0.3",
+        "google-cloud-dataproc~=5.0.0",
     ],
     zip_safe=False,
     classifiers=[

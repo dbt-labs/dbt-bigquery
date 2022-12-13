@@ -1,0 +1,7 @@
+kind: Dependencies
+body: Add supoort for python 3.11
+time: 2022-12-13T13:53:31.182619-06:00
+custom:
+  Author: McKnight-42
+  Issue: "407"
+  PR: "000"

@@ -4,7 +4,7 @@ git+https://github.com/dbt-labs/dbt-core.git#egg=dbt-core&subdirectory=core
 git+https://github.com/dbt-labs/dbt-core.git#egg=dbt-tests-adapter&subdirectory=tests/adapter
 
 black~=22.8.0
-bumpversion~=0.6
+bumpversion~=0.6.0
 flake8
 flaky~=3.7.0
 freezegun~=1.1.0
@@ -21,8 +21,8 @@ pytz~=2022.6.0
 tox~=4.0.0
 types-requests~=2.28.11
 twine~=4.0.2
-wheel~=0.38.2
+wheel~=0.37.1
 
 # For dataproc running
-google-cloud-storage[dataproc]
-google-cloud-dataproc[dataproc]
+google-cloud-storage[dataproc]~=2.4.0
+google-cloud-dataproc[dataproc]~=4.0.3

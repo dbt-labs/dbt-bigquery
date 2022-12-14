@@ -74,8 +74,8 @@ setup(
         "google-cloud-bigquery~=1.25.0",
         "google-api-core~=1.16.0",
         "googleapis-common-protos~=1.6.0",
-        "google-cloud-storage",
-        "google-cloud-dataproc",
+        "google-cloud-storage~=2.4.0",
+        "google-cloud-dataproc~=4.0.3",
     ],
     zip_safe=False,
     classifiers=[

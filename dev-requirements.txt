@@ -25,4 +25,4 @@ wheel~=0.37.1
 
 # For dataproc running
 google-cloud-storage[dataproc]~=2.4.0
-google-cloud-dataproc[dataproc]~=4.0.3
+google-cloud-dataproc[dataproc]~p=4.0.3

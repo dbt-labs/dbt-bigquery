@@ -69,7 +69,7 @@ setup(
     include_package_data=True,
     install_requires=[
         f"dbt-core~={_dbt_core_version(_dbt_bigquery_version())}",
-        "protobuf~=3.13.0",
+        "protobuf>=3.13.0,<4",
         "google-cloud-core",
         "google-cloud-bigquery~=1.25.0",
         "google-api-core",

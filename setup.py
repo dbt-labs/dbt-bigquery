@@ -73,7 +73,7 @@ setup(
         "google-cloud-core",
         "google-cloud-bigquery",
         "google-api-core",
-        "googleapis-common-protos~=1.6.0",
+        "googleapis-common-protos>=1.6.0,<2",
         "google-cloud-storage",
         "google-cloud-dataproc",
     ],

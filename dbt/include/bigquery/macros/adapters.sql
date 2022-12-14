@@ -52,10 +52,11 @@
     {{ sql_header if sql_header is not none }}
 
     create or replace table {{ relation }}
+    {{ get_columns_spec_ddl() }}
     {{ partition_by(partition_config) }}
     {{ cluster_by(raw_cluster_by) }}
+    
     {{ bigquery_table_options(config, model, temporary) }}
-    {{ get_columns_spec_ddl() }}
     as (
       {{ compiled_code }}
     );

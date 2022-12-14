@@ -5,12 +5,12 @@
     (
     {% for i in user_provided_columns -%}
       {%- set col = user_provided_columns[i] -%}
-      {% set constraints = col['constraints'] -%}
+      {% set constraints = col['constraint'] -%}
       {%- set checks = col['check'] -%}
       {%- if checks -%}
         {{exceptions.warn("We noticed you have `check` in your configs, these are NOT compatible with BigQuery and will be ignored")}}
       {%- endif %}
-      {{ col['name'] }} {{ col['data_type'] }} {% for x in constraints %} {{ x or "" }} {% endfor %} {{ "," if not loop.last }}
+      {{ col['name'] }} {{ col['data_type'] }} {{ col['constraint']  or "" }} {{ "," if not loop.last }}
     {%- endfor %}
   )
   {% endif %}

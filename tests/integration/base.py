@@ -1,6 +1,5 @@
 import json
 import os
-import io
 import random
 import shutil
 import sys
@@ -8,6 +7,7 @@ import tempfile
 import traceback
 import unittest
 import warnings
+from io import StringIO
 from contextlib import contextmanager
 from datetime import datetime
 from functools import wraps
@@ -231,7 +231,7 @@ class DBTIntegrationTest(unittest.TestCase):
         return normalize(tempfile.mkdtemp(prefix='dbt-int-test-'))
 
     def setUp(self):
-        # Logbook warnings are ignored so we don't have to fork logbook to support python 3.10. 
+        # Logbook warnings are ignored so we don't have to fork logbook to support python 3.10.
         # This _only_ works for tests in `test/integration`.
         warnings.filterwarnings(
             "ignore",
@@ -417,7 +417,8 @@ class DBTIntegrationTest(unittest.TestCase):
 
     def run_dbt_and_capture(self, *args, **kwargs):
         try:
-            stringbuf = capture_stdout_logs()
+            stringbuf = StringIO()
+            capture_stdout_logs(stringbuf)
             res = self.run_dbt(*args, **kwargs)
             stdout = stringbuf.getvalue()
 

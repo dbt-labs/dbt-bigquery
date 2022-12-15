@@ -56,6 +56,11 @@ def _dbt_core_version(plugin_version: str) -> str:
     return f"{major}.{minor}.{core_patch}"
 
 
+package_name = "dbt-bigquery"
+package_version = "1.4.0b1"
+dbt_core_version = _dbt_core_version(_dbt_bigquery_version())
+description = """The BigQuery adapter plugin for dbt"""
+
 setup(
     name="dbt-bigquery",
     version=_dbt_bigquery_version(),

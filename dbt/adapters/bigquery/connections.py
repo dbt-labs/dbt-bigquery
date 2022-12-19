@@ -28,7 +28,6 @@ from dbt.exceptions import (
     RuntimeException,
     DatabaseException,
     DbtProfileError,
-    warn
 )
 from dbt.adapters.base import BaseConnectionManager, Credentials
 from dbt.events import AdapterLogger

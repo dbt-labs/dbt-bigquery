@@ -28,6 +28,7 @@ from dbt.exceptions import (
     RuntimeException,
     DatabaseException,
     DbtProfileError,
+    warn
 )
 from dbt.adapters.base import BaseConnectionManager, Credentials
 from dbt.events import AdapterLogger
@@ -712,11 +713,12 @@ def _sanitize_label(value: str) -> str:
     value = _SANITIZE_LABEL_PATTERN.sub("_", value)
     value_length = len(value)
     if value_length > _VALIDATE_LABEL_LENGTH_LIMIT:
-        error_msg = (
+        warning_msg = (
             f"Job label length {value_length} is greater than length limit: "
             f"{_VALIDATE_LABEL_LENGTH_LIMIT}\n"
-            f"Current sanitized label: {value}"
+            f"Trimming to: {value[:_VALIDATE_LABEL_LENGTH_LIMIT]}"
         )
-        raise RuntimeException(error_msg)
+        warn(warning_msg)
+        return value[:_VALIDATE_LABEL_LENGTH_LIMIT]
     else:
         return value

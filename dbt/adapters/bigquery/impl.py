@@ -819,7 +819,7 @@ class BigQueryAdapter(BaseAdapter):
 
             access_entry = AccessEntry(role, entity_type, entity)
             access_entries = dataset.access_entries
-
+            logger.warning(f"Access entry to be Added: {access_entry}")
             logger.warning(f"Access entries: {access_entries}")
             if access_entry in access_entries:
                 logger.warning(f"Access entry {access_entry} " f"already exists in dataset")

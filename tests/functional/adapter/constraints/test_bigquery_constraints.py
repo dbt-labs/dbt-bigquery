@@ -117,7 +117,7 @@ class BaseConstraintsEnabledModelvsProject:
         }
 
 
-class TestRedshiftConstraints(BaseConstraintsEnabledModelvsProject):
+class TestBigQueryConstraints(BaseConstraintsEnabledModelvsProject):
     @pytest.fixture(scope="class")
     def models(self):
         return {

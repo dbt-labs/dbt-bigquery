@@ -77,28 +77,24 @@ database_name = "database_placeholder"
 schema_name = "schema_placeholder"
 
 _expected_sql = f"""
-  create  table
+  create or replace table
     "{database_name}"."{schema_name}"."my_model__dbt_tmp"
     
     (
         id integer not null,
         color string,
-        date_day date,
-        primary key(id)
+        date_day date
     )
-    
-    
-    
-  ;
-  insert into "{database_name}"."{schema_name}"."my_model__dbt_tmp"
-    (
+
+    OPTIONS()
+    as (
       
-select
+  select
   1 as id,
   'blue' as color,
   cast('2019-01-01' as date) as date_day
-    )
-  ;
+    );
+
 """
 
 

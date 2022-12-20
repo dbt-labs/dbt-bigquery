@@ -53,7 +53,7 @@ models:
         tests:
           - unique
       - name: color
-        data_type: varchar
+        data_type: string
       - name: date_day
         data_type: date
   - name: my_model_error
@@ -68,7 +68,7 @@ models:
         tests:
           - unique
       - name: color
-        data_type: varchar
+        data_type: string
       - name: date_day
         data_type: date
 """
@@ -82,7 +82,7 @@ _expected_sql = f"""
     
     (
         id integer not null,
-        color varchar,
+        color string,
         date_day date,
         primary key(id)
     )

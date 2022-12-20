@@ -807,14 +807,12 @@ class BigQueryAdapter(BaseAdapter):
         """
         Given an entity, grants it access to a permissioned dataset.
         """
-
-        if entity_type == "view":
-            entity = self.get_table_ref_from_relation(entity).to_api_repr()
-        conn = self.connections.get_thread_connection()
+        conn: BigQueryConnectionManager = self.connections.get_thread_connection()
         client = conn.handle
-
         GrantTarget.validate(grant_target_dict)
         grant_target = GrantTarget.from_dict(grant_target_dict)
+        if entity_type == "view":
+                entity = self.get_table_ref_from_relation(entity).to_api_repr()
         with _dataset_lock:
             dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
             dataset = client.get_dataset(dataset_ref)
@@ -822,11 +820,12 @@ class BigQueryAdapter(BaseAdapter):
             access_entry = AccessEntry(role, entity_type, entity)
             access_entries = dataset.access_entries
 
+            logger.warning(f"Access entries: {access_entries}")
             if access_entry in access_entries:
-                logger.debug(f"Access entry {access_entry} " f"already exists in dataset")
+                logger.warning(f"Access entry {access_entry} " f"already exists in dataset")
                 return
 
-            access_entries.append(AccessEntry(role, entity_type, entity))
+            access_entries.append(access_entry)
             dataset.access_entries = access_entries
             client.update_dataset(dataset, ["access_entries"])
 

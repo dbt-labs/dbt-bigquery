@@ -78,7 +78,7 @@ schema_name = "schema_placeholder"
 
 _expected_sql = f"""
   create or replace table
-    "{database_name}"."{schema_name}"."my_model__dbt_tmp"
+    "{database_name}"."{schema_name}"."my_model"
     
     (
         id integer not null,

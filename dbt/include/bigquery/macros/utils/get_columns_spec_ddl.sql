@@ -6,7 +6,7 @@
     (
     {% for i in user_provided_columns -%}
       {%- set col = user_provided_columns[i] -%}
-      {% set constraints = col['constraint'] -%}
+      {% set constraints = col['constraints'] -%}
       {%- set ns.at_least_one_check = ns.at_least_one_check or col['check'] %}
       {{ col['name'] }} {{ col['data_type'] }} {% for x in constraints %} {{ x or "" }} {% endfor %} {{ "," if not loop.last }}
     {%- endfor %}

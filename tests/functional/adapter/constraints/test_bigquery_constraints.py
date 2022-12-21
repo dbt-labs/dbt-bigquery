@@ -48,7 +48,8 @@ models:
       - name: id
         data_type: integer
         description: hello
-        constraints: ['not null']
+        constraint: 
+          - not null
         check: (id > 0)
         tests:
           - unique
@@ -63,7 +64,8 @@ models:
       - name: id
         data_type: integer
         description: hello
-        constraints: ['not null']
+        constraint: 
+          - not null
         check: (id > 0)
         tests:
           - unique
@@ -83,7 +85,7 @@ _expected_sql = f"""
   
   (
     
-      id integer  ,
+      id integer not null ,
       color string  ,
       date_day date  
   )

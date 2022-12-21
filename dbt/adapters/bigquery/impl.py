@@ -12,6 +12,7 @@ from dbt.adapters.base import (
     BaseAdapter,
     available,
     RelationType,
+    BaseRelation,
     SchemaSearchMap,
     AdapterConfig,
     PythonJobHelper,
@@ -483,7 +484,7 @@ class BigQueryAdapter(BaseAdapter):
             message = "\n".join(error["message"].strip() for error in job.errors)
             raise dbt.exceptions.RuntimeException(message)
 
-    def _bq_table_to_relation(self, bq_table):
+    def _bq_table_to_relation(self, bq_table) -> Union[BaseRelation, None]:
         if bq_table is None:
             return None
 
@@ -601,7 +602,7 @@ class BigQueryAdapter(BaseAdapter):
         """
         return PartitionConfig.parse(raw_partition_by)
 
-    def get_table_ref_from_relation(self, relation):
+    def get_table_ref_from_relation(self, relation: BaseRelation):
         return self.connections.table_ref(relation.database, relation.schema, relation.identifier)
 
     def _update_column_dict(self, bq_column_dict, dbt_columns, parent=""):
@@ -814,7 +815,7 @@ class BigQueryAdapter(BaseAdapter):
         if entity_type == "view":
                 entity = self.get_table_ref_from_relation(entity).to_api_repr()
         with _dataset_lock:
-            dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
+            dataset_ref = conn.dataset_ref(grant_target.project, grant_target.dataset)
             dataset = client.get_dataset(dataset_ref)
 
             access_entry = AccessEntry(role, entity_type, entity)
@@ -823,8 +824,7 @@ class BigQueryAdapter(BaseAdapter):
             logger.warning(f"Access entries: {access_entries}")
             if access_entry in access_entries:
                 logger.warning(f"Access entry {access_entry} " f"already exists in dataset")
-                return
-
+                return None
             access_entries.append(access_entry)
             dataset.access_entries = access_entries
             client.update_dataset(dataset, ["access_entries"])

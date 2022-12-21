@@ -815,7 +815,7 @@ class BigQueryAdapter(BaseAdapter):
         if entity_type == "view":
                 entity = self.get_table_ref_from_relation(entity).to_api_repr()
         with _dataset_lock:
-            dataset_ref = conn.dataset_ref(grant_target.project, grant_target.dataset)
+            dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
             dataset = client.get_dataset(dataset_ref)
 
             access_entry = AccessEntry(role, entity_type, entity)

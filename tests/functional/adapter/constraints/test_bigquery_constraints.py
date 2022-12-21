@@ -48,8 +48,7 @@ models:
       - name: id
         data_type: integer
         description: hello
-        constraints: 
-          - not null
+        constraints: ['not null']
         check: (id > 0)
         tests:
           - unique
@@ -64,8 +63,7 @@ models:
       - name: id
         data_type: integer
         description: hello
-        constraints: 
-          - not null
+        constraints: ['not null']
         check: (id > 0)
         tests:
           - unique

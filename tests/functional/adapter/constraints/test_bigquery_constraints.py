@@ -195,5 +195,5 @@ class TestBigQueryConstraints(BaseConstraintsEnabledModelvsProject):
 
         assert constraints_enabled_actual_config is True
 
-        expected_constraints_error = 'Cannot insert a NULL value into column id'
+        expected_constraints_error = 'Required field id cannot be null'
         assert expected_constraints_error in log_output

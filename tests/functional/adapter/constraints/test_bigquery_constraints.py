@@ -48,7 +48,7 @@ models:
       - name: id
         data_type: integer
         description: hello
-        constraint: 
+        constraints: 
           - not null
         check: (id > 0)
         tests:
@@ -64,7 +64,7 @@ models:
       - name: id
         data_type: integer
         description: hello
-        constraint: 
+        constraints: 
           - not null
         check: (id > 0)
         tests:

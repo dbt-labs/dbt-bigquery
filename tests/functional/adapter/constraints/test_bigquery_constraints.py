@@ -48,7 +48,7 @@ models:
       - name: id
         data_type: integer
         description: hello
-        constraints: ['not null','primary key']
+        constraints: ['not null']
         check: (id > 0)
         tests:
           - unique
@@ -63,7 +63,7 @@ models:
       - name: id
         data_type: integer
         description: hello
-        constraints: ['not null','primary key']
+        constraints: ['not null']
         check: (id > 0)
         tests:
           - unique
@@ -77,24 +77,29 @@ database_name = "database_placeholder"
 schema_name = "schema_placeholder"
 
 _expected_sql = f"""
-  create or replace table
-    `{database_name}`.`{schema_name}`.`my_model`
-    
-    (
-        id integer not null,
-        color string,
-        date_day date
-    )
+  create or replace table `{database_name}`.`{schema_name}`.`my_model`
 
+    
+  
+  (
+    
+      id integer  ,
+      color string  ,
+      date_day date  
+  )
+  
+
+    
+    
+    
     OPTIONS()
     as (
       
-  select
+select
   1 as id,
   'blue' as color,
   cast('2019-01-01' as date) as date_day
     );
-
 """
 
 

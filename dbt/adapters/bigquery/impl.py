@@ -55,8 +55,7 @@ CREATE_SCHEMA_MACRO_NAME = "create_schema"
 
 def sql_escape(string):
     if not isinstance(string, str):
-        dbt.exceptions.raise_compiler_exception(f"cannot escape a non-string: {string}")
-
+        raise dbt.exceptions.CompilationException(f"cannot escape a non-string: {string}")
     return json.dumps(string)[1:-1]
 
 
@@ -92,17 +91,16 @@ class PartitionConfig(dbtClassMixin):
             return self.render(alias)
 
     @classmethod
-    def parse(cls, raw_partition_by) -> Optional["PartitionConfig"]:  # type: ignore [return]
+    def parse(cls, raw_partition_by) -> Optional["PartitionConfig"]:
         if raw_partition_by is None:
             return None
         try:
             cls.validate(raw_partition_by)
             return cls.from_dict(raw_partition_by)
         except ValidationError as exc:
-            msg = dbt.exceptions.validator_error_message(exc)
-            dbt.exceptions.raise_compiler_error(f"Could not parse partition config: {msg}")
+            raise dbt.exceptions.ValidationException("Could not parse partition config") from exc
         except TypeError:
-            dbt.exceptions.raise_compiler_error(
+            raise dbt.exceptions.CompilationException(
                 f"Invalid partition_by config:\n"
                 f"  Got: {raw_partition_by}\n"
                 f'  Expected a dictionary with "field" and "data_type" keys'
@@ -494,7 +492,7 @@ class BigQueryAdapter(BaseAdapter):
         )
 
     @classmethod
-    def warning_on_hooks(hook_type):
+    def warning_on_hooks(cls, hook_type):
         msg = "{} is not supported in bigquery and will be ignored"
         warn_msg = dbt.ui.color(msg, ui.COLOR_FG_YELLOW)
         logger.info(warn_msg)
@@ -512,7 +510,8 @@ class BigQueryAdapter(BaseAdapter):
     # Special bigquery adapter methods
     ###
 
-    def _partitions_match(self, table, conf_partition: Optional[PartitionConfig]) -> bool:
+    @staticmethod
+    def _partitions_match(table, conf_partition: Optional[PartitionConfig]) -> bool:
         """
         Check if the actual and configured partitions for a table are a match.
         BigQuery tables can be replaced if:
@@ -551,7 +550,8 @@ class BigQueryAdapter(BaseAdapter):
         else:
             return False
 
-    def _clusters_match(self, table, conf_cluster) -> bool:
+    @staticmethod
+    def _clusters_match(table, conf_cluster) -> bool:
         """
         Check if the actual and configured clustering columns for a table
         are a match. BigQuery tables can be replaced if clustering columns
@@ -754,9 +754,7 @@ class BigQueryAdapter(BaseAdapter):
         opts = {}
 
         if (config.get("hours_to_expiration") is not None) and (not temporary):
-            expiration = ("TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL " "{} hour)").format(
-                config.get("hours_to_expiration")
-            )
+            expiration = f'TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL {config.get("hours_to_expiration")} hour)'
             opts["expiration_timestamp"] = expiration
 
         if config.persist_relation_docs() and "description" in node:  # type: ignore[attr-defined]
@@ -776,11 +774,10 @@ class BigQueryAdapter(BaseAdapter):
         opts = self.get_common_options(config, node, temporary)
 
         if config.get("kms_key_name") is not None:
-            opts["kms_key_name"] = "'{}'".format(config.get("kms_key_name"))
+            opts["kms_key_name"] = f"'{config.get('kms_key_name')}'"
 
         if temporary:
-            expiration = "TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 12 hour)"
-            opts["expiration_timestamp"] = expiration
+            opts["expiration_timestamp"] = "TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 12 hour)"
         else:
             # It doesn't apply the `require_partition_filter` option for a temporary table
             # so that we avoid the error by not specifying a partition with a temporary table

@@ -710,8 +710,4 @@ def _sanitize_label(value: str) -> str:
     """Return a legal value for a BigQuery label."""
     value = value.strip().lower()
     value = _SANITIZE_LABEL_PATTERN.sub("_", value)
-    value_length = len(value)
-    if value_length > _VALIDATE_LABEL_LENGTH_LIMIT:
-        return value[:_VALIDATE_LABEL_LENGTH_LIMIT]
-    else:
-        return value
+    return value[:_VALIDATE_LABEL_LENGTH_LIMIT]

@@ -1,11 +1,20 @@
 /*
     Noah Kennedy | noah.kennedy
-    05/24/2022 - gated_table macro logic
+    12/23/2022 - gated_table macro logic
     This is a custom materialization that requires a config parameter for gating_logic statements.
+    Config parameters are passed in as a list - see example below
     It materializes two tables instead of one - the first table is a normal table materialization
     The second table that's created is called `gated_failure__{table_name}`.
     These tables combined are mutually exclusive, completely exhaustive (MECE)
     The first table is all rows that pass row quarantine, the second table is all rows that  fail.
+
+    Example Config block -
+        {{ config(materialized='gated_table',
+                tags=['gated_table'],
+                gating_logic=['id is not null'
+                , 'field1 != 1']
+            )
+        }}
  */
 
 

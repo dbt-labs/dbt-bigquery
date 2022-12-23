@@ -996,18 +996,17 @@ class TestBigQueryGrantAccessTo(BaseTestBigQueryAdapter):
         self.adapter.grant_access_to(
             entity=self.entity, entity_type="table", role=None, grant_target_dict=grant_target_dict
         )
-        print(self.mock_connection.call_args)
-        print(self.mock_client.call_args)
         self.mock_client.update_dataset.assert_not_called()
 
     def test_grant_access_to_calls_update_with_valid_access_entry(self):
         a_different_entity = BigQueryRelation.from_dict(
-        {
-            "type": None,
-            "path": {"database": "another-test-project", "schema": "test_schema_2", "identifier": "my_view"},
-            "quote_policy": {"identifier": True},
-        }
-    )
+            {
+                "type": None,
+                "path": {"database": "another-test-project",
+                 "schema": "test_schema_2", "identifier": "my_view"},
+                "quote_policy": {"identifier": True},
+            }
+        )
         grant_target_dict = {"dataset": "someOtherDataset", "project": "someProject"}
         self.adapter.grant_access_to(
             entity=a_different_entity, entity_type="view", role=None, grant_target_dict=grant_target_dict

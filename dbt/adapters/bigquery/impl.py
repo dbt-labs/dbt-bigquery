@@ -21,6 +21,7 @@ from dbt.adapters.base import (
 from dbt.adapters.cache import _make_ref_key_msg
 
 from dbt.adapters.bigquery.relation import BigQueryRelation
+from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset
 from dbt.adapters.bigquery import BigQueryColumn
 from dbt.adapters.bigquery import BigQueryConnectionManager
 from dbt.adapters.bigquery.python_submissions import (
@@ -813,20 +814,12 @@ class BigQueryAdapter(BaseAdapter):
         GrantTarget.validate(grant_target_dict)
         grant_target = GrantTarget.from_dict(grant_target_dict)
         if entity_type == "view":
-                entity = self.get_table_ref_from_relation(entity).to_api_repr()
+            entity = self.get_table_ref_from_relation(entity).to_api_repr()
         with _dataset_lock:
             dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
             dataset = client.get_dataset(dataset_ref)
-
             access_entry = AccessEntry(role, entity_type, entity)
-            access_entries = dataset.access_entries
-            logger.warning(f"Access entry to be Added: {access_entry}")
-            logger.warning(f"Access entries: {access_entries}")
-            if access_entry in access_entries:
-                logger.warning(f"Access entry {access_entry} " f"already exists in dataset")
-                return None
-            access_entries.append(access_entry)
-            dataset.access_entries = access_entries
+            dataset = add_access_entry_to_dataset(dataset, access_entry)
             client.update_dataset(dataset, ["access_entries"])
 
     @available.parse_none

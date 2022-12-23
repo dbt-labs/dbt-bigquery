@@ -1,0 +1,8 @@
+kind: Features
+body: 'Creating a new table materialization that separates data into good and bad
+  based on logic supplied in the config block of a model. '
+time: 2022-12-23T18:15:30.867067-05:00
+custom:
+  Author: noahfkennedy
+  Issue: "450"
+  PR: "449"

@@ -6,7 +6,7 @@
     It materializes two tables instead of one - the first table is a normal table materialization
     The second table that's created is called `gated_failure__{table_name}`.
     These tables combined are mutually exclusive, completely exhaustive (MECE)
-    The first table is all rows that pass row quarantine, the second table is all rows that  fail.
+    The first table is all rows that pass all logical statements defined in the gating_logic, the second table is all rows that fail any piece of gating logic.
 
     Example Config block -
         {{ config(materialized='gated_table',

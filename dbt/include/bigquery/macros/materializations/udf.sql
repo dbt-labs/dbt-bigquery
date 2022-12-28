@@ -10,7 +10,14 @@
 
     {{ run_hooks(post_hooks) }}
 
-    -- TODO - grants
+    -- We do not need to explicitly call persist_docs as in other
+    -- materializations because UDF documentation is handled in the
+    -- get_create_udf_as_sql macro. There is no concept of column-level
+    -- documentation for UDFs.
+
+    -- Not calling apply_grants because dataset-level grants not
+    -- yet supported in dbt, and BigQuery does not support permissions
+    -- at the level of individual UDFs
 
     {{ return({'relations': [target_relation]}) }}
 {% endmaterialization %}

@@ -747,19 +747,25 @@ class BigQueryAdapter(BaseAdapter):
                 )
         return result
 
-    @available.parse(lambda *a, **k: {})
-    def get_common_options(
-        self, config: Dict[str, Any], node: Dict[str, Any], temporary: bool = False
-    ) -> Dict[str, Any]:
+    @staticmethod
+    def _get_description_option(self, config: Dict[str, Any], node: Dict[str, Any]) -> Dict[str, str]:
         opts = {}
-
-        if (config.get("hours_to_expiration") is not None) and (not temporary):
-            expiration = f'TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL {config.get("hours_to_expiration")} hour)'
-            opts["expiration_timestamp"] = expiration
 
         if config.persist_relation_docs() and "description" in node:  # type: ignore[attr-defined]
             description = sql_escape(node["description"])
             opts["description"] = '"""{}"""'.format(description)
+
+        return opts
+
+    @available.parse(lambda *a, **k: {})
+    def get_common_options(
+        self, config: Dict[str, Any], node: Dict[str, Any], temporary: bool = False
+    ) -> Dict[str, Any]:
+        opts = self._get_description_option(config, node)
+
+        if (config.get("hours_to_expiration") is not None) and (not temporary):
+            expiration = f'TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL {config.get("hours_to_expiration")} hour)'
+            opts["expiration_timestamp"] = expiration
 
         if config.get("labels"):
             labels = config.get("labels", {})
@@ -795,6 +801,12 @@ class BigQueryAdapter(BaseAdapter):
     @available.parse(lambda *a, **k: {})
     def get_view_options(self, config: Dict[str, Any], node: Dict[str, Any]) -> Dict[str, Any]:
         opts = self.get_common_options(config, node)
+        return opts
+
+    @available.parse(lambda *a, **k: {})
+    def get_udf_options(self, config: Dict[str, Any], node: Dict[str, Any]) -> Dict[str, str]:
+        opts = self._get_description_option(config, node)
+
         return opts
 
     @available.parse_none

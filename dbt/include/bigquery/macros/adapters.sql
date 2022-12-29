@@ -95,31 +95,33 @@
 {%- endmacro -%}
 
 {% macro bigquery_udf_returns(udf_returns_type) %}
-  {% set udf_returns -%}
-    RETURNS {{ udf_returns_type }}
-  {%- endset %}
+  {% if udf_returns_type -%}
+    {% set udf_returns -%}
+        RETURNS {{ udf_returns_type }}
+    {%- endset %}
+  {% endif %}
   {%- do return(udf_returns) -%}
 {%- endmacro -%}
 
-{% macro bigquery_udf_args(udf_args_dict) %}
+{% macro bigquery_udf_args(udf_args_array) %}
   {% set udf_args -%}
-    {% for arg_key, arg_val in udf_args_dict.items() %}
-      {{ arg_key }} {{ arg_value }}{% if not loop.last %},{% endif %}
-    {% endfor %})
+    {%- for udf_arg in udf_args_array -%}
+      {{ udf_arg.name }} {{ udf_arg.type }}{% if not loop.last %},{% endif %}
+    {% endfor %}
   {%- endset %}
   {%- do return(udf_args) -%}
 {%- endmacro -%}
 
 {% macro bigquery__get_create_udf_as_sql(relation, sql) -%}
   {%- set udf_returns_type = config.get('returns', none) -%}
-  {%- set udf_args_dict = config.get('args', none) -%}
+  {%- set udf_args_array = config.get('args', []) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
 
   {{ sql_header if sql_header is not none }}
 
   create or replace function {{ relation }} (
-    {{ bigquery_udf_args(udf_args_dict) }}
-  ) {% if udf_returns_type -%}{{ bigquery_udf_returns(udf_returns_type) }}{% endif %} as (
+    {{ bigquery_udf_args(udf_args_array) }}
+  ) {{ bigquery_udf_returns(udf_returns_type) }} as (
     {{ sql }}
   ) {{ bigquery_udf_options(config, model) }};
 {%- endmacro -%}

@@ -5,7 +5,7 @@
 
     -- create the UDF
     {%- call statement('main') -%}
-        {{ get_create_udf_as_sql(target_relation, sql) }}
+        {{ bigquery__get_create_udf_as_sql(target_relation, sql) }}
     {%- endcall -%}
 
     {{ run_hooks(post_hooks) }}

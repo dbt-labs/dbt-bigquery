@@ -749,6 +749,9 @@ class BigQueryAdapter(BaseAdapter):
 
     @staticmethod
     def _get_description_option(self, config: Dict[str, Any], node: Dict[str, Any]) -> Dict[str, str]:
+        """
+        Sets the description, if applicable, as part of the relation options
+        """
         opts = {}
 
         if config.persist_relation_docs() and "description" in node:  # type: ignore[attr-defined]
@@ -805,6 +808,10 @@ class BigQueryAdapter(BaseAdapter):
 
     @available.parse(lambda *a, **k: {})
     def get_udf_options(self, config: Dict[str, Any], node: Dict[str, Any]) -> Dict[str, str]:
+        """
+        Constructs a dictionary of options for creating a UDF.
+        Currently, only supports a description option. 
+        """
         opts = self._get_description_option(config, node)
 
         return opts

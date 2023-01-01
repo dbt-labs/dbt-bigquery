@@ -587,6 +587,19 @@ class BigQueryConnectionManager(BaseConnectionManager):
         dataset_ref = google.cloud.bigquery.DatasetReference(database, schema)
         return google.cloud.bigquery.TableReference(dataset_ref, table_name)
 
+    @staticmethod
+    def routine_ref(database: str, schema: str, routine_name: str) -> google.cloud.bigquery.RoutineReference:
+        return google.cloud.bigquery.RoutineReference.from_string(f"{database}.{schema}.{routine_name}")
+
+    def get_bq_routine(self, database: str, schema: str, identifier: str) -> google.cloud.bigquery.Routine:
+        """Get a BigQuery UDF for a schema/model."""
+        conn = self.get_thread_connection()
+        # backwards compatibility: fill in with defaults if not specified
+        database = database or conn.credentials.database
+        schema = schema or conn.credentials.schema
+        routine_ref = self.routine_ref(database, schema, identifier)
+        return conn.handle.get_routine(routine_ref)
+
     def get_bq_table(self, database, schema, identifier):
         """Get a bigquery table for a schema/model."""
         conn = self.get_thread_connection()

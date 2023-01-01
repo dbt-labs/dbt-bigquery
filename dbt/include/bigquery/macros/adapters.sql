@@ -94,10 +94,10 @@
   {%- do return(bigquery_options(opts)) -%}
 {%- endmacro -%}
 
-{% macro bigquery_udf_returns(udf_returns_type) %}
-  {% if udf_returns_type -%}
+{% macro bigquery_udf_returns(udf_return_type) %}
+  {% if udf_return_type -%}
     {% set udf_returns -%}
-        RETURNS {{ udf_returns_type }}
+        RETURNS {{ udf_return_type }}
     {%- endset %}
   {% endif %}
   {%- do return(udf_returns) -%}
@@ -113,7 +113,7 @@
 {%- endmacro -%}
 
 {% macro bigquery__get_create_udf_as_sql(relation, sql) -%}
-  {%- set udf_returns_type = config.get('returns', none) -%}
+  {%- set udf_return_type = config.get('return_type', none) -%}
   {%- set udf_args_array = config.get('args', []) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
 
@@ -121,7 +121,7 @@
 
   create or replace function {{ relation }} (
     {{ bigquery_udf_args(udf_args_array) }}
-  ) {{ bigquery_udf_returns(udf_returns_type) }} as (
+  ) {{ bigquery_udf_returns(udf_return_type) }} as (
     {{ sql }}
   ) {{ bigquery_udf_options(config, model) }};
 {%- endmacro -%}

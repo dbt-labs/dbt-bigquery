@@ -1,0 +1,8 @@
+version: 2
+
+models:
+- name: udf_no_args
+  description: 'Should not persist'
+
+- name: udf_with_description
+  description: '{{ var("udf_description") }}'

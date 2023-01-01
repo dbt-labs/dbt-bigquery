@@ -3,7 +3,7 @@
 
     {{ run_hooks(pre_hooks) }}
 
-    -- create the UDF
+    -- Create the UDF
     {%- call statement('main') -%}
         {{ bigquery__get_create_udf_as_sql(target_relation, sql) }}
     {%- endcall -%}
@@ -16,8 +16,8 @@
     -- documentation for UDFs.
 
     -- Not calling apply_grants because dataset-level grants not
-    -- yet supported in dbt, and BigQuery does not support permissions
-    -- at the level of individual UDFs
+    -- yet natively supported in dbt, and BigQuery does not support
+    -- permissions at the level of individual UDFs
 
     {{ return({'relations': [target_relation]}) }}
 {% endmaterialization %}

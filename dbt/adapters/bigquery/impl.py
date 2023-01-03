@@ -764,6 +764,11 @@ class BigQueryAdapter(BaseAdapter):
     def get_common_options(
         self, config: Dict[str, Any], node: Dict[str, Any], temporary: bool = False
     ) -> Dict[str, Any]:
+        """
+        Constructs a dictionary of common options for configuring Bigquery
+        tables and views. Supports config options for setting a description,
+        the number of hours to expiration, and labels.
+        """
         opts = self._get_description_option(config, node)
 
         if (config.get("hours_to_expiration") is not None) and (not temporary):
@@ -780,6 +785,9 @@ class BigQueryAdapter(BaseAdapter):
     def get_table_options(
         self, config: Dict[str, Any], node: Dict[str, Any], temporary: bool
     ) -> Dict[str, Any]:
+        """
+        Constructs a dictionary of options for configuring a table.
+        """
         opts = self.get_common_options(config, node, temporary)
 
         if config.get("kms_key_name") is not None:
@@ -803,13 +811,16 @@ class BigQueryAdapter(BaseAdapter):
 
     @available.parse(lambda *a, **k: {})
     def get_view_options(self, config: Dict[str, Any], node: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Constructs a dictionary of options for configuring a view.
+        """
         opts = self.get_common_options(config, node)
         return opts
 
     @available.parse(lambda *a, **k: {})
     def get_udf_options(self, config: Dict[str, Any], node: Dict[str, Any]) -> Dict[str, str]:
         """
-        Constructs a dictionary of options for creating a UDF.
+        Constructs a dictionary of options for configuring a UDF.
         Currently, only supports a description option. 
         """
         opts = self._get_description_option(config, node)

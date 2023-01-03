@@ -25,6 +25,12 @@ class TestBigQueryUDFMaterialization(DBTIntegrationTest):
 
     @use_profile('bigquery')
     def test__bigquery_materialize_udf_no_args(self):
+        """
+        Tests the materialization of a UDF model without arguments.
+        Asserts successful creation without args.
+        Also asserts that the UDF has the expected return type and
+        no description, based on the UDF model's config.
+        """
         results = self.run_dbt(['run', '--select', 'udf_no_args'])
         self.assertEqual(len(results), 1)
 
@@ -44,6 +50,12 @@ class TestBigQueryUDFMaterialization(DBTIntegrationTest):
 
     @use_profile('bigquery')
     def test__bigquery_materialize_udf_with_args(self):
+        """
+        Tests the materialization of a UDF model with arguments.
+        Asserts successful creation with the expected args.
+        Also asserts that the UDF has neither a return type nor
+        a description, based on the UDF model's config.
+        """
         results = self.run_dbt(['run', '--select', 'udf_with_args'])
         self.assertEqual(len(results), 1)
 
@@ -75,6 +87,11 @@ class TestBigQueryUDFMaterialization(DBTIntegrationTest):
 
     @use_profile('bigquery')
     def test__bigquery_materialize_udf_with_description(self):
+        """
+        Tests the materialization of a UDF model with a description.
+        Asserts successful creation. Also asserts the UDF's description
+        matches the one provided in the model properties file.
+        """
         results = self.run_dbt(['run', '--select', 'udf_with_description'])
         self.assertEqual(len(results), 1)
 

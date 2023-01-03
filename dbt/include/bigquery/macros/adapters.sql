@@ -89,11 +89,15 @@
 
 {% endmacro %}
 
+-- Define the UDF options. Currently, only UDF description supported.
+-- E.g., OPTIONS(description="description here")
 {% macro bigquery_udf_options(config, node, temporary) %}
   {% set opts = adapter.get_udf_options(config, node, temporary) %}
   {%- do return(bigquery_options(opts)) -%}
 {%- endmacro -%}
 
+-- Define the return type for the UDF, if applicable.
+-- E.g., RETURNS STRING
 {% macro bigquery_udf_returns(udf_return_type) %}
   {% if udf_return_type -%}
     {% set udf_returns -%}
@@ -103,6 +107,8 @@
   {%- do return(udf_returns) -%}
 {%- endmacro -%}
 
+-- Create the comma-separated list of UDF args.
+-- E.g., arg1 STRING, arg2 INT64
 {% macro bigquery_udf_args(udf_args_array) %}
   {% set udf_args -%}
     {%- for udf_arg in udf_args_array -%}
@@ -112,6 +118,9 @@
   {%- do return(udf_args) -%}
 {%- endmacro -%}
 
+-- Construct the SQL DDL for creating the UDF.
+-- Sets the appropriate UDF args, return type, and options
+-- based on the UDF model configuration
 {% macro bigquery__get_create_udf_as_sql(relation, sql) -%}
   {%- set udf_return_type = config.get('return_type', none) -%}
   {%- set udf_args_array = config.get('args', []) -%}

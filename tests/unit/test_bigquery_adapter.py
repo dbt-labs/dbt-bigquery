@@ -650,10 +650,10 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
     def test_parse_partition_by(self):
         adapter = self.get_adapter("oauth")
 
-        with self.assertRaises(dbt.exceptions.CompilationException):
+        with self.assertRaises(dbt.exceptions.ValidationException):
             adapter.parse_partition_by("date(ts)")
 
-        with self.assertRaises(dbt.exceptions.CompilationException):
+        with self.assertRaises(dbt.exceptions.ValidationException):
             adapter.parse_partition_by("ts")
 
         self.assertEqual(
@@ -733,6 +733,11 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "timestamp",
+                "granularity": "MONTH"
+
+            }).to_dict(omit_none=True), {
+                "field": "ts",
+                "data_type": "timestamp",
                 "granularity": "MONTH",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
@@ -805,7 +810,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         )
 
         # Invalid, should raise an error
-        with self.assertRaises(dbt.exceptions.CompilationException):
+        with self.assertRaises(dbt.exceptions.ValidationException):
             adapter.parse_partition_by({})
 
         # passthrough
@@ -840,9 +845,10 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         self.assertEqual(expected, actual)
 
     def test_hours_to_expiration_temporary(self):
-        adapter = self.get_adapter("oauth")
-        mock_config = create_autospec(RuntimeConfigObject)
-        config = {"hours_to_expiration": 4}
+        adapter = self.get_adapter('oauth')
+        mock_config = create_autospec(
+            RuntimeConfigObject)
+        config = {'hours_to_expiration': 4}
         mock_config.get.side_effect = lambda name: config.get(name)
 
         expected = {
@@ -852,9 +858,10 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         self.assertEqual(expected, actual)
 
     def test_table_kms_key_name(self):
-        adapter = self.get_adapter("oauth")
-        mock_config = create_autospec(RuntimeConfigObject)
-        config = {"kms_key_name": "some_key"}
+        adapter = self.get_adapter('oauth')
+        mock_config = create_autospec(
+            RuntimeConfigObject)
+        config = {'kms_key_name': 'some_key'}
         mock_config.get.side_effect = lambda name: config.get(name)
 
         expected = {"kms_key_name": "'some_key'"}
@@ -862,9 +869,10 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         self.assertEqual(expected, actual)
 
     def test_view_kms_key_name(self):
-        adapter = self.get_adapter("oauth")
-        mock_config = create_autospec(RuntimeConfigObject)
-        config = {"kms_key_name": "some_key"}
+        adapter = self.get_adapter('oauth')
+        mock_config = create_autospec(
+            RuntimeConfigObject)
+        config = {'kms_key_name': 'some_key'}
         mock_config.get.side_effect = lambda name: config.get(name)
 
         expected = {}
@@ -1035,11 +1043,4 @@ def test_sanitize_label_length(label_length):
         random.choice(string.ascii_uppercase + string.digits)
         for i in range(label_length)
     )
-    test_error_msg = (
-            f"Job label length {label_length} is greater than length limit: "
-            f"{_VALIDATE_LABEL_LENGTH_LIMIT}\n"
-            f"Current sanitized label: {random_string.lower()}"
-        )
-    with pytest.raises(dbt.exceptions.RuntimeException) as error_info:
-        _sanitize_label(random_string)
-    assert error_info.value.args[0] == test_error_msg
+    assert len(_sanitize_label(random_string)) <= _VALIDATE_LABEL_LENGTH_LIMIT

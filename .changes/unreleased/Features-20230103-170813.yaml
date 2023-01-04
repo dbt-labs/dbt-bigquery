@@ -1,0 +1,7 @@
+kind: Features
+body: Add materialization for BQ persistent SQL UDF
+time: 2023-01-03T17:08:13.915345-07:00
+custom:
+  Author: anaghshineh
+  Issue: "451"
+  PR: "454"

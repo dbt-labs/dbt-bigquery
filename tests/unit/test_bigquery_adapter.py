@@ -522,7 +522,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         'dbt.adapters.bigquery.connections._is_retryable', return_value=True)
     def test_retry_and_handle(self, is_retryable):
         self.connections.DEFAULT_MAXIMUM_DELAY = 2.0
-    
+
         @contextmanager
         def dummy_handler(msg):
             yield
@@ -674,10 +674,10 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
     def test_parse_partition_by(self):
         adapter = self.get_adapter('oauth')
 
-        with self.assertRaises(dbt.exceptions.CompilationException):
+        with self.assertRaises(dbt.exceptions.ValidationException):
             adapter.parse_partition_by("date(ts)")
 
-        with self.assertRaises(dbt.exceptions.CompilationException):
+        with self.assertRaises(dbt.exceptions.ValidationException):
             adapter.parse_partition_by("ts")
 
         self.assertEqual(
@@ -686,7 +686,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "day"
+                "granularity": "day",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
 
@@ -697,7 +699,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "day"
+                "granularity": "day",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
 
@@ -710,10 +714,12 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "MONTH"
+                "granularity": "MONTH",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
-        
+
         self.assertEqual(
             adapter.parse_partition_by({
                 "field": "ts",
@@ -723,7 +729,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "YEAR"
+                "granularity": "YEAR",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
 
@@ -736,47 +744,54 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "timestamp",
+                "granularity": "HOUR",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
+            }
+        )
+
+        self.assertEqual(
+            adapter.parse_partition_by({
+                "field": "ts",
+                "data_type": "timestamp",
+                "granularity": "MONTH"
+
+            }).to_dict(omit_none=True), {
+                "field": "ts",
+                "data_type": "timestamp",
+                "granularity": "MONTH",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
+            }
+        )
+
+        self.assertEqual(
+            adapter.parse_partition_by({
+                "field": "ts",
+                "data_type": "timestamp",
+                "granularity": "YEAR"
+
+            }).to_dict(omit_none=True), {
+                "field": "ts",
+                "data_type": "timestamp",
+                "granularity": "YEAR",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
+            }
+        )
+
+        self.assertEqual(
+            adapter.parse_partition_by({
+                "field": "ts",
+                "data_type": "datetime",
                 "granularity": "HOUR"
-            }
-        )
-
-        self.assertEqual(
-            adapter.parse_partition_by({
-                "field": "ts",
-                "data_type": "timestamp",
-                "granularity": "MONTH"
-
-            }).to_dict(omit_none=True
-                ), {
-                "field": "ts",
-                "data_type": "timestamp",
-                "granularity": "MONTH"
-            }
-        )
-
-        self.assertEqual(
-            adapter.parse_partition_by({
-                "field": "ts",
-                "data_type": "timestamp",
-                "granularity": "YEAR"
-
-            }).to_dict(omit_none=True), {
-                "field": "ts",
-                "data_type": "timestamp",
-                "granularity": "YEAR"
-            }
-        )
-
-        self.assertEqual(
-            adapter.parse_partition_by({
-                "field": "ts",
-                "data_type": "datetime",
-                "granularity": "HOUR"
 
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "datetime",
-                "granularity": "HOUR"
+                "granularity": "HOUR",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
 
@@ -789,7 +804,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "datetime",
-                "granularity": "MONTH"
+                "granularity": "MONTH",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
 
@@ -802,12 +819,29 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "datetime",
-                "granularity": "YEAR"
+                "granularity": "YEAR",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
+            }
+        )
+
+        self.assertEqual(
+            adapter.parse_partition_by({
+                "field": "ts",
+                "time_ingestion_partitioning": True,
+                "copy_partitions": True
+
+            }).to_dict(omit_none=True), {
+                "field": "ts",
+                "data_type": "date",
+                "granularity": "day",
+                "time_ingestion_partitioning": True,
+                "copy_partitions": True
             }
         )
 
         # Invalid, should raise an error
-        with self.assertRaises(dbt.exceptions.CompilationException):
+        with self.assertRaises(dbt.exceptions.ValidationException):
             adapter.parse_partition_by({})
 
         # passthrough
@@ -829,7 +863,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                     "start": 1,
                     "end": 100,
                     "interval": 20
-                }
+                },
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False
             }
         )
 
@@ -846,12 +882,11 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         actual = adapter.get_table_options(mock_config, node={}, temporary=False)
         self.assertEqual(expected, actual)
 
-
     def test_hours_to_expiration_temporary(self):
         adapter = self.get_adapter('oauth')
         mock_config = create_autospec(
             RuntimeConfigObject)
-        config={'hours_to_expiration': 4}
+        config = {'hours_to_expiration': 4}
         mock_config.get.side_effect = lambda name: config.get(name)
 
         expected = {
@@ -865,7 +900,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         adapter = self.get_adapter('oauth')
         mock_config = create_autospec(
             RuntimeConfigObject)
-        config={'kms_key_name': 'some_key'}
+        config = {'kms_key_name': 'some_key'}
         mock_config.get.side_effect = lambda name: config.get(name)
 
         expected = {
@@ -874,18 +909,16 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         actual = adapter.get_table_options(mock_config, node={}, temporary=False)
         self.assertEqual(expected, actual)
 
-        
     def test_view_kms_key_name(self):
         adapter = self.get_adapter('oauth')
         mock_config = create_autospec(
             RuntimeConfigObject)
-        config={'kms_key_name': 'some_key'}
+        config = {'kms_key_name': 'some_key'}
         mock_config.get.side_effect = lambda name: config.get(name)
 
         expected = {}
         actual = adapter.get_view_options(mock_config, node={})
         self.assertEqual(expected, actual)
-
 
 
 class TestBigQueryFilterCatalog(unittest.TestCase):
@@ -1003,11 +1036,4 @@ def test_sanitize_label_length(label_length):
         random.choice(string.ascii_uppercase + string.digits)
         for i in range(label_length)
     )
-    test_error_msg = (
-            f"Job label length {label_length} is greater than length limit: "
-            f"{_VALIDATE_LABEL_LENGTH_LIMIT}\n"
-            f"Current sanitized label: {random_string.lower()}"
-        )
-    with pytest.raises(dbt.exceptions.RuntimeException) as error_info:
-        _sanitize_label(random_string)
-    assert error_info.value.args[0] == test_error_msg
+    assert len(_sanitize_label(random_string)) <= _VALIDATE_LABEL_LENGTH_LIMIT

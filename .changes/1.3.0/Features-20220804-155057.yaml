@@ -1,7 +1,0 @@
-kind: Features
-body: Added table and incrementail materializations for python models via DataProc.
-time: 2022-08-04T15:50:57.234209-05:00
-custom:
-  Author: stu-k
-  Issue: "209"
-  PR: "226"

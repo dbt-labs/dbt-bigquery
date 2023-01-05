@@ -1,7 +1,0 @@
-kind: Under the Hood
-body: Convert df to pyspark DataFrame if it is pandas before writing
-time: 2022-09-08T14:32:18.243412-04:00
-custom:
-  Author: chamini2
-  Issue: "301"
-  PR: "301"

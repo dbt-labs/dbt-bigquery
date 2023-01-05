@@ -502,7 +502,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             message = f"{code}"
 
         if location is not None and job_id is not None and project_id is not None:
-            logger.debug(self._bq_job_link(job_id, project_id, location))
+            logger.debug(self._bq_job_link(location, project_id, job_id))
 
         response = BigQueryAdapterResponse(  # type: ignore[call-arg]
             _message=message,
@@ -710,13 +710,4 @@ def _sanitize_label(value: str) -> str:
     """Return a legal value for a BigQuery label."""
     value = value.strip().lower()
     value = _SANITIZE_LABEL_PATTERN.sub("_", value)
-    value_length = len(value)
-    if value_length > _VALIDATE_LABEL_LENGTH_LIMIT:
-        error_msg = (
-            f"Job label length {value_length} is greater than length limit: "
-            f"{_VALIDATE_LABEL_LENGTH_LIMIT}\n"
-            f"Current sanitized label: {value}"
-        )
-        raise RuntimeException(error_msg)
-    else:
-        return value
+    return value[:_VALIDATE_LABEL_LENGTH_LIMIT]

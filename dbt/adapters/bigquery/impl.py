@@ -293,14 +293,16 @@ class BigQueryAdapter(BaseAdapter):
         # This will 404 if the dataset does not exist. This behavior mirrors
         # the implementation of list_relations for other adapters
         try:
-            return [self._bq_table_to_relation(table) for table in all_tables]
+            return [self._bq_table_to_relation(table) for table in all_tables]  # type: ignore[misc]
         except google.api_core.exceptions.NotFound:
             return []
         except google.api_core.exceptions.Forbidden as exc:
             logger.debug("list_relations_without_caching error: {}".format(str(exc)))
             return []
 
-    def get_relation(self, database: str, schema: str, identifier: str) -> BigQueryRelation:
+    def get_relation(
+        self, database: str, schema: str, identifier: str
+    ) -> Optional[BigQueryRelation]:
         if self._schema_is_cached(database, schema):
             # if it's in the cache, use the parent's model of going through
             # the relations cache and picking out the relation

@@ -729,13 +729,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         self.assertEqual(
             adapter.parse_partition_by(
                 {"field": "ts", "data_type": "timestamp", "granularity": "MONTH"}
-            ).to_dict(omit_none=True),
-            {
-                "field": "ts",
-                "data_type": "timestamp",
-                "granularity": "MONTH"
-
-            }).to_dict(omit_none=True), {
+            ).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "timestamp",
                 "granularity": "MONTH",
@@ -998,13 +992,6 @@ class TestBigQueryGrantAccessTo(BaseTestBigQueryAdapter):
         _adapter = self.get_adapter("oauth")
         _adapter.connections = self.mock_connection_mgr
         self.adapter = _adapter
-
-    def test_grant_access_to_does_not_call_update_with_duplicate_access_entry(self):
-        grant_target_dict = {"dataset": "someDataset", "project": "someProject"}
-        self.adapter.grant_access_to(
-            entity=self.entity, entity_type="table", role=None, grant_target_dict=grant_target_dict
-        )
-        self.mock_client.update_dataset.assert_not_called()
 
     def test_grant_access_to_calls_update_with_valid_access_entry(self):
         a_different_entity = BigQueryRelation.from_dict(

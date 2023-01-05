@@ -1,6 +1,5 @@
-import imp
 from typing import List
-from google.cloud.bigquery import DatasetReference, Dataset, AccessEntry
+from google.cloud.bigquery import Dataset, AccessEntry
 
 from dbt.events import AdapterLogger
 
@@ -26,7 +25,7 @@ def add_access_entry_to_dataset(dataset: Dataset, access_entry: AccessEntry) -> 
         if role_match and entity_type_match:
             new_prop = access_entry._properties
             existing_prop = existing_entry._properties
-            properties_match = [new_prop[k] == v for k,v in existing_prop.items()]
+            properties_match = [new_prop[k] == v for k, v in existing_prop.items()]
             if properties_match:
                 logger.warning(f"Access entry {access_entry} " f"already exists in dataset")
                 return dataset

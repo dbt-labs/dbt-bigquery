@@ -483,7 +483,7 @@ class BigQueryAdapter(BaseAdapter):
             message = "\n".join(error["message"].strip() for error in job.errors)
             raise dbt.exceptions.RuntimeException(message)
 
-    def _bq_table_to_relation(self, bq_table) -> Union[BaseRelation, None]:
+    def _bq_table_to_relation(self, bq_table) -> Union[BigQueryRelation, None]:
         if bq_table is None:
             return None
 

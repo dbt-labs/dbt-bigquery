@@ -36,5 +36,6 @@ class TestAccessGrantSucceeds(GrantAccessToConfig):
     def test_grant_access_succeeds(self, project):
         #Need to run twice to validate idempotency
         results = run_dbt(["run"])
+        assert len(results) == 2
         results = run_dbt(["run"])
         assert len(results) == 2

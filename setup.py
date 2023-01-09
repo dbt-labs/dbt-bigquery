@@ -81,7 +81,7 @@ setup(
         "googleapis-common-protos~=1.6",
         "google-cloud-storage~=2.4",
         "google-cloud-dataproc~=5.0",
-        "agate>=1.6.3,<1.7"
+        "agate>=1.6.3,<1.7",
     ],
     zip_safe=False,
     classifiers=[

@@ -188,6 +188,10 @@ jobs:
           python -m pip install --user --upgrade pip
           python -m pip install --upgrade wheel setuptools twine check-wheel-contents
           python -m pip --version
+      - name: Windows dependencies
+        if: ${{matrix.os}} == 'windows-latest'
+        run:
+          "choco install pkgconfiglite"
       - uses: actions/download-artifact@v2
         with:
           name: dist

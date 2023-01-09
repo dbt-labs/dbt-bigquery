@@ -186,7 +186,6 @@ jobs:
       - name: Install python dependencies
         run: |
           python -m pip install --user --upgrade pip
-          python -m pip install PyICU
           python -m pip install --upgrade wheel
           python -m pip --version
       - uses: actions/download-artifact@v2

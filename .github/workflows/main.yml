@@ -189,9 +189,10 @@ jobs:
           python -m pip install --upgrade wheel setuptools twine check-wheel-contents
           python -m pip --version
       - name: Windows dependencies
-        if: ${{matrix.os}} == 'windows-latest'
+        if: matrix.os == windows-latest
         run: |
           choco install pkgconfiglite --allow-empty-checksums
+          pkg-config --cflags --libs icu-i18n
       - uses: actions/download-artifact@v2
         with:
           name: dist

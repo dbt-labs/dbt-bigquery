@@ -325,6 +325,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             return cls.get_google_credentials(profile_credentials)
 
     @classmethod
+    @retry.Retry()  # google decorator. retries on transient errors with exponential backoff
     def get_bigquery_client(cls, profile_credentials):
         creds = cls.get_credentials(profile_credentials)
         execution_project = profile_credentials.execution_project

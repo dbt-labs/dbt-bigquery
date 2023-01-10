@@ -1,0 +1,7 @@
+kind: Under the Hood
+body: use gcp retry logic for new connections
+time: 2022-08-05T16:51:20.590446-04:00
+custom:
+  Author: nathaniel-may
+  Issue: "229"
+  PR: "230"

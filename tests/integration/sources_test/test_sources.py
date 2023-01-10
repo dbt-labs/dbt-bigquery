@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 
 import yaml
 
-from dbt.exceptions import CompilationException
 import dbt.tracking
 import dbt.version
 from dbt.events.functions import reset_metadata_vars

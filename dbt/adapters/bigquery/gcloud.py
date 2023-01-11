@@ -25,4 +25,4 @@ def setup_default_credentials():
     if gcloud_installed():
         run_cmd(".", ["gcloud", "auth", "application-default", "login"])
     else:
-        raise dbt.exceptions.RuntimeException(NOT_INSTALLED_MSG)
+        raise dbt.exceptions.DbtRuntimeError(NOT_INSTALLED_MSG)

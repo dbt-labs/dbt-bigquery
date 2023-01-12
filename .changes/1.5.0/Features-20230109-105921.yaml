@@ -1,7 +1,0 @@
-kind: Features
-body: Fetch table description to `catalog.json`, so it can be shown in dbt docs
-time: 2023-01-09T10:59:21.213259-06:00
-custom:
-  Author: McKnight-42, halvorlu
-  Issue: "173"
-  PR: "174"

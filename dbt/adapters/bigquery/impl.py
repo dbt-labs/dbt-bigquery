@@ -59,7 +59,7 @@ _dataset_lock = threading.Lock()
 
 def sql_escape(string):
     if not isinstance(string, str):
-        raise dbt.exceptions.CompilationException(f"cannot escape a non-string: {string}")
+        raise dbt.exceptions.CompilationError(f"cannot escape a non-string: {string}")
     return json.dumps(string)[1:-1]
 
 
@@ -102,9 +102,9 @@ class PartitionConfig(dbtClassMixin):
             cls.validate(raw_partition_by)
             return cls.from_dict(raw_partition_by)
         except ValidationError as exc:
-            raise dbt.exceptions.ValidationException("Could not parse partition config") from exc
+            raise dbt.exceptions.DbtValidationError("Could not parse partition config") from exc
         except TypeError:
-            raise dbt.exceptions.CompilationException(
+            raise dbt.exceptions.CompilationError(
                 f"Invalid partition_by config:\n"
                 f"  Got: {raw_partition_by}\n"
                 f'  Expected a dictionary with "field" and "data_type" keys'
@@ -177,9 +177,7 @@ class BigQueryAdapter(BaseAdapter):
         conn.handle.delete_table(table_ref)
 
     def truncate_relation(self, relation: BigQueryRelation) -> None:
-        raise dbt.exceptions.NotImplementedException(
-            "`truncate` is not implemented for this adapter!"
-        )
+        raise dbt.exceptions.NotImplementedError("`truncate` is not implemented for this adapter!")
 
     def rename_relation(
         self, from_relation: BigQueryRelation, to_relation: BigQueryRelation
@@ -195,7 +193,7 @@ class BigQueryAdapter(BaseAdapter):
             or from_relation.type == RelationType.View
             or to_relation.type == RelationType.View
         ):
-            raise dbt.exceptions.RuntimeException(
+            raise dbt.exceptions.DbtRuntimeError(
                 "Renaming of views is not currently supported in BigQuery"
             )
 
@@ -446,7 +444,7 @@ class BigQueryAdapter(BaseAdapter):
         elif materialization == "table":
             write_disposition = WRITE_TRUNCATE
         else:
-            dbt.exceptions.raise_compiler_error(
+            raise dbt.exceptions.CompilationError(
                 'Copy table materialization must be "copy" or "table", but '
                 f"config.get('copy_materialization', 'table') was "
                 f"{materialization}"
@@ -479,11 +477,11 @@ class BigQueryAdapter(BaseAdapter):
             job.reload()
 
         if job.state != "DONE":
-            raise dbt.exceptions.RuntimeException("BigQuery Timeout Exceeded")
+            raise dbt.exceptions.DbtRuntimeError("BigQuery Timeout Exceeded")
 
         elif job.error_result:
             message = "\n".join(error["message"].strip() for error in job.errors)
-            raise dbt.exceptions.RuntimeException(message)
+            raise dbt.exceptions.DbtRuntimeError(message)
 
     def _bq_table_to_relation(self, bq_table) -> Union[BigQueryRelation, None]:
         if bq_table is None:
@@ -508,7 +506,7 @@ class BigQueryAdapter(BaseAdapter):
         if self.nice_connection_name() in ["on-run-start", "on-run-end"]:
             self.warning_on_hooks(self.nice_connection_name())
         else:
-            raise dbt.exceptions.NotImplementedException(
+            raise dbt.exceptions.NotImplementedError(
                 "`add_query` is not implemented for this adapter!"
             )
 
@@ -857,7 +855,7 @@ class BigQueryAdapter(BaseAdapter):
         elif location == "prepend":
             return f"concat('{value}', {add_to})"
         else:
-            raise dbt.exceptions.RuntimeException(
+            raise dbt.exceptions.DbtRuntimeError(
                 f'Got an unexpected location value of "{location}"'
             )
 

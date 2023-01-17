@@ -1,7 +1,0 @@
-kind: Fixes
-body: fix args for console link logging
-time: 2022-10-26T19:23:27.916326+02:00
-custom:
-  Author: Kayrnt
-  Issue: "362"
-  PR: "363"

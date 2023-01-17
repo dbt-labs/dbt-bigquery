@@ -157,8 +157,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection('dummy')
             self.assertEqual(connection.type, 'bigquery')
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail('got ValidationException: {}'.format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         except BaseException as e:
             raise
@@ -174,8 +174,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection('dummy')
             self.assertEqual(connection.type, 'bigquery')
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail('got ValidationException: {}'.format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         except BaseException as e:
             raise
@@ -191,8 +191,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection("dummy")
             self.assertEqual(connection.type, "bigquery")
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail("got ValidationException: {}".format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         except BaseException as e:
             raise
@@ -208,8 +208,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection("dummy")
             self.assertEqual(connection.type, "bigquery")
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail("got ValidationException: {}".format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         except BaseException as e:
             raise
@@ -225,8 +225,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection("dummy")
             self.assertEqual(connection.type, "bigquery")
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail("got ValidationException: {}".format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         except BaseException as e:
             raise
@@ -244,8 +244,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection("dummy")
             self.assertEqual(connection.type, "bigquery")
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail("got ValidationException: {}".format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         except BaseException as e:
             raise
@@ -262,8 +262,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             self.assertEqual(connection.type, "bigquery")
             self.assertEqual(connection.credentials.priority, "batch")
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail("got ValidationException: {}".format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         mock_open_connection.assert_not_called()
         connection.handle
@@ -277,8 +277,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             self.assertEqual(connection.type, "bigquery")
             self.assertEqual(connection.credentials.maximum_bytes_billed, 0)
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail("got ValidationException: {}".format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         mock_open_connection.assert_not_called()
         connection.handle
@@ -650,10 +650,10 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
     def test_parse_partition_by(self):
         adapter = self.get_adapter("oauth")
 
-        with self.assertRaises(dbt.exceptions.ValidationException):
+        with self.assertRaises(dbt.exceptions.DbtValidationError):
             adapter.parse_partition_by("date(ts)")
 
-        with self.assertRaises(dbt.exceptions.ValidationException):
+        with self.assertRaises(dbt.exceptions.DbtValidationError):
             adapter.parse_partition_by("ts")
 
         self.assertEqual(
@@ -804,7 +804,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         )
 
         # Invalid, should raise an error
-        with self.assertRaises(dbt.exceptions.ValidationException):
+        with self.assertRaises(dbt.exceptions.DbtValidationError):
             adapter.parse_partition_by({})
 
         # passthrough

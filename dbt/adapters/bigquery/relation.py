@@ -4,7 +4,7 @@ from typing import Optional
 from itertools import chain, islice
 
 from dbt.adapters.base.relation import BaseRelation, ComponentName, InformationSchema
-from dbt.exceptions import raise_compiler_error
+from dbt.exceptions import CompilationError
 from dbt.utils import filter_null_values
 from typing import TypeVar
 
@@ -94,7 +94,7 @@ class BigQueryInformationSchema(InformationSchema):
                 msg = (
                     f'No location/region found when trying to retrieve "{information_schema_view}"'
                 )
-                raise raise_compiler_error(msg)
+                raise CompilationError(msg)
             info_schema = info_schema.incorporate(location=relation.location)
         return info_schema
 

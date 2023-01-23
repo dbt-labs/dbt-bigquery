@@ -21,6 +21,12 @@ class TestDeferState(DBTIntegrationTest):
         super().setUp()
         self._created_schemas.add(self.other_schema)
 
+    def tearDown(self):
+        with self.adapter.connection_named('__test'):
+            self._drop_schema_named(self.default_database, self.other_schema)
+
+        super().tearDown()
+
     @property
     def project_config(self):
         return {

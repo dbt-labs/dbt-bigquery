@@ -63,10 +63,52 @@ df = model(dbt, spark)
 # COMMAND ----------
 # this is materialization code dbt generated, please do not modify
 
+import pyspark
+# make sure pandas exists before using it
+try:
+  import pandas
+  pandas_available = True
+except ImportError:
+  pandas_available = False
+
+# make sure pyspark.pandas exists before using it
+try:
+  import pyspark.pandas
+  pyspark_pandas_api_available = True
+except ImportError:
+  pyspark_pandas_api_available = False
+
+# make sure databricks.koalas exists before using it
+try:
+  import databricks.koalas
+  koalas_available = True
+except ImportError:
+  koalas_available = False
+
+# preferentially convert pandas DataFrames to pandas-on-Spark or Koalas DataFrames first
+# since they know how to convert pandas DataFrames better than `spark.createDataFrame(df)`
+# and converting from pandas-on-Spark to Spark DataFrame has no overhead
+if pyspark_pandas_api_available and pandas_available and isinstance(df, pandas.core.frame.DataFrame):
+  df = pyspark.pandas.frame.DataFrame(df)
+elif koalas_available and pandas_available and isinstance(df, pandas.core.frame.DataFrame):
+  df = databricks.koalas.frame.DataFrame(df)
+
+# convert to pyspark.sql.dataframe.DataFrame
+if isinstance(df, pyspark.sql.dataframe.DataFrame):
+  pass  # since it is already a Spark DataFrame
+elif pyspark_pandas_api_available and isinstance(df, pyspark.pandas.frame.DataFrame):
+  df = df.to_spark()
+elif koalas_available and isinstance(df, databricks.koalas.frame.DataFrame):
+  df = df.to_spark()
+elif pandas_available and isinstance(df, pandas.core.frame.DataFrame):
+  df = spark.createDataFrame(df)
+else:
+  msg = f"{type(df)} is not a supported type for dbt Python materialization"
+  raise Exception(msg)
 
 df.write \
   .mode("overwrite") \
   .format("bigquery") \
-  .option("writeMethod", "direct") \
+  .option("writeMethod", "direct").option("writeDisposition", 'WRITE_TRUNCATE') \
   .save("{{target_relation}}")
 {% endmacro %}

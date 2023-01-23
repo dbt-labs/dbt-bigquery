@@ -7,6 +7,7 @@ import yaml
 from dbt.exceptions import CompilationException
 import dbt.tracking
 import dbt.version
+from dbt.events.functions import reset_metadata_vars
 from tests.integration.base import DBTIntegrationTest, use_profile, AnyFloat, \
     AnyStringWith
 
@@ -48,7 +49,7 @@ class BaseSourcesTest(DBTIntegrationTest):
         return self.run_dbt(cmd, *args, **kwargs)
 
 
-class SuccessfulSourcesTest(BaseSourcesTest):
+class TestSourceFreshness(BaseSourcesTest):
     def setUp(self):
         super().setUp()
         self.run_dbt_with_vars(['seed'])
@@ -60,6 +61,7 @@ class SuccessfulSourcesTest(BaseSourcesTest):
 
     def tearDown(self):
         super().tearDown()
+        reset_metadata_vars()
         del os.environ['DBT_ENV_CUSTOM_ENV_key']
 
     def _set_updated_at_to(self, delta):
@@ -90,9 +92,6 @@ class SuccessfulSourcesTest(BaseSourcesTest):
         )
         self.last_inserted_time = insert_time.strftime(
             "%Y-%m-%dT%H:%M:%S+00:00")
-
-
-class TestSourceFreshness(SuccessfulSourcesTest):
 
     def _assert_freshness_results(self, path, state):
         self.assertTrue(os.path.exists(path))
@@ -151,6 +150,7 @@ class TestSourceFreshness(SuccessfulSourcesTest):
         # and a freshness of warn_after: 10 hours, error_after: 18 hours
         # by default, our data set is way out of date!
         self.freshness_start_time = datetime.utcnow()
+        reset_metadata_vars()
         results = self.run_dbt_with_vars(
             ['source', 'freshness', '-o', 'target/error_source.json'],
             expect_pass=False
@@ -161,6 +161,7 @@ class TestSourceFreshness(SuccessfulSourcesTest):
 
         self._set_updated_at_to(timedelta(hours=-12))
         self.freshness_start_time = datetime.utcnow()
+        reset_metadata_vars()
         results = self.run_dbt_with_vars(
             ['source', 'freshness', '-o', 'target/warn_source.json'],
         )
@@ -170,6 +171,7 @@ class TestSourceFreshness(SuccessfulSourcesTest):
 
         self._set_updated_at_to(timedelta(hours=-2))
         self.freshness_start_time = datetime.utcnow()
+        reset_metadata_vars()
         results = self.run_dbt_with_vars(
             ['source', 'freshness', '-o', 'target/pass_source.json'],
         )

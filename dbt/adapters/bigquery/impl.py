@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Any, Set, Union
+from typing import Dict, List, Optional, Any, Set, Union, Type
 from dbt.dataclass_schema import dbtClassMixin, ValidationError
 
 import dbt.deprecations
@@ -7,14 +7,24 @@ import dbt.exceptions
 import dbt.clients.agate_helper
 
 from dbt import ui  # type: ignore
-from dbt.adapters.base import BaseAdapter, available, RelationType, SchemaSearchMap, AdapterConfig
-from dbt.adapters.base.impl import log_code_execution
+from dbt.adapters.base import (
+    BaseAdapter,
+    available,
+    RelationType,
+    SchemaSearchMap,
+    AdapterConfig,
+    PythonJobHelper,
+)
 
-from dbt.adapters.cache import _make_key
+from dbt.adapters.cache import _make_ref_key_msg
 
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery import BigQueryColumn
 from dbt.adapters.bigquery import BigQueryConnectionManager
+from dbt.adapters.bigquery.python_submissions import (
+    ClusterDataprocHelper,
+    ServerlessDataProcHelper,
+)
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse
 from dbt.contracts.graph.manifest import Manifest
 from dbt.events import AdapterLogger
@@ -45,8 +55,7 @@ CREATE_SCHEMA_MACRO_NAME = "create_schema"
 
 def sql_escape(string):
     if not isinstance(string, str):
-        dbt.exceptions.raise_compiler_exception(f"cannot escape a non-string: {string}")
-
+        raise dbt.exceptions.CompilationException(f"cannot escape a non-string: {string}")
     return json.dumps(string)[1:-1]
 
 
@@ -56,11 +65,16 @@ class PartitionConfig(dbtClassMixin):
     data_type: str = "date"
     granularity: str = "day"
     range: Optional[Dict[str, Any]] = None
+    time_ingestion_partitioning: bool = False
+    copy_partitions: bool = False
+
+    def reject_partition_field_column(self, columns: List[Any]) -> List[str]:
+        return [c for c in columns if not c.name.upper() == self.field.upper()]
 
     def render(self, alias: Optional[str] = None):
-        column: str = self.field
+        column: str = self.field if not self.time_ingestion_partitioning else "_PARTITIONTIME"
         if alias:
-            column = f"{alias}.{self.field}"
+            column = f"{alias}.{column}"
 
         if self.data_type.lower() == "int64" or (
             self.data_type.lower() == "date" and self.granularity.lower() == "day"
@@ -69,18 +83,24 @@ class PartitionConfig(dbtClassMixin):
         else:
             return f"{self.data_type}_trunc({column}, {self.granularity})"
 
+    def render_wrapped(self, alias: Optional[str] = None):
+        """Wrap the partitioning column when time involved to ensure it is properly casted to matching time."""
+        if self.data_type in ("date", "timestamp", "datetime"):
+            return f"{self.data_type}({self.render(alias)})"
+        else:
+            return self.render(alias)
+
     @classmethod
-    def parse(cls, raw_partition_by) -> Optional["PartitionConfig"]:  # type: ignore [return]
+    def parse(cls, raw_partition_by) -> Optional["PartitionConfig"]:
         if raw_partition_by is None:
             return None
         try:
             cls.validate(raw_partition_by)
             return cls.from_dict(raw_partition_by)
         except ValidationError as exc:
-            msg = dbt.exceptions.validator_error_message(exc)
-            dbt.exceptions.raise_compiler_error(f"Could not parse partition config: {msg}")
+            raise dbt.exceptions.ValidationException("Could not parse partition config") from exc
         except TypeError:
-            dbt.exceptions.raise_compiler_error(
+            raise dbt.exceptions.CompilationException(
                 f"Invalid partition_by config:\n"
                 f"  Got: {raw_partition_by}\n"
                 f'  Expected a dictionary with "field" and "data_type" keys'
@@ -226,6 +246,12 @@ class BigQueryAdapter(BaseAdapter):
             logger.debug("get_columns_in_relation error: {}".format(e))
             return []
 
+    @available.parse(lambda *a, **k: [])
+    def add_time_ingestion_partition_column(self, columns) -> List[BigQueryColumn]:
+        "Add time ingestion partition column to columns list"
+        columns.append(self.Column("_PARTITIONTIME", "TIMESTAMP", None, "NULLABLE"))
+        return columns
+
     def expand_column_types(self, goal: BigQueryRelation, current: BigQueryRelation) -> None:  # type: ignore[override]
         # This is a no-op on BigQuery
         pass
@@ -291,7 +317,7 @@ class BigQueryAdapter(BaseAdapter):
         # use SQL 'create schema'
         relation = relation.without_identifier()  # type: ignore
 
-        fire_event(SchemaCreation(relation=_make_key(relation)))
+        fire_event(SchemaCreation(relation=_make_ref_key_msg(relation)))
         kwargs = {
             "relation": relation,
         }
@@ -305,7 +331,7 @@ class BigQueryAdapter(BaseAdapter):
         database = relation.database
         schema = relation.schema
         logger.debug('Dropping schema "{}.{}".', database, schema)  # in lieu of SQL
-        fire_event(SchemaDrop(relation=_make_key(relation)))
+        fire_event(SchemaDrop(relation=_make_ref_key_msg(relation)))
         self.connections.drop_dataset(database, schema)
         self.cache.drop_schema(database, schema)
 
@@ -370,7 +396,7 @@ class BigQueryAdapter(BaseAdapter):
         for idx, col_name in enumerate(agate_table.column_names):
             inferred_type = self.convert_agate_type(agate_table, idx)
             type_ = column_override.get(col_name, inferred_type)
-            bq_schema.append(SchemaField(col_name, type_))
+            bq_schema.append(SchemaField(col_name, type_))  # type: ignore[arg-type]
         return bq_schema
 
     def _materialize_as_view(self, model: Dict[str, Any]) -> str:
@@ -424,6 +450,19 @@ class BigQueryAdapter(BaseAdapter):
 
         return "COPY TABLE with materialization: {}".format(materialization)
 
+    @available.parse(lambda *a, **k: False)
+    def get_columns_in_select_sql(self, select_sql: str) -> List[BigQueryColumn]:
+        try:
+            conn = self.connections.get_thread_connection()
+            client = conn.handle
+            query_job, iterator = self.connections.raw_execute(select_sql)
+            query_table = client.get_table(query_job.destination)
+            return self._get_dbt_columns_from_bq_table(query_table)
+
+        except (ValueError, google.cloud.exceptions.NotFound) as e:
+            logger.debug("get_columns_in_select_sql error: {}".format(e))
+            return []
+
     @classmethod
     def poll_until_job_completes(cls, job, timeout):
         retry_count = timeout
@@ -453,7 +492,7 @@ class BigQueryAdapter(BaseAdapter):
         )
 
     @classmethod
-    def warning_on_hooks(hook_type):
+    def warning_on_hooks(cls, hook_type):
         msg = "{} is not supported in bigquery and will be ignored"
         warn_msg = dbt.ui.color(msg, ui.COLOR_FG_YELLOW)
         logger.info(warn_msg)
@@ -471,7 +510,8 @@ class BigQueryAdapter(BaseAdapter):
     # Special bigquery adapter methods
     ###
 
-    def _partitions_match(self, table, conf_partition: Optional[PartitionConfig]) -> bool:
+    @staticmethod
+    def _partitions_match(table, conf_partition: Optional[PartitionConfig]) -> bool:
         """
         Check if the actual and configured partitions for a table are a match.
         BigQuery tables can be replaced if:
@@ -485,10 +525,16 @@ class BigQueryAdapter(BaseAdapter):
         if not is_partitioned and not conf_partition:
             return True
         elif conf_partition and table.time_partitioning is not None:
-            table_field = table.time_partitioning.field.lower()
+            partitioning_field = table.time_partitioning.field or "_PARTITIONTIME"
+            table_field = partitioning_field.lower()
             table_granularity = table.partitioning_type.lower()
+            conf_table_field = (
+                conf_partition.field
+                if not conf_partition.time_ingestion_partitioning
+                else "_PARTITIONTIME"
+            )
             return (
-                table_field == conf_partition.field.lower()
+                table_field == conf_table_field.lower()
                 and table_granularity == conf_partition.granularity.lower()
             )
         elif conf_partition and table.range_partitioning is not None:
@@ -504,7 +550,8 @@ class BigQueryAdapter(BaseAdapter):
         else:
             return False
 
-    def _clusters_match(self, table, conf_cluster) -> bool:
+    @staticmethod
+    def _clusters_match(table, conf_cluster) -> bool:
         """
         Check if the actual and configured clustering columns for a table
         are a match. BigQuery tables can be replaced if clustering columns
@@ -707,9 +754,7 @@ class BigQueryAdapter(BaseAdapter):
         opts = {}
 
         if (config.get("hours_to_expiration") is not None) and (not temporary):
-            expiration = ("TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL " "{} hour)").format(
-                config.get("hours_to_expiration")
-            )
+            expiration = f'TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL {config.get("hours_to_expiration")} hour)'
             opts["expiration_timestamp"] = expiration
 
         if config.persist_relation_docs() and "description" in node:  # type: ignore[attr-defined]
@@ -729,11 +774,10 @@ class BigQueryAdapter(BaseAdapter):
         opts = self.get_common_options(config, node, temporary)
 
         if config.get("kms_key_name") is not None:
-            opts["kms_key_name"] = "'{}'".format(config.get("kms_key_name"))
+            opts["kms_key_name"] = f"'{config.get('kms_key_name')}'"
 
         if temporary:
-            expiration = "TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 12 hour)"
-            opts["expiration_timestamp"] = expiration
+            opts["expiration_timestamp"] = "TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 12 hour)"
         else:
             # It doesn't apply the `require_partition_filter` option for a temporary table
             # so that we avoid the error by not specifying a partition with a temporary table
@@ -835,108 +879,16 @@ class BigQueryAdapter(BaseAdapter):
         else:
             return list(res)
 
-    @available.parse_none
-    @log_code_execution
-    def submit_python_job(self, parsed_model: dict, compiled_code: str):
-        # TODO improve the typing here.  N.B. Jinja returns a `jinja2.runtime.Undefined` instead
-        # of `None` which evaluates to True!
+    def generate_python_submission_response(self, submission_result) -> BigQueryAdapterResponse:
+        return BigQueryAdapterResponse(_message="OK")  # type: ignore[call-arg]
 
-        # TODO limit this function to run only when doing the materialization of python nodes
-        # TODO should we also to timeout here?
+    @property
+    def default_python_submission_method(self) -> str:
+        return "serverless"
 
-        # validate all additional stuff for python is set
-        schema = getattr(parsed_model, "schema", self.config.credentials.schema)
-        identifier = parsed_model["alias"]
-        python_required_configs = [
-            "dataproc_region",
-            "dataproc_cluster_name",
-            "gcs_bucket",
-        ]
-        for required_config in python_required_configs:
-            if not getattr(self.connections.profile.credentials, required_config):
-                raise ValueError(
-                    f"Need to supply {required_config} in profile to submit python job"
-                )
-        if not hasattr(self, "dataproc_helper"):
-            self.dataproc_helper = DataProcHelper(self.connections.profile.credentials)
-        model_file_name = f"{schema}/{identifier}.py"
-        # upload python file to GCS
-        self.dataproc_helper.upload_to_gcs(model_file_name, compiled_code)
-        # submit dataproc job
-        self.dataproc_helper.submit_dataproc_job(model_file_name)
-
-        # TODO proper result for this
-        message = "OK"
-        code = None
-        num_rows = None
-        bytes_processed = None
-        return BigQueryAdapterResponse(  # type: ignore[call-arg]
-            _message=message,
-            rows_affected=num_rows,
-            code=code,
-            bytes_processed=bytes_processed,
-        )
-
-
-class DataProcHelper:
-    def __init__(self, credential):
-        """_summary_
-
-        Args:
-            credential (_type_): _description_
-        """
-        try:
-            # Library only needed for python models
-            from google.cloud import dataproc_v1
-            from google.cloud import storage
-        except ImportError:
-            raise RuntimeError(
-                "You need to install [dataproc] extras to run python model in dbt-bigquery"
-            )
-        self.credential = credential
-        self.GoogleCredentials = BigQueryConnectionManager.get_credentials(credential)
-        self.storage_client = storage.Client(
-            project=self.credential.database, credentials=self.GoogleCredentials
-        )
-        self.job_client = dataproc_v1.JobControllerClient(
-            client_options={
-                "api_endpoint": "{}-dataproc.googleapis.com:443".format(
-                    self.credential.dataproc_region
-                )
-            },
-            credentials=self.GoogleCredentials,
-        )
-
-    def upload_to_gcs(self, filename: str, compiled_code: str):
-        bucket = self.storage_client.get_bucket(self.credential.gcs_bucket)
-        blob = bucket.blob(filename)
-        blob.upload_from_string(compiled_code)
-
-    def submit_dataproc_job(self, filename: str):
-        # Create the job config.
-        job = {
-            "placement": {"cluster_name": self.credential.dataproc_cluster_name},
-            "pyspark_job": {
-                "main_python_file_uri": "gs://{}/{}".format(self.credential.gcs_bucket, filename)
-            },
+    @property
+    def python_submission_helpers(self) -> Dict[str, Type[PythonJobHelper]]:
+        return {
+            "cluster": ClusterDataprocHelper,
+            "serverless": ServerlessDataProcHelper,
         }
-        operation = self.job_client.submit_job_as_operation(
-            request={
-                "project_id": self.credential.database,
-                "region": self.credential.dataproc_region,
-                "job": job,
-            }
-        )
-        response = operation.result()
-        return response
-
-        # TODO: there might be useful results here that we can parse and return
-        # Dataproc job output is saved to the Cloud Storage bucket
-        # allocated to the job. Use regex to obtain the bucket and blob info.
-        # matches = re.match("gs://(.*?)/(.*)", response.driver_output_resource_uri)
-        # output = (
-        #     self.storage_client
-        #     .get_bucket(matches.group(1))
-        #     .blob(f"{matches.group(2)}.000000000")
-        #     .download_as_string()
-        # )

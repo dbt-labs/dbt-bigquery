@@ -1,8 +1,0 @@
-kind: Features
-body: 'Implement `create_schema` via SQL, instead of Python method, allowing users
-  to override if desired. drop_schema remains a Python method for the time being. '
-time: 2022-08-04T15:49:44.409354-05:00
-custom:
-  Author: jtcohen6
-  Issue: "182"
-  PR: "183"

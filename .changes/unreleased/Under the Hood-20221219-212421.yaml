@@ -1,7 +1,0 @@
-kind: Under the Hood
-body: Truncates Job Labels to 63 Characters
-time: 2022-12-19T21:24:21.304277Z
-custom:
-  Author: ernestoongaro
-  Issue: "202"
-  PR: "442"

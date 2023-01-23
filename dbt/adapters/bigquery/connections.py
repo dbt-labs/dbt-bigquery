@@ -24,9 +24,9 @@ from dbt.config.profile import INVALID_PROFILE_MESSAGE
 from dbt.tracking import active_user
 from dbt.contracts.connection import ConnectionState, AdapterResponse
 from dbt.exceptions import (
-    FailedToConnectException,
-    RuntimeException,
-    DatabaseException,
+    FailedToConnectError,
+    DbtRuntimeError,
+    DbtDatabaseError,
     DbtProfileError,
 )
 from dbt.adapters.base import BaseConnectionManager, Credentials
@@ -196,7 +196,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                     error.query_job.location, error.query_job.project, error.query_job.job_id
                 )
             )
-        raise DatabaseException(error_msg)
+        raise DbtDatabaseError(error_msg)
 
     def clear_transaction(self):
         pass
@@ -223,12 +223,12 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 "account you are trying to impersonate.\n\n"
                 f"{str(e)}"
             )
-            raise RuntimeException(message)
+            raise DbtRuntimeError(message)
 
         except Exception as e:
             logger.debug("Unhandled error while running:\n{}".format(sql))
             logger.debug(e)
-            if isinstance(e, RuntimeException):
+            if isinstance(e, DbtRuntimeError):
                 # during a sql query, an internal to dbt exception was raised.
                 # this sounds a lot like a signal handler and probably has
                 # useful information, so raise it without modification.
@@ -238,7 +238,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             # don't want to log. Hopefully they never change this!
             if BQ_QUERY_JOB_SPLIT in exc_message:
                 exc_message = exc_message.split(BQ_QUERY_JOB_SPLIT)[0].strip()
-            raise RuntimeException(exc_message)
+            raise DbtRuntimeError(exc_message)
 
     def cancel_open(self) -> None:
         pass
@@ -305,7 +305,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             )
 
         error = 'Invalid `method` in profile: "{}"'.format(method)
-        raise FailedToConnectException(error)
+        raise FailedToConnectError(error)
 
     @classmethod
     def get_impersonated_credentials(cls, profile_credentials):
@@ -325,6 +325,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             return cls.get_google_credentials(profile_credentials)
 
     @classmethod
+    @retry.Retry()  # google decorator. retries on transient errors with exponential backoff
     def get_bigquery_client(cls, profile_credentials):
         creds = cls.get_credentials(profile_credentials)
         execution_project = profile_credentials.execution_project
@@ -361,7 +362,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             connection.handle = None
             connection.state = "fail"
 
-            raise FailedToConnectException(str(e))
+            raise FailedToConnectError(str(e))
 
         connection.handle = handle
         connection.state = "open"

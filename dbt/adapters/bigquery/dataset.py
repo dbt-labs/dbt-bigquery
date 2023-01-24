@@ -20,15 +20,9 @@ def add_access_entry_to_dataset(dataset: Dataset, access_entry: AccessEntry) -> 
     # we can't simply check if an access entry is in the list as the current equality check
     # does not work because the locally created AccessEntry can have extra properties.
     for existing_entry in access_entries:
-        role_match = existing_entry.role == access_entry.role
-        entity_type_match = existing_entry.entity_type == access_entry.entity_type
-        if role_match and entity_type_match:
-            new_prop = access_entry._properties
-            existing_prop = existing_entry._properties
-            properties_match = [new_prop[k] == v for k, v in existing_prop.items()]
-            if properties_match:
-                logger.warning(f"Access entry {access_entry} " f"already exists in dataset")
-                return dataset
+        if access_entry._properties.items() <= existing_entry._properties.items():
+            logger.warning(f"Access entry {access_entry} " f"already exists in dataset")
+            return dataset
     access_entries.append(access_entry)
     dataset.access_entries = access_entries
     return dataset

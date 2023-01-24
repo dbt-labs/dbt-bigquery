@@ -16,7 +16,7 @@
             {{ wrap_with_time_ingestion_partitioning_sql(build_partition_time_exp(partition_by), sql, True) }}
             {%- else -%}
             {{sql}}
-            {%- endif -%}
+            {%- endif %}
         )
         {%- endif -%}
     {%- endset -%}

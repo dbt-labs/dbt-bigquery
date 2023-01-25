@@ -1,8 +1,0 @@
-kind: Under the Hood
-body: fix issue with tox 4.0.0 release which changes passenv syntax for space-separated
-  variables
-time: 2022-12-07T15:18:13.996118-06:00
-custom:
-  Author: McKnight-42
-  Issue: "411"
-  PR: "411"

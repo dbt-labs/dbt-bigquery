@@ -1,7 +1,0 @@
-kind: Under the Hood
-body: event logging changes to be in parity with dbt-core post pr#6291
-time: 2022-12-07T10:35:05.567885-06:00
-custom:
-  Author: McKnight-42
-  Issue: "6139"
-  PR: "410"

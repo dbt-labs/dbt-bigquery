@@ -1,7 +1,0 @@
-kind: Fixes
-body: use execution_project in python models
-time: 2022-10-19T11:56:18.842401+02:00
-custom:
-  Author: ericapetersson
-  Issue: "355"
-  PR: "356"

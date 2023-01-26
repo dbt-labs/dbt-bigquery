@@ -3,35 +3,12 @@ import yaml
 from dbt.tests.util import run_dbt
 from dbt.tests.adapter.column_types.test_column_types import BaseColumnTypes
 from dbt.tests.adapter.column_types.fixtures import macro_test_is_type_sql
+from tests.functional.adapter.column_types.fixtures import (
+    _MACRO_TEST_ALTER_COLUMN_TYPE,
+    _MODEL_ALT_SQL,
+    _ALT_SCHEMA_YML
+)
 
-_MACRO_TEST_ALTER_COLUMN_TYPE = """
-{% macro test_alter_column_type(model_name, column_name, new_column_type) %}
-  {% set relation = ref(model_name) %}
-  {{ alter_column_type(relation, column_name, new_column_type) }}
-{% endmacro %}
-"""
-
-_MODEL_ALT_SQL = """
-{{ config(materialized='table') }}
-select
-    CAST(1 as int64) as int64_col,
-    CAST(2.0 as float64) as float64_col,
-    CAST(3.0 as numeric) as numeric_col,
-    CAST('3' as string) as string_col,
-"""
-
-_ALT_SCHEMA_YML = """
-version: 2
-models:
-  - name: model
-    tests:
-      - is_type:
-          column_map:
-            int64_col: ['string', 'not number']
-            float64_col: ['float', 'number']
-            numeric_col: ['numeric', 'number']
-            string_col: ['string', 'not number']
-"""
 
 
 class BaseAlterColumnTypes(BaseColumnTypes):

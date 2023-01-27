@@ -119,7 +119,7 @@
       {%- endset -%}
 
       -- generated script to merge partitions into {{ target_relation }}
-      declare dbt_partitions_for_replacement array<{{ partition_by.data_type }}>;
+      declare dbt_partitions_for_replacement array<{{ partition_by.partitions_for_replacement_data_type() }}>;
 
       {# have we already created the temp table to check for schema changes? #}
       {% if not tmp_relation_exists %}

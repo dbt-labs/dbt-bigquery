@@ -1,70 +1,89 @@
-from tests.integration.base import DBTIntegrationTest, use_profile
-import os
-
 import json
+import os
+import pytest
+
+from dbt.tests.util import (
+    run_dbt
+)
+
+from dbt.tests.adapter.persist_docs.test_persist_docs import (
+    BasePersistDocsBase,
+    BasePersistDocs,
+    BasePersistDocsColumnMissing,
+    BasePersistDocsCommentOnQuotedColumn,
+)
+
+_MODELS__TABLE_MODEL_NESTED = """
+{{ config(materialized='table') }}
+SELECT
+    STRUCT(
+        STRUCT(
+            1 AS level_3_a,
+            2 AS level_3_b
+        ) AS level_2
+    ) AS level_1
+"""
+
+_MODELS__VIEW_MODEL_NESTED = """
+{{ config(materialized='view') }}
+SELECT
+    STRUCT(
+        STRUCT(
+            1 AS level_3_a,
+            2 AS level_3_b
+        ) AS level_2
+    ) AS level_1
+"""
+
+_PROPERTIES__MODEL_COMMENTS = """
+version: 2
+
+models:
+  - name: table_model_nested
+    columns:
+      - name: level_1
+        description: level_1 column description
+      - name: level_1.level_2
+        description: level_2 column description
+      - name: level_1.level_2.level_3_a
+        description: level_3 column description
+  - name: view_model_nested
+    columns:
+      - name: level_1
+        description: level_1 column description
+      - name: level_1.level_2
+        description: level_2 column description
+      - name: level_1.level_2.level_3_a
+        description: level_3 column description
+"""
 
 
-class BasePersistDocsTest(DBTIntegrationTest):
-    @property
-    def schema(self):
-        return "persist_docs"
-
-    @property
-    def models(self):
-        return "models"
-
-    def _assert_common_comments(self, *comments):
-        for comment in comments:
-            assert '"with double quotes"' in comment
-            assert """'''abc123'''""" in comment
-            assert '\n' in comment
-            assert 'Some $lbl$ labeled $lbl$ and $$ unlabeled $$ dollar-quoting' in comment
-            assert '/* comment */' in comment
-            if os.name == 'nt':
-                assert '--\r\n' in comment or '--\n' in comment
-            else:
-                assert '--\n' in comment
-
-    def _assert_has_table_comments(self, table_node):
-        table_comment = table_node['metadata']['comment']
-        assert table_comment.startswith('Table model description')
-
-        table_id_comment = table_node['columns']['id']['comment']
-        assert table_id_comment.startswith('id Column description')
-
-        table_name_comment = table_node['columns']['name']['comment']
-        assert table_name_comment.startswith(
-            'Some stuff here and then a call to')
-
-        self._assert_common_comments(
-            table_comment, table_id_comment, table_name_comment
-        )
-
-    def _assert_has_view_comments(self, view_node, has_node_comments=True,
-                                  has_column_comments=True):
-        view_comment = view_node['metadata']['comment']
+class TestBasePersistDocs(BasePersistDocs):
+    def _assert_has_view_comments(
+        self, view_node, has_node_comments=True, has_column_comments=True
+    ):
+        view_comment = view_node["metadata"]["comment"]
         if has_node_comments:
-            assert view_comment.startswith('View model description')
+            assert view_comment.startswith("View model description")
             self._assert_common_comments(view_comment)
         else:
-            assert view_comment is None
+            assert not view_comment
 
-        view_id_comment = view_node['columns']['id']['comment']
+        view_id_comment = view_node["columns"]["id"]["comment"]
         if has_column_comments:
-            assert view_id_comment.startswith('id Column description')
+            assert view_id_comment.startswith("id Column description")
             self._assert_common_comments(view_id_comment)
         else:
-            assert view_id_comment is None
+            assert not view_id_comment
 
-        view_name_comment = view_node['columns']['name']['comment']
-        assert view_name_comment is None
+        view_name_comment = view_node["columns"]["name"]["comment"]
+        assert not view_name_comment
 
 
-class TestPersistDocsSimple(BasePersistDocsTest):
-    @property
-    def project_config(self):
+class TestPersistDocsSimple(BasePersistDocsBase):
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
         return {
-            'config-version': 2,
             'models': {
                 'test': {
                     '+persist_docs': {
@@ -82,24 +101,22 @@ class TestPersistDocsSimple(BasePersistDocsTest):
                 }
             },
         }
-
-    @use_profile('bigquery')
-    def test_bigquery_persist_docs(self):
-        self.run_dbt(['seed'])
-        self.run_dbt()
+    def test_persist_docs(self, project):
+        run_dbt(['seed'])
+        run_dbt()
         desc_map = {
             'seed': 'Seed model description',
             'table_model': 'Table model description',
             'view_model': 'View model description',
         }
         for node_id in ['seed', 'table_model', 'view_model']:
-            with self.adapter.connection_named('_test'):
-                client = self.adapter.connections \
+            with project.adapter.connection_named('_test'):
+                client = project.adapter.connections \
                     .get_thread_connection().handle
 
                 table_id = "{}.{}.{}".format(
-                    self.default_database,
-                    self.unique_schema(),
+                    project.database,
+                    project.test_schema,
                     node_id
                 )
                 bq_table = client.get_table(table_id)
@@ -112,11 +129,38 @@ class TestPersistDocsSimple(BasePersistDocsTest):
                     assert bq_schema[1].description.startswith('Some stuff here and then a call to')
 
 
-class TestPersistDocsNested(BasePersistDocsTest):
-    @property
-    def project_config(self):
+class TestPersistDocsColumnMissing(BasePersistDocsBase):
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
         return {
-            'config-version': 2,
+            'models': {
+                'test': {
+                    '+persist_docs': {
+                        "columns": True,
+                    },
+                }
+            }
+        }
+
+    def test_missing_column(self, project):
+        run_dbt()
+
+
+class TestPersistDocsNested(BasePersistDocsBase):
+    @pytest.fixture(scope="class")
+    def properties(self):
+        return {"schema.yml": _PROPERTIES__MODEL_COMMENTS}
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "table_model_nested.sql": _MODELS__TABLE_MODEL_NESTED,
+            "view_model_nested.sql": _MODELS__VIEW_MODEL_NESTED
+        }
+
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
             'models': {
                 'test': {
                     '+persist_docs': {
@@ -127,22 +171,17 @@ class TestPersistDocsNested(BasePersistDocsTest):
             }
         }
 
-    @property
-    def models(self):
-        return 'models-bigquery-nested'
-
-    @use_profile('bigquery')
-    def test_bigquery_persist_docs(self):
+    def test_persist_docs(self, project):
         """
         run dbt and use the bigquery client from the adapter to check if the
         colunmn descriptions are persisted on the test model table and view.
 
         Next, generate the catalog and check if the comments are also included.
         """
-        self.run_dbt(['seed'])
-        self.run_dbt()
+        run_dbt(['seed'])
+        run_dbt()
 
-        self.run_dbt(['docs', 'generate'])
+        run_dbt(['docs', 'generate'])
         with open('target/catalog.json') as fp:
             catalog_data = json.load(fp)
         assert 'nodes' in catalog_data
@@ -150,13 +189,13 @@ class TestPersistDocsNested(BasePersistDocsTest):
 
         for node_id in ['table_model_nested', 'view_model_nested']:
             # check the descriptions using the api
-            with self.adapter.connection_named('_test'):
-                client = self.adapter.connections \
+            with project.adapter.connection_named('_test'):
+                client = project.adapter.connections \
                     .get_thread_connection().handle
 
                 table_id = "{}.{}.{}".format(
-                    self.default_database,
-                    self.unique_schema(),
+                    project.database,
+                    project.test_schema,
                     node_id
                 )
                 bq_schema = client.get_table(table_id).schema
@@ -184,26 +223,3 @@ class TestPersistDocsNested(BasePersistDocsTest):
 
             level_3_column = node['columns']['level_1.level_2.level_3_a']
             assert level_3_column['comment'] == "level_3 column description"
-
-
-class TestPersistDocsColumnMissing(BasePersistDocsTest):
-    @property
-    def project_config(self):
-        return {
-            'config-version': 2,
-            'models': {
-                'test': {
-                    '+persist_docs': {
-                        "columns": True,
-                    },
-                }
-            }
-        }
-
-    @property
-    def models(self):
-        return 'models-column-missing'
-
-    @use_profile('bigquery')
-    def test_bigquery_missing_column(self):
-        self.run_dbt()

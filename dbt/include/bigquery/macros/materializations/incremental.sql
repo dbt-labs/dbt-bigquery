@@ -16,7 +16,7 @@
 {% macro source_sql_with_partition(partition_by, source_sql) %}
 
   {%- if partition_by.time_ingestion_partitioning %}
-    {{ return(wrap_with_time_ingestion_partitioning_sql(build_partition_time_exp(partition_by.field), source_sql, False))  }}
+    {{ return(wrap_with_time_ingestion_partitioning_sql(partition_by, source_sql, False))  }}
   {% else %}
     {{ return(source_sql)  }}
   {%- endif -%}
@@ -30,7 +30,7 @@
   {% endif %}
   {% if is_time_ingestion_partitioning and language == 'sql' %}
     {#-- Create the table before inserting data as ingestion time partitioned tables can't be created with the transformed data --#}
-    {% do run_query(create_ingestion_time_partitioned_table_as_sql(temporary, relation, compiled_code)) %}
+    {% do run_query(create_table_as(temporary, relation, compiled_code)) %}
     {{ return(bq_insert_into_ingestion_time_partitioned_table_sql(relation, compiled_code)) }}
   {% else %}
     {{ return(create_table_as(temporary, relation, compiled_code, language)) }}
@@ -140,7 +140,7 @@
       {% set dest_columns = adapter.get_columns_in_relation(existing_relation) %}
     {% endif %}
     {% if partition_by.time_ingestion_partitioning %}
-      {% set dest_columns = adapter.add_time_ingestion_partition_column(dest_columns) %}
+      {% set dest_columns = adapter.add_time_ingestion_partition_column(partition_by, dest_columns) %}
     {% endif %}
     {% set build_sql = bq_generate_incremental_build_sql(
         strategy, tmp_relation, target_relation, compiled_code, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, partition_by.copy_partitions, incremental_predicates

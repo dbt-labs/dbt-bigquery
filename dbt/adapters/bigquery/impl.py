@@ -86,13 +86,37 @@ class PartitionConfig(dbtClassMixin):
 
     def data_type_should_be_truncated(self):
         """Return true if the data type should be truncated instead of cast to the data type."""
-        return not (
+        logger.info(
+            "data_type_should_be_truncated: {} / {}".format(
+                self.data_type.lower(), self.granularity.lower()
+            )
+        )
+        should_be = not (
             self.data_type.lower() == "int64"
             or (self.data_type.lower() == "date" and self.granularity.lower() == "day")
         )
+        logger.info("data_type_should_be_truncated: {}".format(should_be))
+        return should_be
+
+    def time_partitioning_field(self) -> str:
+        """Return the time partitioning field name based on the data type.
+        The default is _PARTITIONTIME, but for date it is _PARTITIONDATE
+        else it will fail statements for type mismatch."""
+        if self.data_type == "date":
+            return "_PARTITIONDATE"
+        else:
+            return "_PARTITIONTIME"
+
+    def insertable_time_partitioning_field(self) -> str:
+        """Return the insertable time partitioning field name based on the data type.
+        Practically, only _PARTITIONTIME works so far.
+        The function is meant to keep the call sites consistent as it might evolve."""
+        return "_PARTITIONTIME"
 
     def render(self, alias: Optional[str] = None):
-        column: str = self.field if not self.time_ingestion_partitioning else "_PARTITIONTIME"
+        column: str = (
+            self.field if not self.time_ingestion_partitioning else self.time_partitioning_field()
+        )
         if alias:
             column = f"{alias}.{column}"
 
@@ -107,6 +131,9 @@ class PartitionConfig(dbtClassMixin):
         if (
             self.data_type in ("date", "timestamp", "datetime")
             and not self.data_type_should_be_truncated()
+            and not (
+                self.time_ingestion_partitioning and self.data_type == "date"
+            )  # _PARTITIONDATE is already a date
         ):
             return f"{self.data_type}({self.render(alias)})"
         else:
@@ -273,9 +300,16 @@ class BigQueryAdapter(BaseAdapter):
             return []
 
     @available.parse(lambda *a, **k: [])
-    def add_time_ingestion_partition_column(self, columns) -> List[BigQueryColumn]:
-        "Add time ingestion partition column to columns list"
-        columns.append(self.Column("_PARTITIONTIME", "TIMESTAMP", None, "NULLABLE"))
+    def add_time_ingestion_partition_column(self, partition_by, columns) -> List[BigQueryColumn]:
+        """Add time ingestion partition column to columns list"""
+        columns.append(
+            self.Column(
+                partition_by.insertable_time_partitioning_field(),
+                partition_by.data_type,
+                None,
+                "NULLABLE",
+            )
+        )
         return columns
 
     def expand_column_types(self, goal: BigQueryRelation, current: BigQueryRelation) -> None:  # type: ignore[override]
@@ -564,18 +598,15 @@ class BigQueryAdapter(BaseAdapter):
         if not is_partitioned and not conf_partition:
             return True
         elif conf_partition and table.time_partitioning is not None:
-            partitioning_field = table.time_partitioning.field or "_PARTITIONTIME"
-            table_field = partitioning_field.lower()
-            table_granularity = table.partitioning_type.lower()
-            conf_table_field = (
-                conf_partition.field
-                if not conf_partition.time_ingestion_partitioning
-                else "_PARTITIONTIME"
+            table_field = (
+                table.time_partitioning.field.lower() if table.time_partitioning.field else None
             )
+            table_granularity = table.partitioning_type.lower()
+            conf_table_field = conf_partition.field
             return (
                 table_field == conf_table_field.lower()
-                and table_granularity == conf_partition.granularity.lower()
-            )
+                or (conf_partition.time_ingestion_partitioning and table_field is not None)
+            ) and table_granularity == conf_partition.granularity.lower()
         elif conf_partition and table.range_partitioning is not None:
             dest_part = table.range_partitioning
             conf_part = conf_partition.range or {}

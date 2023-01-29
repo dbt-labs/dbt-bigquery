@@ -2,6 +2,8 @@
 {% macro partition_by(partition_config) -%}
     {%- if partition_config is none -%}
       {% do return('') %}
+    {%- elif partition_config.time_ingestion_partitioning -%}
+        partition by {{ partition_config.render_wrapped() }}
     {%- elif partition_config.data_type | lower in ('date','timestamp','datetime') -%}
         partition by {{ partition_config.render() }}
     {%- elif partition_config.data_type | lower in ('int64') -%}
@@ -48,6 +50,11 @@
     {%- set sql_header = config.get('sql_header', none) -%}
 
     {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
+    {%- if partition_config.time_ingestion_partitioning -%}
+    {%- set columns = get_columns_with_types_in_query_sql(sql) -%}
+    {%- set table_dest_columns_csv = columns_without_partition_fields_csv(partition_config, columns) -%}
+    {%- set columns = '(' ~ table_dest_columns_csv ~ ')' -%}
+    {%- endif -%}
 
     {{ sql_header if sql_header is not none }}
 
@@ -57,14 +64,18 @@
         {{ get_assert_columns_equivalent(compiled_code) }}
         {{ get_table_columns_and_constraints() }}
         {%- set compiled_code = get_select_subquery(compiled_code) %}
+      {% else %}
+        {{ columns }}
       {% endif %}
     {{ partition_by(partition_config) }}
     {{ cluster_by(raw_cluster_by) }}
 
     {{ bigquery_table_options(config, model, temporary) }}
+    {%- if not partition_config.time_ingestion_partitioning %}
     as (
       {{ compiled_code }}
     );
+    {%- endif %}
   {%- elif language == 'python' -%}
     {#--
     N.B. Python models _can_ write to temp views HOWEVER they use a different session

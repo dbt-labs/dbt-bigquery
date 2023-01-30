@@ -164,8 +164,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection('dummy')
             self.assertEqual(connection.type, 'bigquery')
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail('got ValidationException: {}'.format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         except BaseException as e:
             raise
@@ -181,8 +181,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection('dummy')
             self.assertEqual(connection.type, 'bigquery')
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail('got ValidationException: {}'.format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         except BaseException as e:
             raise
@@ -198,8 +198,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection('dummy')
             self.assertEqual(connection.type, 'bigquery')
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail('got ValidationException: {}'.format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         except BaseException as e:
             raise
@@ -215,8 +215,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection('dummy')
             self.assertEqual(connection.type, 'bigquery')
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail('got ValidationException: {}'.format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         except BaseException as e:
             raise
@@ -232,8 +232,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection('dummy')
             self.assertEqual(connection.type, 'bigquery')
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail('got ValidationException: {}'.format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         except BaseException as e:
             raise
@@ -249,8 +249,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection('dummy')
             self.assertEqual(connection.type, 'bigquery')
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail('got ValidationException: {}'.format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         except BaseException as e:
             raise
@@ -267,8 +267,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             self.assertEqual(connection.type, 'bigquery')
             self.assertEqual(connection.credentials.priority, 'batch')
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail('got ValidationException: {}'.format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         mock_open_connection.assert_not_called()
         connection.handle
@@ -283,8 +283,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             self.assertEqual(connection.type, 'bigquery')
             self.assertEqual(connection.credentials.maximum_bytes_billed, 0)
 
-        except dbt.exceptions.ValidationException as e:
-            self.fail('got ValidationException: {}'.format(str(e)))
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail('got DbtValidationError: {}'.format(str(e)))
 
         mock_open_connection.assert_not_called()
         connection.handle
@@ -697,10 +697,10 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
     def test_parse_partition_by(self):
         adapter = self.get_adapter('oauth')
 
-        with self.assertRaises(dbt.exceptions.CompilationException):
+        with self.assertRaises(dbt.exceptions.DbtValidationError):
             adapter.parse_partition_by("date(ts)")
 
-        with self.assertRaises(dbt.exceptions.CompilationException):
+        with self.assertRaises(dbt.exceptions.DbtValidationError):
             adapter.parse_partition_by("ts")
 
         self.assertEqual(
@@ -779,8 +779,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                 "data_type": "timestamp",
                 "granularity": "MONTH"
 
-            }).to_dict(omit_none=True
-                ), {
+            }).to_dict(omit_none=True), {
                 "field": "ts",
                 "data_type": "timestamp",
                 "granularity": "MONTH",
@@ -865,7 +864,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         )
 
         # Invalid, should raise an error
-        with self.assertRaises(dbt.exceptions.CompilationException):
+        with self.assertRaises(dbt.exceptions.DbtValidationError):
             adapter.parse_partition_by({})
 
         # passthrough
@@ -906,12 +905,11 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         actual = adapter.get_table_options(mock_config, node={}, temporary=False)
         self.assertEqual(expected, actual)
 
-
     def test_hours_to_expiration_temporary(self):
         adapter = self.get_adapter('oauth')
         mock_config = create_autospec(
             RuntimeConfigObject)
-        config={'hours_to_expiration': 4}
+        config = {'hours_to_expiration': 4}
         mock_config.get.side_effect = lambda name: config.get(name)
 
         expected = {
@@ -925,7 +923,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         adapter = self.get_adapter('oauth')
         mock_config = create_autospec(
             RuntimeConfigObject)
-        config={'kms_key_name': 'some_key'}
+        config = {'kms_key_name': 'some_key'}
         mock_config.get.side_effect = lambda name: config.get(name)
 
         expected = {
@@ -934,18 +932,16 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         actual = adapter.get_table_options(mock_config, node={}, temporary=False)
         self.assertEqual(expected, actual)
 
-
     def test_view_kms_key_name(self):
         adapter = self.get_adapter('oauth')
         mock_config = create_autospec(
             RuntimeConfigObject)
-        config={'kms_key_name': 'some_key'}
+        config = {'kms_key_name': 'some_key'}
         mock_config.get.side_effect = lambda name: config.get(name)
 
         expected = {}
         actual = adapter.get_view_options(mock_config, node={})
         self.assertEqual(expected, actual)
-
 
 
 class TestBigQueryFilterCatalog(unittest.TestCase):
@@ -1063,11 +1059,4 @@ def test_sanitize_label_length(label_length):
         random.choice(string.ascii_uppercase + string.digits)
         for i in range(label_length)
     )
-    test_error_msg = (
-            f"Job label length {label_length} is greater than length limit: "
-            f"{_VALIDATE_LABEL_LENGTH_LIMIT}\n"
-            f"Current sanitized label: {random_string.lower()}"
-        )
-    with pytest.raises(dbt.exceptions.RuntimeException) as error_info:
-        _sanitize_label(random_string)
-    assert error_info.value.args[0] == test_error_msg
+    assert len(_sanitize_label(random_string)) <= _VALIDATE_LABEL_LENGTH_LIMIT

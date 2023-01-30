@@ -309,11 +309,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
             details = profile_credentials.keyfile
             return aws_creds.from_file(details, scopes=profile_credentials.scopes)
 
-        elif method == BigQueryConnectionMethod.AWS_FILE:
-            aws_creds = GoogleAuthAWS.Credentials
-            details = profile_credentials.keyfile
-            return aws_creds.from_file(details, scopes=profile_credentials.scopes)
-
         error = 'Invalid `method` in profile: "{}"'.format(method)
         raise FailedToConnectException(error)
 

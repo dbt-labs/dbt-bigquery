@@ -73,8 +73,8 @@ There are a few methods for running tests locally.
 Finally, you can also run a specific test or group of tests using `pytest` directly. With a Python virtualenv active and dev dependencies installed you can do things like:
 
 ```sh
-# run specific bigquery integration tests
-python -m pytest -m profile_bigquery tests/integration/simple_copy_test
+# run specific bigquery functional tests
+python -m pytest -m profile_bigquery tests/functional/adapter/test_aliases.py::TestSameTestSameAliasDifferentDatabasesBigQuery
 # run all unit tests in a file
 python -m pytest tests/unit/test_bigquery_adapter.py
 # run a specific unit test

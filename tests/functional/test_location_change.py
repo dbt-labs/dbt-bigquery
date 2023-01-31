@@ -26,9 +26,6 @@ class TestBigqueryValidLocation(BaseBigQueryLocation):
             assert "US" == result.adapter_response["location"]
 
 
-
-
-
 class TestBigqueryInvalidLocation(BaseBigQueryLocation):
 
     @pytest.fixture(scope="class")
@@ -44,5 +41,3 @@ class TestBigqueryInvalidLocation(BaseBigQueryLocation):
         outputs = {"default": dbt_profile_target}
         outputs["default"]["location"] = _VALID_LOCATION
         return {"test": {"outputs": outputs, "target": "default"}}
-
-

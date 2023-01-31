@@ -1,12 +1,13 @@
 import pytest
 import os
-from dbt.tests.util import run_dbt_and_capture
+from dbt.tests.util import run_dbt
 
 _MODEL_SQL = """
 select 1 as id
 """
 
 _INVALID_LOCATION = os.getenv('DBT_TEST_BIGQUERY_BAD_LOCATION', 'northamerica-northeast1')
+_VALID_LOCATION = os.getenv('DBT_TEST_BIGQUERY_BAD_LOCATION', 'US')
 
 class BaseBigQueryLocation:
 
@@ -20,8 +21,11 @@ class BaseBigQueryLocation:
 class TestBigqueryValidLocation(BaseBigQueryLocation):
 
     def test_bigquery_valid_location(self, project):
-        _, stdout = run_dbt_and_capture()
-        assert "Completed successfully" in stdout
+        results = run_dbt()
+        for result in results:
+            assert "US" == result.adapter_response["location"]
+
+
 
 
 
@@ -33,6 +37,12 @@ class TestBigqueryInvalidLocation(BaseBigQueryLocation):
         outputs["default"]["location"] = _INVALID_LOCATION
         return {"test": {"outputs": outputs, "target": "default"}}
 
-    def test_bigquery_location_invalid(self, project):
-        _, stdout = run_dbt_and_capture()
-        assert "Query Job SQL Follows"  not in stdout
+    def test_bigquery_location_invalid(self, project, dbt_profile_target):
+        results = run_dbt()
+        for result in results:
+            assert "northamerica-northeast1" == result.adapter_response["location"]
+        outputs = {"default": dbt_profile_target}
+        outputs["default"]["location"] = _VALID_LOCATION
+        return {"test": {"outputs": outputs, "target": "default"}}
+
+

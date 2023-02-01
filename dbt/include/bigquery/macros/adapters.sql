@@ -53,6 +53,7 @@
 
     create or replace table {{ relation }}
     {{ get_columns_spec_ddl() }}
+    {{ get_assert_columns_equivalent(sql) }}
     {{ partition_by(partition_config) }}
     {{ cluster_by(raw_cluster_by) }}
 

@@ -7,7 +7,7 @@ select 1 as id
 """
 
 _INVALID_LOCATION = os.getenv('DBT_TEST_BIGQUERY_BAD_LOCATION', 'northamerica-northeast1')
-_VALID_LOCATION = os.getenv('DBT_TEST_BIGQUERY_BAD_LOCATION', 'US')
+_VALID_LOCATION = os.getenv('DBT_TEST_BIGQUERY_INITIAL_LOCATION', 'US')
 
 class BaseBigQueryLocation:
 
@@ -32,12 +32,11 @@ class TestBigqueryInvalidLocation(BaseBigQueryLocation):
     def profiles_config_update(self, dbt_profile_target):
         outputs = {"default": dbt_profile_target}
         outputs["default"]["location"] = _INVALID_LOCATION
-        return {"test": {"outputs": outputs, "target": "default"}}
+        yield
+        outputs = {"default": dbt_profile_target}
+        outputs["default"]["location"] = _VALID_LOCATION
 
     def test_bigquery_location_invalid(self, project, dbt_profile_target):
         results = run_dbt()
         for result in results:
             assert "northamerica-northeast1" == result.adapter_response["location"]
-        outputs = {"default": dbt_profile_target}
-        outputs["default"]["location"] = _VALID_LOCATION
-        return {"test": {"outputs": outputs, "target": "default"}}

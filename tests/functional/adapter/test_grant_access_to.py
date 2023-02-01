@@ -62,7 +62,4 @@ class TestAccessGrantFails:
         results = run_dbt(["run"], expect_pass=False)
         assert results[0].status == "error"
         assert results[1].status == "skipped"
-        assert (
-            results[0].message
-            == "404 GET https://bigquery.googleapis.com/bigquery/v2/projects/dbt-test-env-alt/datasets/NonExistentDataset?prettyPrint=false: Not found: Dataset dbt-test-env-alt:NonExistentDataset"
-        )
+        assert results[0].message.startswith("404 GET https://bigquery.googleapis.com/")

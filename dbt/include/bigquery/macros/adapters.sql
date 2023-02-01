@@ -52,8 +52,10 @@
     {{ sql_header if sql_header is not none }}
 
     create or replace table {{ relation }}
-    {{ get_columns_spec_ddl() }}
-    {{ get_assert_columns_equivalent(sql) }}
+      {% if config.get('constraints_enabled', False) %}
+        {{ get_assert_columns_equivalent(sql) }}
+        {{ get_columns_spec_ddl() }}
+      {% endif %}
     {{ partition_by(partition_config) }}
     {{ cluster_by(raw_cluster_by) }}
 

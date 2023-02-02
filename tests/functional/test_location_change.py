@@ -30,11 +30,13 @@ class TestBigqueryInvalidLocation(BaseBigQueryLocation):
 
     @pytest.fixture(scope="class")
     def profiles_config_update(self, dbt_profile_target):
-        outputs = {"default": dbt_profile_target}
-        outputs["default"]["location"] = _INVALID_LOCATION
-        yield
-        outputs = {"default": dbt_profile_target}
-        outputs["default"]["location"] = _VALID_LOCATION
+        try:
+            outputs = {"default": dbt_profile_target}
+            outputs["default"]["location"] = _INVALID_LOCATION
+            yield
+        finally:
+            outputs = {"default": dbt_profile_target}
+            outputs["default"]["location"] = _VALID_LOCATION
 
     def test_bigquery_location_invalid(self, project, dbt_profile_target):
         results = run_dbt()

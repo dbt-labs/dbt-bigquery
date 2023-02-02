@@ -36,7 +36,7 @@ class TestBigqueryInvalidLocation(BaseBigQueryLocation):
         outputs = {"default": dbt_profile_target}
         outputs["default"]["location"] = _VALID_LOCATION
 
-    def test_bigquery_location_invalid(self, project, dbt_profile_target):
+    def test_bigquery_location_invalid(self, project):
         results = run_dbt()
         for result in results:
             assert "northamerica-northeast1" == result.adapter_response["location"]

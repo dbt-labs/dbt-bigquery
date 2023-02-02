@@ -1,9 +1,5 @@
 import pytest
-from dbt.tests.util import (
-    run_dbt,
-    get_manifest,
-    run_dbt_and_capture
-)
+from dbt.tests.util import relation_from_name
 from dbt.tests.adapter.constraints.test_constraints import (
     BaseConstraintsColumnsEqual,
     BaseConstraintsRuntimeEnforcement
@@ -16,7 +12,7 @@ from dbt.tests.adapter.constraints.fixtures import (
 )
 
 _expected_sql_bigquery = """
-create or replace table `{0}`.`{1}`.`my_model` (
+create or replace table {0} (
     id integer  not null    ,
     color string  ,
     date_day date
@@ -38,7 +34,6 @@ constraints_yml = model_schema_yml.replace("text", "string").replace("primary ke
 class TestBigQueryConstraintsColumnsEqual(BaseConstraintsColumnsEqual):
     @pytest.fixture(scope="class")
     def models(self):
-                
         return {
             "my_model_wrong_order.sql": my_model_wrong_order_sql,
             "my_model_wrong_name.sql": my_model_wrong_name_sql,
@@ -56,7 +51,8 @@ class TestBigQueryConstraintsRuntimeEnforcement(BaseConstraintsRuntimeEnforcemen
     
     @pytest.fixture(scope="class")
     def expected_sql(self, project):
-        return _expected_sql_bigquery.format(project.database, project.test_schema)
+        relation = relation_from_name(project.adapter, "my_model")
+        return _expected_sql_bigquery.format(relation)
 
     @pytest.fixture(scope="class")
     def expected_error_messages(self):

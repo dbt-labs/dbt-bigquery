@@ -4,7 +4,6 @@ from dbt.tests.adapter.simple_seed.seeds import (
     seeds__enabled_in_config_csv,
     seeds__tricky_csv
 )
-
 from dbt.tests.adapter.utils.base_utils import run_dbt
 
 
@@ -146,12 +145,12 @@ class TestSimpleSeedConfigs:
     def test__bigquery_simple_seed_with_column_override_bigquery(self, project):
         seed_results = run_dbt(["seed"])
         assert len(seed_results) == 3
-        results = run_dbt(["test"])
-        assert len(results) == 10
+        test_results = run_dbt(["test"])
+        assert len(test_results) == 10
 
     def test__bigquery_seed_table_with_labels_config_bigquery(self, project):
-        seed_result = run_dbt(["seed"])
-        assert len(seed_result) == 3
+        seed_results = run_dbt(["seed"])
+        assert len(seed_results) == 3
         with project.adapter.connection_named('_test'):
             client = project.adapter.connections\
                 .get_thread_connection().handle

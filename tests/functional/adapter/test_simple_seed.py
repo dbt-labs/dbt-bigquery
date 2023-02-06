@@ -13,7 +13,7 @@ seed_id,stuff
 2,b
 """.lstrip()
 
-_PROPERTIES_SCHEMA_YML = """
+_SCHEMA_YML = """
 version: 2
 seeds:
 - name: seed_enabled
@@ -93,7 +93,7 @@ class TestSimpleSeedConfigs:
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "models-bq.yml": _PROPERTIES_SCHEMA_YML
+            "models-bq.yml": _SCHEMA_YML
         }
 
     @pytest.fixture(scope="class")

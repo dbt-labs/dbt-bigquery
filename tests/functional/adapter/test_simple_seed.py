@@ -100,7 +100,6 @@ class TestSimpleSeedConfigs:
     def project_config_update(self):
         return {
             'config-version': 2,
-            'macro-paths': ['macros'],
             'seeds': {
                 'test': {
                     'enabled': False,

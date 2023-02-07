@@ -33,7 +33,7 @@
 {% endmacro %}
 
 {% macro bq_generate_incremental_build_sql(
-    strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
+    strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions, incremental_predicates
 ) %}
   {#-- if partitioned, use BQ scripting to get the range of partition values to be updated --#}
   {% if strategy == 'insert_overwrite' %}
@@ -45,7 +45,7 @@
   {% else %} {# strategy == 'merge' #}
 
     {% set build_sql = bq_generate_incremental_merge_build_sql(
-        tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists
+        tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, incremental_predicates
     ) %}
 
   {% endif %}
@@ -73,6 +73,7 @@
   {%- set cluster_by = config.get('cluster_by', none) -%}
 
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
+  {% set incremental_predicates = config.get('predicates', default=none) or config.get('incremental_predicates', default=none) %}
 
    -- grab current tables grants config for comparison later on
   {% set grant_config = config.get('grants') %}
@@ -137,7 +138,7 @@
       {% set dest_columns = adapter.add_time_ingestion_partition_column(dest_columns) %}
     {% endif %}
     {% set build_sql = bq_generate_incremental_build_sql(
-        strategy, tmp_relation, target_relation, compiled_code, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, partition_by.copy_partitions
+        strategy, tmp_relation, target_relation, compiled_code, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, partition_by.copy_partitions, incremental_predicates
     ) %}
 
     {%- call statement('main') -%}

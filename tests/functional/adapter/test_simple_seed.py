@@ -4,6 +4,7 @@ from dbt.tests.adapter.simple_seed.seeds import (
     seeds__enabled_in_config_csv,
     seeds__tricky_csv
 )
+from dbt.tests.adapter.simple_seed.test_seed import SeedConfigBase
 from dbt.tests.adapter.utils.base_utils import run_dbt
 
 
@@ -71,7 +72,7 @@ seeds:
 """.lstrip()
 
 
-class TestSimpleSeedConfigs:
+class TestSimpleSeedConfigs(SeedConfigBase):
     @pytest.fixture(scope="class")
     def schema(self):
         return "simple_seed"

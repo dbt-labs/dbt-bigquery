@@ -804,7 +804,7 @@ class BigQueryAdapter(BaseAdapter):
     @available.parse_none
     def grant_access_to(self, entity, entity_type, role, grant_target_dict):
         """
-        Given an entity, grants it access to a permissioned dataset.
+        Given an entity, grants it access to a dataset.
         """
         conn: BigQueryConnectionManager = self.connections.get_thread_connection()
         client = conn.handle

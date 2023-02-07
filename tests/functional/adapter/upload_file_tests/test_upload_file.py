@@ -1,5 +1,6 @@
 import pytest
 from dbt.tests.util import (
+    get_relation_columns,
     run_dbt,
     run_sql_with_adapter
 )
@@ -26,20 +27,11 @@ class TestUploadFile:
 
     @staticmethod
     def perform_uploaded_table_checks(table_schema, table_name, project):
-        # Test the data types of the created table
-        data_type_query = f"""
-            select
-                column_name,
-                data_type
-            from `{table_schema}.INFORMATION_SCHEMA.COLUMNS`
-            where
-                table_name = '{table_name}'
-            order by column_name
-        """
-        run_sql_results = run_sql_with_adapter(project.adapter, data_type_query)
-
-        # The table should consist of columns of types: STRING, STRING, STRING, INT64, STRING, TIMESTAMP
-        assert [row[1] for row in run_sql_results] == ['STRING', 'STRING', 'STRING', 'INT64', 'STRING', 'TIMESTAMP']
+        # Test the column names, and data types of the created table
+        col_result = get_relation_columns(project.adapter, f"{table_schema}.{table_name}")
+        assert [col_obj[0] for col_obj in col_result] == ['email', 'favorite_color', 'first_name', 'id', 'ip_address',
+                                                          'updated_at']
+        assert [col_obj[1] for col_obj in col_result] == ['STRING', 'STRING', 'STRING', 'INT64', 'STRING', 'TIMESTAMP']
 
         # Test the values of the created table
         value_query = f"""

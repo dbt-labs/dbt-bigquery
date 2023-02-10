@@ -94,4 +94,3 @@ class TestIncrementalMergeColumns(BaseTestSimpleCopy):
         })
         self.seed_and_run()
         self.assertTablesEqual("incremental_update_cols", "expected_result")
-

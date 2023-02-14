@@ -5,7 +5,7 @@ from dbt.tests.util import (
 )
 from dbt.tests.adapter.simple_seed.test_seed import SeedConfigBase
 from tests.functional.adapter.bigquery_test.seeds import *
-from tests.functional.adapter.bigquery_test.incremental_fixtures import *
+from tests.functional.adapter.bigquery_test.incremental_strategy_fixtures import *
 
 
 class TestBigQueryScripting(SeedConfigBase):

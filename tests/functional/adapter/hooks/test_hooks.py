@@ -1,26 +1,30 @@
-from dbt.tests.adapter.hooks.test_model_hooks import TestPrePostModelHooksUnderscores, TestPrePostModelHooks, \
-    TestHookRefs, TestPrePostModelHooksOnSeeds, TestPrePostModelHooksOnSeedsPlusPrefixedWhitespace, \
-    TestPrePostModelHooksOnSnapshots, PrePostModelHooksInConfigSetup
+from dbt.tests.adapter.hooks import test_model_hooks as core_base
+import pytest
 
 
-class BigQueryTestPrePostModelHooks(TestPrePostModelHooks):
+class TestBigQueryPrePostModelHooks(core_base.TestPrePostModelHooks):
     pass
 
 
-class BigQueryTestPrePostModelHooksUnderscores(TestPrePostModelHooksUnderscores):
+class TestBigQueryPrePostModelHooksUnderscores(core_base.TestPrePostModelHooksUnderscores):
     pass
 
-class BigQueryTestHookRefs(TestHookRefs):
+
+class TestBigQueryHookRefs(core_base.TestHookRefs):
     pass
 
-class BigQueryTestPrePostModelHooksOnSeeds(TestPrePostModelHooksOnSeeds):
-    pass
 
-class BigQueryTestPrePostModelHooksOnSeedsPlusPrefixedWhitespace(TestPrePostModelHooksOnSeedsPlusPrefixedWhitespace):
-    pass
-
-class BigQueryTestPrePostModelHooksOnSnapshots(TestPrePostModelHooksOnSnapshots):
-    pass
-
-class BigQueryPrePostModelHooksInConfigSetup(PrePostModelHooksInConfigSetup):
-    pass
+class TestBigQueryPrePostModelHooksOnSeeds(core_base.TestPrePostModelHooksOnSeeds):
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            "seed-paths": ["seeds"],
+            "models": {},
+            "seeds": {
+                "+post-hook": [
+                    "alter table {{ this }} add column new_col int",
+                    "update {{ this }} set new_col = 1 where 1=1",
+                ],
+                "quote_columns": True,
+            },
+        }

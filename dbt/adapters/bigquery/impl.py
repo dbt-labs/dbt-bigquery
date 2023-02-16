@@ -622,8 +622,7 @@ class BigQueryAdapter(BaseAdapter):
         if dotted_column_name in dbt_columns:
             column_config = dbt_columns[dotted_column_name]
             bq_column_dict["description"] = column_config.get("description")
-            if column_config.get("policy_tags"):
-                bq_column_dict["policyTags"] = {"names": column_config.get("policy_tags")}
+            bq_column_dict["policyTags"] = {"names": column_config.get("policy_tags", list())}
 
         new_fields = []
         for child_col_dict in bq_column_dict.get("fields", list()):

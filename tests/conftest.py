@@ -30,6 +30,9 @@ def oauth_target():
         'method': 'oauth',
         'threads': 1,
         'job_retries': 2,
+        'dataproc_region': os.getenv("DATAPROC_REGION"),
+        'dataproc_cluster_name': os.getenv("DATAPROC_CLUSTER_NAME"),
+        'gcs_bucket': os.getenv("GCS_BUCKET")
     }
 
 

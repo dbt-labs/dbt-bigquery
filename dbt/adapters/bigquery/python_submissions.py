@@ -111,7 +111,8 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
 
     def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
         # create the Dataproc Serverless job config
-        batch = dataproc_v1.Batch()
+        # need to pin dataproc version to 1.1 as it now defaults to 2.0
+        batch = dataproc_v1.Batch({"runtime_config": dataproc_v1.RuntimeConfig(version="1.1")})
         batch.pyspark_batch.main_python_file_uri = self.gcs_location
         # how to keep this up to date?
         # we should probably also open this up to be configurable

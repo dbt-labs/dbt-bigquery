@@ -3,12 +3,16 @@ import pytest
 from dbt.tests.util import run_dbt, write_file
 import dbt.tests.adapter.python_model.test_python_model as dbt_tests
 
-@pytest.skip("cluster unstable", allow_module_level=True)
+# ToDo: Fix and schedule these tests:
+# https://github.com/dbt-labs/dbt-bigquery/issues/306
+class TestPythonModelDataproc(dbt_tests.BasePythonModelTests):
+    pass
+
+
+@pytest.mark.skip(reason="Currently Broken")
 class TestPythonIncrementalMatsDataproc(dbt_tests.BasePythonIncrementalTests):
     pass
 
-class TestPythonModelDataproc(dbt_tests.BasePythonModelTests):
-    pass
 
 models__simple_python_model = """
 import pandas
@@ -20,6 +24,7 @@ def model(dbt, spark):
     data = [[1,2]] * 10
     return spark.createDataFrame(data, schema=['test', 'test2'])
 """
+
 models__simple_python_model_v2 = """
 import pandas
 
@@ -31,13 +36,17 @@ def model(dbt, spark):
     return spark.createDataFrame(data, schema=['test1', 'test3'])
 """
 
+
+@pytest.mark.skip(reason="Currently Broken")
 class TestChangingSchemaDataproc:
+
     @pytest.fixture(scope="class")
     def models(self):
         return {
             "simple_python_model.py": models__simple_python_model
-            }
-    def test_changing_schema(self,project, logs_dir):
+        }
+
+    def test_changing_schema(self, project, logs_dir):
         run_dbt(["run"])
         write_file(models__simple_python_model_v2, project.project_root + '/models', "simple_python_model.py")
         run_dbt(["run"])

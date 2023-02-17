@@ -1,6 +1,5 @@
 {% macro bigquery__get_columns_spec_ddl() %}
   {# loop through user_provided_columns to create DDL with data types and constraints #}
-  {% if config.get('constraints_enabled', False) %}
     {%- set ns = namespace(at_least_one_check=False) -%}
     {%- set user_provided_columns = model['columns'] -%}
     (
@@ -14,5 +13,4 @@
   {%- if ns.at_least_one_check -%}
       {{exceptions.warn("We noticed you have `constraints_check` configs, these are NOT compatible with BigQuery and will be ignored")}}
   {%- endif %}
-  {% endif %}
 {% endmacro %}

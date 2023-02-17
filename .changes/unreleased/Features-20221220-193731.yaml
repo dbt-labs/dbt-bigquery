@@ -1,0 +1,7 @@
+kind: Features
+body: 'dbt-constraints support for BigQuery as per dbt-core issue #1358'
+time: 2022-12-20T19:37:31.982821+01:00
+custom:
+  Author: victoriapm
+  Issue: "444"
+  PR: "426"

@@ -72,7 +72,7 @@ class PartitionConfig(dbtClassMixin):
     time_ingestion_partitioning: bool = False
     copy_partitions: bool = False
 
-    def partitions_for_replacement_data_type(self):
+    def data_type_for_partition(self):
         """Return the data type of partitions for replacement."""
         return self.data_type if not self.time_ingestion_partitioning else "timestamp"
 

@@ -41,7 +41,8 @@ def _dbt_core_version(plugin_version: str) -> str:
     Determine the compatible version of dbt-core using this package's version
     """
     try:
-        major, minor, plugin_patch = plugin_version.split(".")
+        # *_ may indicate a dev release which won't affect the core version needed
+        major, minor, plugin_patch, *_ = plugin_version.split(".", maxsplit=3)
     except ValueError:
         raise ValueError(f"Invalid version: {plugin_version}")
 

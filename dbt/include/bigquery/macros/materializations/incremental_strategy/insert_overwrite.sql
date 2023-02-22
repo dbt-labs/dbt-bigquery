@@ -134,7 +134,8 @@
       -- 2. define partitions to update
       set (dbt_partitions_for_replacement) = (
           select as struct
-              array_agg(distinct {{ partition_by.render_wrapped() }})
+              -- IGNORE NULLS: this needs to be aligned to _dbt_max_partition, which ignores null
+              array_agg(distinct {{ partition_by.render_wrapped() }} IGNORE NULLS)
           from {{ tmp_relation }}
       );
 

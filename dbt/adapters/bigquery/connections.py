@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 import agate
 from requests.exceptions import ConnectionError
-from typing import Optional, Any, Dict, Tuple
+from typing import Optional, Any, Dict, Tuple, List
 
 import google.auth
 import google.auth.exceptions
@@ -517,6 +517,12 @@ class BigQueryConnectionManager(BaseConnectionManager):
         )
 
         return response, table
+
+    def get_column_schema_from_query(self, sql: str) -> List[Tuple[str, Any]]:
+        sql = self._add_query_comment(sql)
+        _, iterator = self.raw_execute(sql)
+        columns = [(field.name, field) for field in iterator.schema]
+        return columns
 
     @staticmethod
     def _bq_job_link(location, project_id, job_id) -> str:

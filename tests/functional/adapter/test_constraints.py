@@ -9,6 +9,7 @@ from dbt.tests.adapter.constraints.fixtures import (
     my_model_wrong_order_sql,
     my_model_wrong_name_sql,
     model_schema_yml,
+    my_model_wrong_data_type_sql,
 )
 
 _expected_sql_bigquery = """
@@ -29,7 +30,8 @@ as (
 # Different on BigQuery:
 # - does not support a data type named 'text' (TODO handle this via type translation/aliasing!)
 # - raises an explicit error, if you try to set a primary key constraint, because it's not enforced
-constraints_yml = model_schema_yml.replace("text", "string").replace("primary key", "")
+constraints_yml = model_schema_yml.replace("text", "string").replace("int[]", "ARRAY<INT>").replace("primary key", "")
+
 
 class TestBigQueryConstraintsColumnsEqual(BaseConstraintsColumnsEqual):
     @pytest.fixture(scope="class")
@@ -37,8 +39,25 @@ class TestBigQueryConstraintsColumnsEqual(BaseConstraintsColumnsEqual):
         return {
             "my_model_wrong_order.sql": my_model_wrong_order_sql,
             "my_model_wrong_name.sql": my_model_wrong_name_sql,
+            "my_model_wrong_data_type.sql": my_model_wrong_data_type_sql,
             "constraints_schema.yml": constraints_yml,
         }
+
+    @pytest.fixture
+    def string_type(self):
+        return "STRING"
+
+    @pytest.fixture
+    def int_type(self):
+        return "INT64"
+
+    @pytest.fixture
+    def int_array_type(self):
+        return "ARRAY<INT64>"
+
+    @pytest.fixture
+    def string_array_type(self):
+        return "ARRAY<STRING>"
 
 
 class TestBigQueryConstraintsRuntimeEnforcement(BaseConstraintsRuntimeEnforcement):
@@ -48,7 +67,7 @@ class TestBigQueryConstraintsRuntimeEnforcement(BaseConstraintsRuntimeEnforcemen
             "my_model.sql": my_model_sql,
             "constraints_schema.yml": constraints_yml,
         }
-    
+
     @pytest.fixture(scope="class")
     def expected_sql(self, project):
         relation = relation_from_name(project.adapter, "my_model")

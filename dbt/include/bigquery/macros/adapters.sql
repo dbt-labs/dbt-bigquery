@@ -52,7 +52,7 @@
     {{ sql_header if sql_header is not none }}
 
     create or replace table {{ relation }}
-      {% if config.get('constraints_enabled', False) %}
+      {% if config.get('contract', False) %}
         {{ get_assert_columns_equivalent(sql) }}
         {{ get_columns_spec_ddl() }}
       {% endif %}

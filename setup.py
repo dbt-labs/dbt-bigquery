@@ -41,7 +41,8 @@ def _dbt_core_version(plugin_version: str) -> str:
     Determine the compatible version of dbt-core using this package's version
     """
     try:
-        major, minor, plugin_patch = plugin_version.split(".")
+        # *_ may indicate a dev release which won't affect the core version needed
+        major, minor, plugin_patch, *_ = plugin_version.split(".", maxsplit=3)
     except ValueError:
         raise ValueError(f"Invalid version: {plugin_version}")
 
@@ -57,7 +58,7 @@ def _dbt_core_version(plugin_version: str) -> str:
 
 
 package_name = "dbt-bigquery"
-package_version = "1.5.0a1"
+package_version = "1.5.0b1"
 dbt_core_version = _dbt_core_version(_dbt_bigquery_version())
 description = """The BigQuery adapter plugin for dbt"""
 

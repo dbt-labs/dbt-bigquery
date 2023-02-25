@@ -37,7 +37,10 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 WORKDIR /opt/code
 VOLUME /opt/code
 
-# create a virtual environment
+# install tox in the system interpreter (it creates it's own virtual environments)
+RUN pip install tox
+
+# explicitly create a virtual environment as well
 RUN python3 -m venv /opt/venv
 
 # send stdout/stderr to terminal

@@ -1,5 +1,8 @@
 FROM ubuntu:latest
 
+# default to py311, this can be overridden at build, e.g. `docker build ... --build-arg version=3.10`
+ARG version=3.11
+
 # prevent python installation from asking for time zone region
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -14,10 +17,10 @@ RUN apt-get update && \
 # install python and git (for installing dbt-core)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        python3.11 \
-        python3.11-dev \
-        python3.11-distutils \
-        python3.11-venv \
+        python$version \
+        python$version-dev \
+        python$version-distutils \
+        python$version-venv \
         python3-pip \
         python3-wheel \
         build-essential \
@@ -31,7 +34,7 @@ RUN apt-get clean && \
         /var/tmp/*
 
 # update the default system interpreter to the newly installed version
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python$version 1
 
 # setup mount for our code
 WORKDIR /opt/code

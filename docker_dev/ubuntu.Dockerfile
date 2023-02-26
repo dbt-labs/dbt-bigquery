@@ -1,6 +1,6 @@
 FROM ubuntu:latest
 
-# default to py311, this can be overridden at build, e.g. `docker build ... --build-arg version=3.10`
+# default to py3.11, this can be overridden at build, e.g. `docker build ... --build-arg version=3.10`
 ARG version=3.11
 
 # prevent python installation from asking for time zone region
@@ -43,7 +43,7 @@ VOLUME /opt/code
 # install tox in the system interpreter (it creates it's own virtual environments)
 RUN pip install tox
 
-# explicitly create a virtual environment as well
+# explicitly create a virtual environment as well for interactive testing
 RUN python3 -m venv /opt/venv
 
 # send stdout/stderr to terminal

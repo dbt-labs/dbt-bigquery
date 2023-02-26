@@ -51,6 +51,7 @@ REOPENABLE_ERRORS = (
 RETRYABLE_ERRORS = (
     google.cloud.exceptions.ServerError,
     google.cloud.exceptions.BadRequest,
+    google.cloud.exceptions.BadGateway,
     ConnectionResetError,
     ConnectionError,
 )

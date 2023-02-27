@@ -1,0 +1,7 @@
+kind: Under the Hood
+body: Remove manual retry to get python job status on cluster
+time: 2022-12-09T16:15:50.834922-08:00
+custom:
+  Author: ChenyuLInx
+  Issue: "422"
+  PR: "423"

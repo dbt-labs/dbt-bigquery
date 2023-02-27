@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import threading
 from typing import Dict, List, Optional, Any, Set, Union, Type
 from dbt.dataclass_schema import dbtClassMixin, ValidationError
 
@@ -11,6 +12,7 @@ from dbt.adapters.base import (
     BaseAdapter,
     available,
     RelationType,
+    BaseRelation,
     SchemaSearchMap,
     AdapterConfig,
     PythonJobHelper,
@@ -19,6 +21,7 @@ from dbt.adapters.base import (
 from dbt.adapters.cache import _make_ref_key_msg
 
 from dbt.adapters.bigquery.relation import BigQueryRelation
+from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset
 from dbt.adapters.bigquery import BigQueryColumn
 from dbt.adapters.bigquery import BigQueryConnectionManager
 from dbt.adapters.bigquery.python_submissions import (
@@ -51,6 +54,7 @@ WRITE_APPEND = google.cloud.bigquery.job.WriteDisposition.WRITE_APPEND
 WRITE_TRUNCATE = google.cloud.bigquery.job.WriteDisposition.WRITE_TRUNCATE
 
 CREATE_SCHEMA_MACRO_NAME = "create_schema"
+_dataset_lock = threading.Lock()
 
 
 def sql_escape(string):
@@ -287,14 +291,16 @@ class BigQueryAdapter(BaseAdapter):
         # This will 404 if the dataset does not exist. This behavior mirrors
         # the implementation of list_relations for other adapters
         try:
-            return [self._bq_table_to_relation(table) for table in all_tables]
+            return [self._bq_table_to_relation(table) for table in all_tables]  # type: ignore[misc]
         except google.api_core.exceptions.NotFound:
             return []
         except google.api_core.exceptions.Forbidden as exc:
             logger.debug("list_relations_without_caching error: {}".format(str(exc)))
             return []
 
-    def get_relation(self, database: str, schema: str, identifier: str) -> BigQueryRelation:
+    def get_relation(
+        self, database: str, schema: str, identifier: str
+    ) -> Optional[BigQueryRelation]:
         if self._schema_is_cached(database, schema):
             # if it's in the cache, use the parent's model of going through
             # the relations cache and picking out the relation
@@ -477,7 +483,7 @@ class BigQueryAdapter(BaseAdapter):
             message = "\n".join(error["message"].strip() for error in job.errors)
             raise dbt.exceptions.DbtRuntimeError(message)
 
-    def _bq_table_to_relation(self, bq_table):
+    def _bq_table_to_relation(self, bq_table) -> Union[BigQueryRelation, None]:
         if bq_table is None:
             return None
 
@@ -597,7 +603,7 @@ class BigQueryAdapter(BaseAdapter):
         """
         return PartitionConfig.parse(raw_partition_by)
 
-    def get_table_ref_from_relation(self, relation):
+    def get_table_ref_from_relation(self, relation: BaseRelation):
         return self.connections.table_ref(relation.database, relation.schema, relation.identifier)
 
     def _update_column_dict(self, bq_column_dict, dbt_columns, parent=""):
@@ -798,29 +804,20 @@ class BigQueryAdapter(BaseAdapter):
     @available.parse_none
     def grant_access_to(self, entity, entity_type, role, grant_target_dict):
         """
-        Given an entity, grants it access to a permissioned dataset.
+        Given an entity, grants it access to a dataset.
         """
-        conn = self.connections.get_thread_connection()
+        conn: BigQueryConnectionManager = self.connections.get_thread_connection()
         client = conn.handle
-
         GrantTarget.validate(grant_target_dict)
         grant_target = GrantTarget.from_dict(grant_target_dict)
-        dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
-        dataset = client.get_dataset(dataset_ref)
-
         if entity_type == "view":
             entity = self.get_table_ref_from_relation(entity).to_api_repr()
-
-        access_entry = AccessEntry(role, entity_type, entity)
-        access_entries = dataset.access_entries
-
-        if access_entry in access_entries:
-            logger.debug(f"Access entry {access_entry} " f"already exists in dataset")
-            return
-
-        access_entries.append(AccessEntry(role, entity_type, entity))
-        dataset.access_entries = access_entries
-        client.update_dataset(dataset, ["access_entries"])
+        with _dataset_lock:
+            dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
+            dataset = client.get_dataset(dataset_ref)
+            access_entry = AccessEntry(role, entity_type, entity)
+            dataset = add_access_entry_to_dataset(dataset, access_entry)
+            client.update_dataset(dataset, ["access_entries"])
 
     @available.parse_none
     def get_dataset_location(self, relation):

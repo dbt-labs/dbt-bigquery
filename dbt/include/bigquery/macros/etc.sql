@@ -27,8 +27,7 @@
     {%- endif -%}
 
     {# Get the maxiumum partition id. #}
-    {%- set partitions_metadata = get_partitions_metadata(relation) -%}
-    {%- set partition_id = partitions_metadata.columns['partition_id'].values() | max -%}
+    {%- set partition_id = get_partitions_metadata(relation)| selectattr('total_rows', 'gt', 0) | map(attribute='partition_id') | max -%}
 
     {# Format partition id for SQL comparision. #}
     {%- if data_type | lower in ('date', 'timestamp', 'datetime') -%}

@@ -52,8 +52,13 @@
     {{ sql_header if sql_header is not none }}
 
     create or replace table {{ relation }}
+      {% if config.get('contract', False) %}
+        {{ get_assert_columns_equivalent(sql) }}
+        {{ get_columns_spec_ddl() }}
+      {% endif %}
     {{ partition_by(partition_config) }}
     {{ cluster_by(raw_cluster_by) }}
+
     {{ bigquery_table_options(config, model, temporary) }}
     as (
       {{ compiled_code }}
@@ -106,17 +111,6 @@
 
 {% macro bigquery__list_relations_without_caching(schema_relation) -%}
   {{ return(adapter.list_relations_without_caching(schema_relation)) }}
-{%- endmacro %}
-
-
-{% macro bigquery__current_timestamp() -%}
-  CURRENT_TIMESTAMP()
-{%- endmacro %}
-
-
-{% macro bigquery__snapshot_string_as_time(timestamp) -%}
-    {%- set result = 'TIMESTAMP("' ~ timestamp ~ '")' -%}
-    {{ return(result) }}
 {%- endmacro %}
 
 

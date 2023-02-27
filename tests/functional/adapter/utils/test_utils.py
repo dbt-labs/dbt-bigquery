@@ -1,9 +1,13 @@
 import pytest
-from dbt.tests.adapter.utils.base_utils import BaseUtils
+
+from dbt.tests.adapter.utils.test_array_append import BaseArrayAppend
+from dbt.tests.adapter.utils.test_array_concat import BaseArrayConcat
+from dbt.tests.adapter.utils.test_array_construct import BaseArrayConstruct
 from dbt.tests.adapter.utils.test_any_value import BaseAnyValue
 from dbt.tests.adapter.utils.test_bool_or import BaseBoolOr
 from dbt.tests.adapter.utils.test_cast_bool_to_text import BaseCastBoolToText
 from dbt.tests.adapter.utils.test_concat import BaseConcat
+from dbt.tests.adapter.utils.test_current_timestamp import BaseCurrentTimestampAware
 from dbt.tests.adapter.utils.test_dateadd import BaseDateAdd
 from dbt.tests.adapter.utils.test_datediff import BaseDateDiff
 from dbt.tests.adapter.utils.test_date_trunc import BaseDateTrunc
@@ -21,10 +25,68 @@ from dbt.tests.adapter.utils.test_right import BaseRight
 from dbt.tests.adapter.utils.test_safe_cast import BaseSafeCast
 from dbt.tests.adapter.utils.test_split_part import BaseSplitPart
 from dbt.tests.adapter.utils.test_string_literal import BaseStringLiteral
+from tests.functional.adapter.utils.fixture_array_append import (
+    models__array_append_actual_sql,
+    models__array_append_expected_sql,
+)
+from tests.functional.adapter.utils.fixture_array_concat import (
+    models__array_concat_actual_sql,
+    models__array_concat_expected_sql,
+)
+from tests.functional.adapter.utils.fixture_array_construct import (
+    models__array_construct_actual_sql,
+    models__array_construct_expected_sql,
+    macros__array_to_string_sql,
+)
 
 
 class TestAnyValue(BaseAnyValue):
     pass
+
+
+class TestArrayAppend(BaseArrayAppend):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "actual.sql": models__array_append_actual_sql,
+            "expected.sql": models__array_append_expected_sql,
+        }
+
+    @pytest.fixture(scope="class")
+    def macros(self):
+        return {
+            "array_to_string.sql": macros__array_to_string_sql,
+        }
+
+
+class TestArrayConcat(BaseArrayConcat):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "actual.sql": models__array_concat_actual_sql,
+            "expected.sql": models__array_concat_expected_sql,
+        }
+
+    @pytest.fixture(scope="class")
+    def macros(self):
+        return {
+            "array_to_string.sql": macros__array_to_string_sql,
+        }
+
+
+class TestArrayConstruct(BaseArrayConstruct):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "actual.sql": models__array_construct_actual_sql,
+            "expected.sql": models__array_construct_expected_sql,
+        }
+
+    @pytest.fixture(scope="class")
+    def macros(self):
+        return {
+            "array_to_string.sql": macros__array_to_string_sql,
+        }
 
 
 class TestBoolOr(BaseBoolOr):
@@ -36,6 +98,11 @@ class TestCastBoolToText(BaseCastBoolToText):
 
 
 class TestConcat(BaseConcat):
+    pass
+
+
+# Use either BaseCurrentTimestampAware or BaseCurrentTimestampNaive but not both
+class TestCurrentTimestamp(BaseCurrentTimestampAware):
     pass
 
 

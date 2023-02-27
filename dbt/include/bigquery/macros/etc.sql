@@ -27,7 +27,7 @@
     {%- endif -%}
 
     {# Get the maxiumum partition id. #}
-    {%- set partition_id = get_partitions_metadata(relation)| selectattr('total_rows', 'gt', 0) | selectattr('partition_id', 'ne', '__NULL__') | map(attribute='partition_id') | max -%}
+    {%- set partition_id = get_partitions_metadata(relation) | selectattr('total_rows', 'gt', 0) | selectattr('partition_id', 'ne', '__NULL__') | map(attribute='partition_id') | max -%}
     {# If partition_id == '' then there are no partitions with data which aren't the __NULL__ partition #}
     {%- if partition_id == '' -%}
         {{- return(none) -}}

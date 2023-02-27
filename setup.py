@@ -74,15 +74,11 @@ setup(
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
     install_requires=[
-        f"dbt-core~=1.5.0a1",
-        "protobuf>=3.13.0,<4",
-        "google-cloud-core~=2.0",
+        f"dbt-core~={_dbt_core_version(_dbt_bigquery_version())}",
         "google-cloud-bigquery~=3.0",
-        "google-api-core~=2.0",
-        "googleapis-common-protos~=1.6",
         "google-cloud-storage~=2.4",
         "google-cloud-dataproc~=5.0",
-        "agate>=1.6.3,<1.7",
+        "agate~=1.6.3",
     ],
     zip_safe=False,
     classifiers=[

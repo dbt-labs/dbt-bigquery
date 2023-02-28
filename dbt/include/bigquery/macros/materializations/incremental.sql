@@ -25,7 +25,6 @@
 {% endmacro %}
 {% macro bq_create_table_as(is_time_ingestion_partitioning, temporary, relation, compiled_code, language='sql') %}
   {% if is_time_ingestion_partitioning %}
-    {{ debug() }}
     {#-- Create the table before inserting data as ingestion time partitioned tables can't be created with the transformed data --#}
     {% do run_query(create_ingestion_time_partitioned_table_as_sql(temporary, relation, sql)) %}
     {{ return(bq_insert_into_ingestion_time_partitioned_table_sql(relation, sql)) }}

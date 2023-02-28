@@ -1,0 +1,6 @@
+kind: Features
+body: 'Adding `bytes_billed` to `BigQueryAdapterResponse` '
+time: 2023-02-28T09:42:34.557696-03:00
+custom:
+  Author: bruno-szdl
+  Issue: "560"

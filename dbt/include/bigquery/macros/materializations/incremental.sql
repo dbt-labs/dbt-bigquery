@@ -16,7 +16,6 @@
 {% macro source_sql_with_partition(partition_by, source_sql) %}
 
   {%- if partition_by.time_ingestion_partitioning %}
-    {{ log("time_ingestion_partitioning") }}
     {{ return(wrap_with_time_ingestion_partitioning_sql(build_partition_time_exp(partition_by.field), source_sql, False))  }}
   {% else %}
     {{ return(source_sql)  }}

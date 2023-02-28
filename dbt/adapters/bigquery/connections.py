@@ -86,6 +86,7 @@ class BigQueryConnectionMethod(StrEnum):
 @dataclass
 class BigQueryAdapterResponse(AdapterResponse):
     bytes_processed: Optional[int] = None
+    bytes_billed: Optional[int] = None
     location: Optional[str] = None
     project_id: Optional[str] = None
     job_id: Optional[str] = None
@@ -455,6 +456,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         code = None
         num_rows = None
         bytes_processed = None
+        bytes_billed = None
         location = None
         job_id = None
         project_id = None
@@ -489,6 +491,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         # set common attributes
         bytes_processed = query_job.total_bytes_processed
+        bytes_billed = query_job.total_bytes_billed
         slot_ms = query_job.slot_millis
         processed_bytes = self.format_bytes(bytes_processed)
         location = query_job.location
@@ -510,6 +513,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             rows_affected=num_rows,
             code=code,
             bytes_processed=bytes_processed,
+            bytes_billed=bytes_billed,
             location=location,
             project_id=project_id,
             job_id=job_id,

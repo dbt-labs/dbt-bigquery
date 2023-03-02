@@ -518,12 +518,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         return response, table
 
-    def get_column_schema_from_query(self, sql: str) -> List[Tuple[str, Any]]:
-        sql = self._add_query_comment(sql)
-        _, iterator = self.raw_execute(sql)
-        columns = [(field.name, field) for field in iterator.schema]
-        return columns
-
     @staticmethod
     def _bq_job_link(location, project_id, job_id) -> str:
         return f"https://console.cloud.google.com/bigquery?project={project_id}&j=bq:{location}:{job_id}&page=queryresults"

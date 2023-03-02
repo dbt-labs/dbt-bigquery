@@ -108,6 +108,43 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
                     "threads": 1,
                     "location": "Solar Station",
                 },
+                'dataproc-serverless-configured' : {
+                    'type': 'bigquery',
+                    'method': 'oauth',
+                    'schema': 'dummy_schema',
+                    'threads': 1,
+                    'gcs_bucket': 'dummy-bucket',
+                    'dataproc_region': 'europe-west1',
+                    'submission_method': 'serverless',
+                    'dataproc_batch': {
+                        'environment_config' : {
+                            'execution_config' : {
+                                'service_account': 'dbt@dummy-project.iam.gserviceaccount.com',
+                                'subnetwork_uri': 'dataproc',
+                                'network_tags': [ "foo", "bar" ]
+                            }
+                        },
+                        'labels': {
+                            'dbt': 'rocks',
+                            'number': '1'
+                        },
+                        'runtime_config': {
+                            'properties': {
+                                'spark.executor.instances': '4',
+                                'spark.driver.memory': '1g'
+                            }
+                        }
+                    }
+                },
+                'dataproc-serverless-default' : {
+                    'type': 'bigquery',
+                    'method': 'oauth',
+                    'schema': 'dummy_schema',
+                    'threads': 1,
+                    'gcs_bucket': 'dummy-bucket',
+                    'dataproc_region': 'europe-west1',
+                    'submission_method': 'serverless'
+                }
             },
             "target": "oauth",
         }
@@ -176,6 +213,25 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
 
         except dbt.exceptions.DbtValidationError as e:
             self.fail('got DbtValidationError: {}'.format(str(e)))
+
+        except BaseException as e:
+            raise
+
+        mock_open_connection.assert_not_called()
+        connection.handle
+        mock_open_connection.assert_called_once()
+
+    @patch('dbt.adapters.bigquery.connections.get_bigquery_defaults', return_value=('credentials', 'project_id'))
+    @patch('dbt.adapters.bigquery.BigQueryConnectionManager.open', return_value=_bq_conn())
+    def test_acquire_connection_dataproc_serverless(self, mock_open_connection, mock_get_bigquery_defaults):
+        adapter = self.get_adapter('dataproc-serverless-configured')
+        mock_get_bigquery_defaults.assert_called_once()
+        try:
+            connection = adapter.acquire_connection('dummy')
+            self.assertEqual(connection.type, 'bigquery')
+
+        except dbt.exceptions.ValidationException as e:
+            self.fail('got ValidationException: {}'.format(str(e)))
 
         except BaseException as e:
             raise

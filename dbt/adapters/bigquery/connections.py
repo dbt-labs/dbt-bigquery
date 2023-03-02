@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 import agate
 from requests.exceptions import ConnectionError
-from typing import Optional, Any, Dict, Tuple, List
+from typing import Optional, Any, Dict, Tuple
 
 import google.auth
 import google.auth.exceptions

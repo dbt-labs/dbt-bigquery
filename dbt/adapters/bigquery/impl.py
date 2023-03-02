@@ -460,9 +460,7 @@ class BigQueryAdapter(BaseAdapter):
         :return: List[BigQueryColumn]
         """
         _, iterator = self.connections.raw_execute(sql)
-        columns = [
-            self.Column.create_from_field(field) for field in iterator.schema
-        ]
+        columns = [self.Column.create_from_field(field) for field in iterator.schema]
         return columns
 
     @available.parse(lambda *a, **k: False)

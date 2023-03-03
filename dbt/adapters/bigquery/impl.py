@@ -72,24 +72,37 @@ class PartitionConfig(dbtClassMixin):
     time_ingestion_partitioning: bool = False
     copy_partitions: bool = False
 
+    def data_type_for_partition(self):
+        """Return the data type of partitions for replacement."""
+        return self.data_type if not self.time_ingestion_partitioning else "timestamp"
+
     def reject_partition_field_column(self, columns: List[Any]) -> List[str]:
         return [c for c in columns if not c.name.upper() == self.field.upper()]
+
+    def data_type_should_be_truncated(self):
+        """Return true if the data type should be truncated instead of cast to the data type."""
+        return not (
+            self.data_type.lower() == "int64"
+            or (self.data_type.lower() == "date" and self.granularity.lower() == "day")
+        )
 
     def render(self, alias: Optional[str] = None):
         column: str = self.field if not self.time_ingestion_partitioning else "_PARTITIONTIME"
         if alias:
             column = f"{alias}.{column}"
 
-        if self.data_type.lower() == "int64" or (
-            self.data_type.lower() == "date" and self.granularity.lower() == "day"
-        ):
-            return column
-        else:
+        if self.data_type_should_be_truncated():
             return f"{self.data_type}_trunc({column}, {self.granularity})"
+        else:
+            return column
 
     def render_wrapped(self, alias: Optional[str] = None):
-        """Wrap the partitioning column when time involved to ensure it is properly casted to matching time."""
-        if self.data_type in ("date", "timestamp", "datetime"):
+        """Wrap the partitioning column when time involved to ensure it is properly cast to matching time."""
+        # if data type is going to be truncated, no need to wrap
+        if (
+            self.data_type in ("date", "timestamp", "datetime")
+            and not self.data_type_should_be_truncated()
+        ):
             return f"{self.data_type}({self.render(alias)})"
         else:
             return self.render(alias)
@@ -451,6 +464,17 @@ class BigQueryAdapter(BaseAdapter):
         self.connections.copy_bq_table(source, destination, write_disposition)
 
         return "COPY TABLE with materialization: {}".format(materialization)
+
+    @available.parse(lambda *a, **k: [])
+    def get_column_schema_from_query(self, sql: str) -> List[BigQueryColumn]:
+        """Get a list of the column names and data types from the given sql.
+
+        :param str sql: The sql to execute.
+        :return: List[BigQueryColumn]
+        """
+        _, iterator = self.connections.raw_execute(sql)
+        columns = [self.Column.create_from_field(field) for field in iterator.schema]
+        return columns
 
     @available.parse(lambda *a, **k: False)
     def get_columns_in_select_sql(self, select_sql: str) -> List[BigQueryColumn]:

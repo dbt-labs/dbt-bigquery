@@ -14,3 +14,7 @@
       {{exceptions.warn("We noticed you have `constraints_check` configs, these are NOT compatible with BigQuery and will be ignored")}}
   {%- endif %}
 {% endmacro %}
+
+{% macro bigquery__format_column(column) -%}
+  {{ return(column.column.lower() ~ " " ~ column.data_type) }}
+{%- endmacro -%}

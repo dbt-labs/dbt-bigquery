@@ -8,6 +8,8 @@ from dbt.tests.adapter.constraints.fixtures import (
     my_model_sql,
     my_model_wrong_order_sql,
     my_model_wrong_name_sql,
+    my_model_view_wrong_order_sql,
+    my_model_view_wrong_name_sql,
     model_schema_yml,
 )
 
@@ -31,8 +33,7 @@ as (
 # - raises an explicit error, if you try to set a primary key constraint, because it's not enforced
 constraints_yml = model_schema_yml.replace("text", "string").replace("primary key", "")
 
-
-class TestBigQueryConstraintsColumnsEqual(BaseConstraintsColumnsEqual):
+class TestBigQueryTableConstraintsColumnsEqual(BaseTableConstraintsColumnsEqual):
     @pytest.fixture(scope="class")
     def models(self):
         return {
@@ -64,6 +65,16 @@ class TestBigQueryConstraintsColumnsEqual(BaseConstraintsColumnsEqual):
             ["""JSON '{"name": "Cooper", "forname": "Alice"}'""", 'json', 'JSON'],
             ['STRUCT("Rudisha" AS name, [23.4, 26.3, 26.4, 26.1] AS laps)', 'STRUCT<name STRING, laps ARRAY<FLOAT64>>', 'STRUCT<name STRING, laps ARRAY<FLOAT64>>']
         ]
+
+
+class TestBigQueryViewConstraintsColumnsEqual(BaseViewConstraintsColumnsEqual):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model_wrong_order.sql": my_model_view_wrong_order_sql,
+            "my_model_wrong_name.sql": my_model_view_wrong_name_sql,
+            "constraints_schema.yml": constraints_yml,
+        }
 
 
 class TestBigQueryConstraintsRuntimeEnforcement(BaseConstraintsRuntimeEnforcement):

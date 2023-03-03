@@ -12,7 +12,7 @@ from .test_bigquery_adapter import BaseTestBigQueryAdapter
 class TestConfigureDataprocBatch(BaseTestBigQueryAdapter):
 
     @patch('dbt.adapters.bigquery.connections.get_bigquery_defaults', return_value=('credentials', 'project_id'))
-    def test_configure_dataproc_serverless_batch(self, mock_get_bigquery_defaults):
+    def test_update_dataproc_serverless_batch(self, mock_get_bigquery_defaults):
         adapter = self.get_adapter('dataproc-serverless-configured')
         mock_get_bigquery_defaults.assert_called_once()
 
@@ -32,7 +32,7 @@ class TestConfigureDataprocBatch(BaseTestBigQueryAdapter):
 
         batch = dataproc_v1.Batch()
 
-        ServerlessDataProcHelper._configure_batch_from_config(batchConfig, batch)
+        ServerlessDataProcHelper._update_batch_from_config(raw_batch_config, batch)
 
         # google's protobuf types expose maps as dict[str, str]
         to_str_values = lambda d: dict([(k, str(v)) for (k, v) in d.items()])

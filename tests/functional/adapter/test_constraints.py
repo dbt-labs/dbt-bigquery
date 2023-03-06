@@ -1,7 +1,8 @@
 import pytest
 from dbt.tests.util import relation_from_name
 from dbt.tests.adapter.constraints.test_constraints import (
-    BaseConstraintsColumnsEqual,
+    BaseTableConstraintsColumnsEqual,
+    BaseViewConstraintsColumnsEqual,
     BaseConstraintsRuntimeEnforcement
 )
 from dbt.tests.adapter.constraints.fixtures import (

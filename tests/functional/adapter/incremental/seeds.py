@@ -47,3 +47,11 @@ id,date_time
 5,2020-01-02 00:00:00
 6,2020-01-02 00:00:00
 """.lstrip()
+
+seed_incremental_overwrite_day_with_time_partition_expected_csv = """
+id
+10
+20
+30
+40
+""".lstrip()

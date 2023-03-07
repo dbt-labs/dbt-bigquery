@@ -3,8 +3,8 @@ import random
 import time
 from dbt.tests.util import run_dbt
 from dbt.tests.adapter.simple_seed.test_seed import SeedConfigBase
-from tests.functional.adapter.bigquery_test.seeds import *
-from tests.functional.adapter.bigquery_test.fixtures import *
+from tests.functional.adapter.simple_bigquery_view.seeds import *
+from tests.functional.adapter.simple_bigquery_view.fixtures import *
 
 
 class BaseBigQueryRun(SeedConfigBase):

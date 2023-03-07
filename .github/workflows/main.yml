@@ -64,12 +64,13 @@ jobs:
       - name: Install python dependencies
         run: |
           python -m pip install --user --upgrade pip
-          python -m pip install tox
+          python -m pip install -r dev-requirements.txt
           python -m pip --version
-          tox --version
-
-      - name: Run tox
-        run: tox
+          pre-commit --version
+          mypy --version
+          dbt --version
+      - name: Run pre-comit hooks
+        run: pre-commit run --all-files --show-diff-on-failure
 
   unit:
     name: unit test / python ${{ matrix.python-version }}
@@ -79,7 +80,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8]
+        python-version: [3.7, 3.8] # TODO: support unit testing for python 3.9 (https://github.com/dbt-labs/dbt/issues/3689)
 
     env:
       TOXENV: "unit"
@@ -102,11 +103,9 @@ jobs:
           python -m pip install tox
           python -m pip --version
           tox --version
-
       - name: Install dbt-core latest
         run: |
           python -m pip install "git+https://github.com/dbt-labs/dbt-core.git#egg=dbt-core&subdirectory=core"
-
       - name: Run tox
         run: tox
 
@@ -152,11 +151,9 @@ jobs:
       - name: Check distribution descriptions
         run: |
           twine check dist/*
-
       - name: Check wheel contents
         run: |
           check-wheel-contents dist/*.whl --ignore W007,W008
-
       - uses: actions/upload-artifact@v2
         with:
           name: dist
@@ -186,7 +183,6 @@ jobs:
           python -m pip install --user --upgrade pip
           python -m pip install --upgrade wheel
           python -m pip --version
-
       - uses: actions/download-artifact@v2
         with:
           name: dist
@@ -198,15 +194,12 @@ jobs:
       - name: Install wheel distributions
         run: |
           find ./dist/*.whl -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/
-
       - name: Check wheel distributions
         run: |
           dbt --version
-
       - name: Install source distributions
         run: |
           find ./dist/*.gz -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/
-
       - name: Check source distributions
         run: |
           dbt --version

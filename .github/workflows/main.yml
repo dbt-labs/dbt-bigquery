@@ -64,13 +64,12 @@ jobs:
       - name: Install python dependencies
         run: |
           python -m pip install --user --upgrade pip
-          python -m pip install -r dev-requirements.txt
+          python -m pip install tox
           python -m pip --version
-          pre-commit --version
-          mypy --version
-          dbt --version
-      - name: Run pre-comit hooks
-        run: pre-commit run --all-files --show-diff-on-failure
+          tox --version
+
+      - name: Run tox
+        run: tox
 
   unit:
     name: unit test / python ${{ matrix.python-version }}

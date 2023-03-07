@@ -465,6 +465,17 @@ class BigQueryAdapter(BaseAdapter):
 
         return "COPY TABLE with materialization: {}".format(materialization)
 
+    @available.parse(lambda *a, **k: [])
+    def get_column_schema_from_query(self, sql: str) -> List[BigQueryColumn]:
+        """Get a list of the column names and data types from the given sql.
+
+        :param str sql: The sql to execute.
+        :return: List[BigQueryColumn]
+        """
+        _, iterator = self.connections.raw_execute(sql)
+        columns = [self.Column.create_from_field(field) for field in iterator.schema]
+        return columns
+
     @available.parse(lambda *a, **k: False)
     def get_columns_in_select_sql(self, select_sql: str) -> List[BigQueryColumn]:
         try:

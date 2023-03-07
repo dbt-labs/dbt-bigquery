@@ -34,15 +34,8 @@ as (
 # - raises an explicit error, if you try to set a primary key constraint, because it's not enforced
 constraints_yml = model_schema_yml.replace("text", "string").replace("primary key", "")
 
-class TestBigQueryTableConstraintsColumnsEqual(BaseTableConstraintsColumnsEqual):
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "my_model_wrong_order.sql": my_model_wrong_order_sql,
-            "my_model_wrong_name.sql": my_model_wrong_name_sql,
-            "constraints_schema.yml": constraints_yml,
-        }
 
+class BigQueryColumnEqualSetup:
     @pytest.fixture
     def string_type(self):
         return "STRING"
@@ -68,7 +61,17 @@ class TestBigQueryTableConstraintsColumnsEqual(BaseTableConstraintsColumnsEqual)
         ]
 
 
-class TestBigQueryViewConstraintsColumnsEqual(BaseViewConstraintsColumnsEqual):
+class TestBigQueryTableConstraintsColumnsEqual(BigQueryColumnEqualSetup, BaseTableConstraintsColumnsEqual):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model_wrong_order.sql": my_model_wrong_order_sql,
+            "my_model_wrong_name.sql": my_model_wrong_name_sql,
+            "constraints_schema.yml": constraints_yml,
+        }
+
+
+class TestBigQueryViewConstraintsColumnsEqual(BigQueryColumnEqualSetup, BaseViewConstraintsColumnsEqual):
     @pytest.fixture(scope="class")
     def models(self):
         return {

@@ -1,3 +1,5 @@
+-- noinspection SqlNoDataSourceInspectionForFile
+
 {% macro dbt_bigquery_validate_get_incremental_strategy(config) %}
   {#-- Find and validate the incremental strategy #}
   {%- set strategy = config.get("incremental_strategy") or 'merge' -%}
@@ -23,12 +25,12 @@
 
 {% endmacro %}
 {% macro bq_create_table_as(is_time_ingestion_partitioning, temporary, relation, compiled_code, language='sql') %}
-  {% if is_time_ingestion_partitioning %}
+  {% if is_time_ingestion_partitioning and language == 'sql' %}
     {#-- Create the table before inserting data as ingestion time partitioned tables can't be created with the transformed data --#}
-    {% do run_query(create_ingestion_time_partitioned_table_as_sql(temporary, relation, sql)) %}
-    {{ return(bq_insert_into_ingestion_time_partitioned_table_sql(relation, sql)) }}
+    {% do run_query(create_ingestion_time_partitioned_table_as_sql(temporary, relation, compiled_code)) %}
+    {{ return(bq_insert_into_ingestion_time_partitioned_table_sql(relation, compiled_code)) }}
   {% else %}
-    {{ return(create_table_as(temporary, relation, sql)) }}
+    {{ return(create_table_as(temporary, relation, compiled_code, language)) }}
   {% endif %}
 {% endmacro %}
 

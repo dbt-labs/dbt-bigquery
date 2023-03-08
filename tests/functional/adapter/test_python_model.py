@@ -3,13 +3,10 @@ import pytest
 from dbt.tests.util import run_dbt, write_file
 import dbt.tests.adapter.python_model.test_python_model as dbt_tests
 
-# ToDo: Fix and schedule these tests:
-# https://github.com/dbt-labs/dbt-bigquery/issues/306
 class TestPythonModelDataproc(dbt_tests.BasePythonModelTests):
     pass
 
 
-@pytest.mark.skip(reason="Currently Broken")
 class TestPythonIncrementalMatsDataproc(dbt_tests.BasePythonIncrementalTests):
     pass
 

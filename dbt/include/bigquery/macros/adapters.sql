@@ -90,6 +90,9 @@
 
   create or replace view {{ relation }}
   {{ bigquery_view_options(config, model) }}
+  {% if config.get('contract', False) -%}
+    {{ get_assert_columns_equivalent(sql) }}
+  {%- endif %}
   as {{ sql }};
 
 {% endmacro %}

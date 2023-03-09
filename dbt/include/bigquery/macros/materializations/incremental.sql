@@ -1,5 +1,3 @@
--- noinspection SqlNoDataSourceInspectionForFile
-
 {% macro dbt_bigquery_validate_get_incremental_strategy(config) %}
   {#-- Find and validate the incremental strategy #}
   {%- set strategy = config.get("incremental_strategy") or 'merge' -%}

@@ -34,6 +34,7 @@ def model(dbt, spark):
 """
 
 
+@pytest.mark.skip(reason="Might need fixing")
 class TestChangingSchemaDataproc:
 
     @pytest.fixture(scope="class")

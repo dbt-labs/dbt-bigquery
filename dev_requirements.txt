@@ -14,7 +14,7 @@ pytest-dotenv
 pytest-logbook
 pytest-csv
 pytest-xdist
-pytz>=2015.7
+pytz
 tox>=3.13
 twine
 wheel

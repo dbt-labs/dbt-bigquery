@@ -23,6 +23,11 @@
 
 {% endmacro %}
 {% macro bq_create_table_as(is_time_ingestion_partitioning, temporary, relation, compiled_code, language='sql') %}
+  {% if is_time_ingestion_partitioning and language == 'python' %}
+    {% do exceptions.raise_compiler_error(
+      "Python models do not support ingestion time partitioning"
+    ) %}
+  {% endif %}
   {% if is_time_ingestion_partitioning and language == 'sql' %}
     {#-- not supported yet for python language models}
     {#-- Create the table before inserting data as ingestion time partitioned tables can't be created with the transformed data --#}

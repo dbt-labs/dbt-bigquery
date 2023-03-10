@@ -3,16 +3,20 @@ import pytest
 from dbt.tests.util import run_dbt, write_file
 import dbt.tests.adapter.python_model.test_python_model as dbt_tests
 
-TEST_SKIP_MESSAGE = "Skipping the Tests since Dataproc serverless is not stable. " \
-                    "TODO: Fix later"
+
+@pytest.fixture(scope="module")
+def project_config_update():
+    return {
+        "models": {
+            "+submission_method": "cluster"
+        }
+    }
 
 
-@pytest.mark.skip(reason=TEST_SKIP_MESSAGE)
 class TestPythonModelDataproc(dbt_tests.BasePythonModelTests):
     pass
 
 
-@pytest.mark.skip(reason=TEST_SKIP_MESSAGE)
 class TestPythonIncrementalMatsDataproc(dbt_tests.BasePythonIncrementalTests):
     pass
 
@@ -40,9 +44,7 @@ def model(dbt, spark):
 """
 
 
-@pytest.mark.skip(reason=TEST_SKIP_MESSAGE)
 class TestChangingSchemaDataproc:
-
     @pytest.fixture(scope="class")
     def models(self):
         return {

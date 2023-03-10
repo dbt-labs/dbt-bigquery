@@ -900,7 +900,7 @@ class BigQueryAdapter(BaseAdapter):
 
     @property
     def default_python_submission_method(self) -> str:
-        return "serverless"
+        return "cluster"
 
     @property
     def python_submission_helpers(self) -> Dict[str, Type[PythonJobHelper]]:

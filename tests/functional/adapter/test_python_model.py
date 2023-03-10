@@ -3,6 +3,7 @@ import pytest
 from dbt.tests.util import run_dbt, write_file
 import dbt.tests.adapter.python_model.test_python_model as dbt_tests
 
+
 class TestPythonModelDataproc(dbt_tests.BasePythonModelTests):
     pass
 

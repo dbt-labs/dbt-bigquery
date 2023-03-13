@@ -3,13 +3,16 @@ import pytest
 from dbt.tests.util import run_dbt, write_file
 import dbt.tests.adapter.python_model.test_python_model as dbt_tests
 
-# ToDo: Fix and schedule these tests:
-# https://github.com/dbt-labs/dbt-bigquery/issues/306
+TEST_SKIP_MESSAGE = "Skipping the Tests since Dataproc serverless is not stable. " \
+                    "TODO: Fix later"
+
+
+@pytest.mark.skip(reason=TEST_SKIP_MESSAGE)
 class TestPythonModelDataproc(dbt_tests.BasePythonModelTests):
     pass
 
 
-@pytest.mark.skip(reason="Currently Broken")
+@pytest.mark.skip(reason=TEST_SKIP_MESSAGE)
 class TestPythonIncrementalMatsDataproc(dbt_tests.BasePythonIncrementalTests):
     pass
 
@@ -37,7 +40,7 @@ def model(dbt, spark):
 """
 
 
-@pytest.mark.skip(reason="Currently Broken")
+@pytest.mark.skip(reason=TEST_SKIP_MESSAGE)
 class TestChangingSchemaDataproc:
 
     @pytest.fixture(scope="class")

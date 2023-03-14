@@ -16,8 +16,8 @@ from dbt.tests.adapter.constraints.fixtures import (
 
 _expected_sql_bigquery = """
 create or replace table {0} (
-    id integer  not null    ,
-    color string  ,
+    id integer not null,
+    color string,
     date_day date
 )
 OPTIONS()

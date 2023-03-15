@@ -18,7 +18,7 @@ _expected_sql_bigquery = """
 create or replace table {0} (
     id integer  not null    ,
     color string  ,
-    date_day date
+    date_day string
 )
 OPTIONS()
 as (
@@ -28,7 +28,7 @@ as (
   ( 
     select 'blue' as color, 
     1 as id, 
-    cast('2019-01-01' as date) as date_day 
+    '2019-01-01' as date_day
   ) as model_subq
 );
 """

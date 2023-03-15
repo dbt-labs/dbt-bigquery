@@ -169,6 +169,8 @@ class TestPersistDocsNested(BasePersistDocsBase):
         colunmn descriptions are persisted on the test model table and view.
 
         Next, generate the catalog and check if the comments are also included.
+
+        Note: dbt-bigquery does not allow comments on models with children nodes
         """
         run_dbt(['seed'])
         run_dbt()

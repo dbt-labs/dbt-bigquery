@@ -201,7 +201,5 @@ class TestPersistDocsNested(BasePersistDocsBase):
             # check the descriptions in the catalog
             node = catalog_data['nodes']['model.test.{}'.format(node_id)]
 
-            level_1_column = node['columns']['level_1']
-            level_2_column = node['columns']['level_1.level_2']
             level_3_column = node['columns']['level_1.level_2.level_3_a']
             assert level_3_column['comment'] == "level_3 column description"

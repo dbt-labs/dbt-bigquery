@@ -22,10 +22,14 @@ create or replace table {0} (
 )
 OPTIONS()
 as (
-    select
-        1 as id,
-        'blue' as color,
-        cast('2019-01-01' as date) as date_day
+    select id,
+    color, 
+    date_day from 
+  ( 
+    select 'blue' as color, 
+    1 as id, 
+    cast('2019-01-01' as date) as date_day 
+  ) as model_subq
 );
 """
 

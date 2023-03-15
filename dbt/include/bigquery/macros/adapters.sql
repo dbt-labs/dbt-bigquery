@@ -53,8 +53,10 @@
 
     create or replace table {{ relation }}
       {% if config.get('contract', False) %}
-        {{ get_assert_columns_equivalent(sql) }}
+        {% do log('======== has a contract: ' ~ compiled_code) %}
+        {{ get_assert_columns_equivalent(compiled_code) }}
         {{ get_columns_spec_ddl() }}
+        {%- set compiled_code = get_select_subquery(compiled_code) %}
       {% endif %}
     {{ partition_by(partition_config) }}
     {{ cluster_by(raw_cluster_by) }}

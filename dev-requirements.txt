@@ -30,4 +30,4 @@ types-pytz~=2022.7
 types-requests~=2.28
 types-protobuf~=4.0
 twine~=4.0
-wheel~=0.38
+wheel~=0.40

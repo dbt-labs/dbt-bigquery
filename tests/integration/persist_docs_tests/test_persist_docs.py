@@ -138,6 +138,8 @@ class TestPersistDocsNested(BasePersistDocsTest):
         colunmn descriptions are persisted on the test model table and view.
 
         Next, generate the catalog and check if the comments are also included.
+
+        Note: dbt-bigquery does not allow comments on models with children nodes
         """
         self.run_dbt(['seed'])
         self.run_dbt()
@@ -162,25 +164,13 @@ class TestPersistDocsNested(BasePersistDocsTest):
                 bq_schema = client.get_table(table_id).schema
 
                 level_1_field = bq_schema[0]
-                assert level_1_field.description == \
-                       "level_1 column description"
-
                 level_2_field = level_1_field.fields[0]
-                assert level_2_field.description == \
-                       "level_2 column description"
-
                 level_3_field = level_2_field.fields[0]
                 assert level_3_field.description == \
                        "level_3 column description"
 
             # check the descriptions in the catalog
             node = catalog_data['nodes']['model.test.{}'.format(node_id)]
-
-            level_1_column = node['columns']['level_1']
-            assert level_1_column['comment'] == "level_1 column description"
-
-            level_2_column = node['columns']['level_1.level_2']
-            assert level_2_column['comment'] == "level_2 column description"
 
             level_3_column = node['columns']['level_1.level_2.level_3_a']
             assert level_3_column['comment'] == "level_3 column description"

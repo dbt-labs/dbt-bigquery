@@ -71,7 +71,10 @@ class BigQueryColumnEqualSetup:
         ]
 
 
-class TestBigQueryTableConstraintsColumnsEqual(BigQueryColumnEqualSetup, BaseTableConstraintsColumnsEqual):
+class TestBigQueryTableConstraintsColumnsEqual(
+    BigQueryColumnEqualSetup,
+    BaseTableConstraintsColumnsEqual
+):
     @pytest.fixture(scope="class")
     def models(self):
         return {
@@ -81,7 +84,10 @@ class TestBigQueryTableConstraintsColumnsEqual(BigQueryColumnEqualSetup, BaseTab
         }
 
 
-class TestBigQueryViewConstraintsColumnsEqual(BigQueryColumnEqualSetup, BaseViewConstraintsColumnsEqual):
+class TestBigQueryViewConstraintsColumnsEqual(
+    BigQueryColumnEqualSetup,
+    BaseViewConstraintsColumnsEqual
+):
     @pytest.fixture(scope="class")
     def models(self):
         return {
@@ -91,7 +97,10 @@ class TestBigQueryViewConstraintsColumnsEqual(BigQueryColumnEqualSetup, BaseView
         }
 
 
-class TestBigQueryIncrementalConstraintsColumnsEqual(BigQueryColumnEqualSetup, BaseIncrementalConstraintsColumnsEqual):
+class TestBigQueryIncrementalConstraintsColumnsEqual(
+    BigQueryColumnEqualSetup,
+    BaseIncrementalConstraintsColumnsEqual
+):
     @pytest.fixture(scope="class")
     def models(self):
         return {
@@ -127,11 +136,17 @@ class SetupBigQueryConstraintsRollback:
         return ["Required field id cannot be null"]
 
 
-class TestBigQueryTableConstraintsRuntimeDdlEnforcement(SetupBigQueryRuntimeDdlEnforcement, BaseConstraintsRuntimeDdlEnforcement):
+class TestBigQueryTableConstraintsRuntimeDdlEnforcement(
+    SetupBigQueryRuntimeDdlEnforcement,
+    BaseConstraintsRuntimeDdlEnforcement
+):
     pass
 
 
-class TestBigQueryTableConstraintsRollback(SetupBigQueryConstraintsRollback, BaseConstraintsRollback):
+class TestBigQueryTableConstraintsRollback(
+    SetupBigQueryConstraintsRollback,
+    BaseConstraintsRollback
+):
     pass
 
 
@@ -142,5 +157,8 @@ class TestBigQueryIncrementalConstraintsRuntimeDdlEnforcement(
     pass
 
 
-class TestBigQueryIncrementalConstraintsRollback(SetupBigQueryConstraintsRollback, BaseIncrementalConstraintsRollback):
+class TestBigQueryIncrementalConstraintsRollback(
+    SetupBigQueryConstraintsRollback,
+    BaseIncrementalConstraintsRollback
+):
     pass

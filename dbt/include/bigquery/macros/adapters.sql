@@ -53,7 +53,6 @@
 
     create or replace table {{ relation }}
       {% if config.get('contract', False) %}
-        {% do log('======== has a contract: ' ~ compiled_code) %}
         {{ get_assert_columns_equivalent(compiled_code) }}
         {{ get_columns_spec_ddl() }}
         {%- set compiled_code = get_select_subquery(compiled_code) %}

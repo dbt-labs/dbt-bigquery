@@ -2,9 +2,11 @@ from typing import Dict, Union
 
 from dbt.adapters.base import PythonJobHelper
 from dbt.adapters.bigquery import BigQueryConnectionManager, BigQueryCredentials
+from dbt.adapters.bigquery.connections import DataprocBatchConfig
 from google.api_core import retry
 from google.api_core.client_options import ClientOptions
 from google.cloud import storage, dataproc_v1  # type: ignore
+from google.protobuf.json_format import ParseDict
 
 OPERATION_RETRY_TIME = 10
 
@@ -110,31 +112,17 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         )
 
     def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
-        # create the Dataproc Serverless job config
-        # need to pin dataproc version to 1.1 as it now defaults to 2.0
-        batch = dataproc_v1.Batch({"runtime_config": dataproc_v1.RuntimeConfig(version="1.1")})
-        batch.pyspark_batch.main_python_file_uri = self.gcs_location
-        # how to keep this up to date?
-        # we should probably also open this up to be configurable
-        jar_file_uri = self.parsed_model["config"].get(
-            "jar_file_uri",
-            "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-0.21.1.jar",
-        )
-        batch.pyspark_batch.jar_file_uris = [jar_file_uri]
-        # should we make all of these spark/dataproc properties configurable?
-        # https://cloud.google.com/dataproc-serverless/docs/concepts/properties
-        # https://cloud.google.com/dataproc-serverless/docs/reference/rest/v1/projects.locations.batches#runtimeconfig
-        batch.runtime_config.properties = {
-            "spark.executor.instances": "2",
-        }
+        batch = self._configure_batch()
         parent = f"projects/{self.credential.execution_project}/locations/{self.credential.dataproc_region}"
+
         request = dataproc_v1.CreateBatchRequest(
             parent=parent,
             batch=batch,
         )
         # make the request
         operation = self.job_client.create_batch(request=request)  # type: ignore
-        # this takes quite a while, waiting on GCP response to resolve(not a google-api-core issue, more likely a dataproc serverless issue)
+        # this takes quite a while, waiting on GCP response to resolve
+        # (not a google-api-core issue, more likely a dataproc serverless issue)
         response = operation.result(retry=self.retry)
         return response
         # there might be useful results here that we can parse and return
@@ -147,3 +135,47 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         #     .blob(f"{matches.group(2)}.000000000")
         #     .download_as_string()
         # )
+
+    def _configure_batch(self):
+        # create the Dataproc Serverless job config
+        # need to pin dataproc version to 1.1 as it now defaults to 2.0
+        # https://cloud.google.com/dataproc-serverless/docs/concepts/properties
+        # https://cloud.google.com/dataproc-serverless/docs/reference/rest/v1/projects.locations.batches#runtimeconfig
+        batch = dataproc_v1.Batch(
+            {
+                "runtime_config": dataproc_v1.RuntimeConfig(
+                    version="1.1",
+                    properties={
+                        "spark.executor.instances": "2",
+                    },
+                )
+            }
+        )
+        # Apply defaults
+        batch.pyspark_batch.main_python_file_uri = self.gcs_location
+        jar_file_uri = self.parsed_model["config"].get(
+            "jar_file_uri",
+            "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-0.21.1.jar",
+        )
+        batch.pyspark_batch.jar_file_uris = [jar_file_uri]
+
+        # Apply configuration from dataproc_batch key, possibly overriding defaults.
+        if self.credential.dataproc_batch:
+            self._update_batch_from_config(self.credential.dataproc_batch, batch)
+        return batch
+
+    @classmethod
+    def _update_batch_from_config(
+        cls, config_dict: Union[Dict, DataprocBatchConfig], target: dataproc_v1.Batch
+    ):
+        try:
+            # updates in place
+            ParseDict(config_dict, target._pb)
+        except Exception as e:
+            docurl = (
+                "https://cloud.google.com/dataproc-serverless/docs/reference/rpc/google.cloud.dataproc.v1"
+                "#google.cloud.dataproc.v1.Batch"
+            )
+            raise ValueError(
+                f"Unable to parse dataproc_batch as valid batch specification. See {docurl}. {str(e)}"
+            ) from e

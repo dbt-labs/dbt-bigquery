@@ -1,0 +1,6 @@
+kind: Fixes
+body: Fix failing test by removing no erroneous asserts.
+time: 2023-03-15T13:05:04.747323-07:00
+custom:
+  Author: versusfacit
+  Issue: "605"

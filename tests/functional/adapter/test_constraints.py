@@ -110,19 +110,6 @@ class TestBigQueryIncrementalConstraintsColumnsEqual(
         }
 
 
-class SetupBigQueryRuntimeDdlEnforcement:
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "my_model.sql": my_model_sql,
-            "constraints_schema.yml": constraints_yml,
-        }
-
-    @pytest.fixture(scope="class")
-    def expected_sql(self, project):
-        return _expected_sql_bigquery
-
-
 class SetupBigQueryConstraintsRollback:
     @pytest.fixture(scope="class")
     def models(self):
@@ -137,10 +124,18 @@ class SetupBigQueryConstraintsRollback:
 
 
 class TestBigQueryTableConstraintsRuntimeDdlEnforcement(
-    SetupBigQueryRuntimeDdlEnforcement,
     BaseConstraintsRuntimeDdlEnforcement
 ):
-    pass
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model.sql": my_model_wrong_order_sql,
+            "constraints_schema.yml": constraints_yml,
+        }
+
+    @pytest.fixture(scope="class")
+    def expected_sql(self, project):
+        return _expected_sql_bigquery
 
 
 class TestBigQueryTableConstraintsRollback(
@@ -151,10 +146,18 @@ class TestBigQueryTableConstraintsRollback(
 
 
 class TestBigQueryIncrementalConstraintsRuntimeDdlEnforcement(
-    SetupBigQueryRuntimeDdlEnforcement,
     BaseIncrementalConstraintsRuntimeDdlEnforcement
 ):
-    pass
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model.sql": my_model_incremental_wrong_order_sql,
+            "constraints_schema.yml": constraints_yml,
+        }
+
+    @pytest.fixture(scope="class")
+    def expected_sql(self, project):
+        return _expected_sql_bigquery
 
 
 class TestBigQueryIncrementalConstraintsRollback(

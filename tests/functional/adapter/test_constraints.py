@@ -11,11 +11,12 @@ from dbt.tests.adapter.constraints.test_constraints import (
 )
 from dbt.tests.adapter.constraints.fixtures import (
     my_model_sql,
+    my_incremental_model_sql,
     my_model_wrong_order_sql,
-    my_model_wrong_name_sql,
     my_model_view_wrong_order_sql,
-    my_model_view_wrong_name_sql,
     my_model_incremental_wrong_order_sql,
+    my_model_wrong_name_sql,
+    my_model_view_wrong_name_sql,
     my_model_incremental_wrong_name_sql,
     model_schema_yml,
 )
@@ -110,19 +111,6 @@ class TestBigQueryIncrementalConstraintsColumnsEqual(
         }
 
 
-class SetupBigQueryConstraintsRollback:
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "my_model.sql": my_model_sql,
-            "constraints_schema.yml": constraints_yml,
-        }
-
-    @pytest.fixture(scope="class")
-    def expected_error_messages(self):
-        return ["Required field id cannot be null"]
-
-
 class TestBigQueryTableConstraintsRuntimeDdlEnforcement(
     BaseConstraintsRuntimeDdlEnforcement
 ):
@@ -139,11 +127,18 @@ class TestBigQueryTableConstraintsRuntimeDdlEnforcement(
 
 
 class TestBigQueryTableConstraintsRollback(
-    SetupBigQueryConstraintsRollback,
     BaseConstraintsRollback
 ):
-    pass
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model.sql": my_model_sql,
+            "constraints_schema.yml": constraints_yml,
+        }
 
+    @pytest.fixture(scope="class")
+    def expected_error_messages(self):
+        return ["Required field id cannot be null"]
 
 class TestBigQueryIncrementalConstraintsRuntimeDdlEnforcement(
     BaseIncrementalConstraintsRuntimeDdlEnforcement
@@ -161,7 +156,15 @@ class TestBigQueryIncrementalConstraintsRuntimeDdlEnforcement(
 
 
 class TestBigQueryIncrementalConstraintsRollback(
-    SetupBigQueryConstraintsRollback,
     BaseIncrementalConstraintsRollback
 ):
-    pass
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model.sql": my_incremental_model_sql,
+            "constraints_schema.yml": constraints_yml,
+        }
+
+    @pytest.fixture(scope="class")
+    def expected_error_messages(self):
+        return ["Required field id cannot be null"]

@@ -1,96 +1,51 @@
 import json
 import os
+import pytest
+
+from pathlib import Path
 from pytest import mark
 
-from tests.integration.base import DBTIntegrationTest, use_profile
+from dbt.tests.util import run_dbt, rm_file, write_file, check_relations_equal
+
+from dbt.tests.adapter.simple_copy.test_simple_copy import (
+   SimpleCopySetup,
+   SimpleCopyBase
+)
+
+from tests.functional.simple_copy_test.fixtures import (
+    _MODELS_INCREMENTAL_UPDATE_COLS,
+    _SEEDS__SEED_MERGE_COLS_INITIAL,
+    _SEEDS__SEED_MERGE_COLS_UPDATE,
+    _SEEDS__SEED_MERGE_COLS_EXPECTED_RESULT,
+)
+
+class TestSimpleCopyBase(SimpleCopyBase):
+    pass
 
 
-class BaseTestSimpleCopy(DBTIntegrationTest):
-    @property
-    def schema(self):
-        return "simple_copy"
-
-    @staticmethod
-    def dir(path):
-        return path.lstrip('/')
-
-    @property
+class TestIncrementalMergeColumns:
+    @pytest.fixture(scope="class")
     def models(self):
-        return self.dir("models")
-
-    @property
-    def project_config(self):
-        return self.seed_quote_cfg_with({
-            'profile': '{{ "tes" ~ "t" }}'
-        })
-
-    def seed_quote_cfg_with(self, extra):
-        cfg = {
-            'config-version': 2,
-            'seeds': {
-                'quote_columns': False,
-            }
-        }
-        cfg.update(extra)
-        return cfg
-
-
-class TestSimpleCopy(BaseTestSimpleCopy):
-
-    @property
-    def project_config(self):
-        return self.seed_quote_cfg_with({"seed-paths": [self.dir("seed-initial")]})
-
-    @use_profile("bigquery")
-    def test__bigquery__simple_copy(self):
-        results = self.run_dbt(["seed"])
-        self.assertEqual(len(results),  1)
-        results = self.run_dbt()
-        self.assertEqual(len(results),  7)
-
-        self.assertTablesEqual("seed", "view_model")
-        self.assertTablesEqual("seed", "incremental")
-        self.assertTablesEqual("seed", "materialized")
-        self.assertTablesEqual("seed", "get_and_ref")
-
-        self.use_default_project({"seed-paths": [self.dir("seed-update")]})
-
-        results = self.run_dbt(["seed"])
-        self.assertEqual(len(results),  1)
-        results = self.run_dbt()
-        self.assertEqual(len(results),  7)
-
-        self.assertTablesEqual("seed", "view_model")
-        self.assertTablesEqual("seed", "incremental")
-        self.assertTablesEqual("seed", "materialized")
-        self.assertTablesEqual("seed", "get_and_ref")
-
-
-class TestIncrementalMergeColumns(BaseTestSimpleCopy):
-    @property
-    def models(self):
-        return self.dir("models-merge-update")
-
-    @property
-    def project_config(self):
         return {
-            "seeds": {
-                "quote_columns": False
-            }
+            "incremental_update_cols.sql": _MODELS_INCREMENTAL_UPDATE_COLS
         }
 
-    def seed_and_run(self):
-        self.run_dbt(["seed"])
-        self.run_dbt(["run"])
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {"seed.csv": _SEEDS__SEED_MERGE_COLS_INITIAL}
 
-    @use_profile("bigquery")
-    def test__bigquery__incremental_merge_columns(self):
-        self.use_default_project({
-            "seed-paths": ["seeds-merge-cols-initial"]
-        })
-        self.seed_and_run()
-        self.use_default_project({
-            "seed-paths": ["seeds-merge-cols-update"]
-        })
-        self.seed_and_run()
-        self.assertTablesEqual("incremental_update_cols", "expected_result")
+    def test_incremental_merge_columns(self, project):
+        run_dbt(["seed"])
+        run_dbt(["run"])
+
+        main_seed_file = project.project_root / Path("seeds") / Path("seed.csv")
+        expected_seed_file = project.project_root / Path("seeds") / Path("expected_result.csv")
+        rm_file(main_seed_file)
+        write_file(_SEEDS__SEED_MERGE_COLS_UPDATE, main_seed_file)
+        write_file(_SEEDS__SEED_MERGE_COLS_EXPECTED_RESULT, expected_seed_file)
+
+        run_dbt(["seed"])
+        run_dbt(["run"])
+        check_relations_equal(
+            project.adapter, ["incremental_update_cols", "expected_result"]
+        )

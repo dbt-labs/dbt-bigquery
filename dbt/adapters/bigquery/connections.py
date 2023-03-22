@@ -309,6 +309,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON:
             details = profile_credentials.keyfile_json
+            private_key = details.get("private_key", "").replace("\\n", "\n")
+            details["private_key"] = private_key
             return creds.from_service_account_info(details, scopes=profile_credentials.scopes)
 
         elif method == BigQueryConnectionMethod.OAUTH_SECRETS:

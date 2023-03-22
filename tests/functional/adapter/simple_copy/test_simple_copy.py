@@ -12,7 +12,7 @@ from dbt.tests.adapter.simple_copy.test_simple_copy import (
    SimpleCopyBase
 )
 
-from tests.functional.simple_copy_test.fixtures import (
+from tests.functional.adapter.simple_copy.fixtures import (
     _MODELS_INCREMENTAL_UPDATE_COLS,
     _SEEDS__SEED_MERGE_COLS_INITIAL,
     _SEEDS__SEED_MERGE_COLS_UPDATE,

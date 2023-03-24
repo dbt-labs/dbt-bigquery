@@ -1,7 +1,9 @@
 import json
 import re
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from mashumaro.helper import pass_through
+
 from functools import lru_cache
 import agate
 from requests.exceptions import ConnectionError
@@ -35,7 +37,7 @@ from dbt.events.functions import fire_event
 from dbt.events.types import SQLQuery
 from dbt.version import __version__ as dbt_version
 
-from dbt.dataclass_schema import StrEnum
+from dbt.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
 
 logger = AdapterLogger("BigQuery")
 
@@ -51,6 +53,7 @@ REOPENABLE_ERRORS = (
 RETRYABLE_ERRORS = (
     google.cloud.exceptions.ServerError,
     google.cloud.exceptions.BadRequest,
+    google.cloud.exceptions.BadGateway,
     ConnectionResetError,
     ConnectionError,
 )
@@ -86,10 +89,17 @@ class BigQueryConnectionMethod(StrEnum):
 @dataclass
 class BigQueryAdapterResponse(AdapterResponse):
     bytes_processed: Optional[int] = None
+    bytes_billed: Optional[int] = None
     location: Optional[str] = None
     project_id: Optional[str] = None
     job_id: Optional[str] = None
     slot_ms: Optional[int] = None
+
+
+@dataclass
+class DataprocBatchConfig(ExtensibleDbtClassMixin):
+    def __init__(self, batch_config):
+        self.batch_config = batch_config
 
 
 @dataclass
@@ -123,6 +133,13 @@ class BigQueryCredentials(Credentials):
     dataproc_region: Optional[str] = None
     dataproc_cluster_name: Optional[str] = None
     gcs_bucket: Optional[str] = None
+
+    dataproc_batch: Optional[DataprocBatchConfig] = field(
+        metadata={
+            "serialization_strategy": pass_through,
+        },
+        default=None,
+    )
 
     scopes: Optional[Tuple[str, ...]] = (
         "https://www.googleapis.com/auth/bigquery",
@@ -455,6 +472,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         code = None
         num_rows = None
         bytes_processed = None
+        bytes_billed = None
         location = None
         job_id = None
         project_id = None
@@ -489,6 +507,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         # set common attributes
         bytes_processed = query_job.total_bytes_processed
+        bytes_billed = query_job.total_bytes_billed
         slot_ms = query_job.slot_millis
         processed_bytes = self.format_bytes(bytes_processed)
         location = query_job.location
@@ -510,6 +529,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             rows_affected=num_rows,
             code=code,
             bytes_processed=bytes_processed,
+            bytes_billed=bytes_billed,
             location=location,
             project_id=project_id,
             job_id=job_id,

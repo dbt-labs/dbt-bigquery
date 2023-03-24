@@ -395,6 +395,7 @@ class TestConnectionNamePassthrough(BaseTestBigQueryAdapter):
         self.relation_cls = self._relation_patch.start()
 
         self.mock_connection_manager = self.conn_manager_cls.return_value
+        self.mock_connection_manager.get_if_exists().name = "mock_conn_name"
         self.conn_manager_cls.TYPE = "bigquery"
         self.relation_cls.get_default_quote_policy.side_effect = (
             BigQueryRelation.get_default_quote_policy

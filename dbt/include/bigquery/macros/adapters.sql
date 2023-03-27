@@ -52,8 +52,8 @@
     {{ sql_header if sql_header is not none }}
 
     create or replace table {{ relation }}
-      {%- set contract_config = config.get('contract', {}) -%}
-      {%- if contract_config.get('enforced', False) -%}
+      {%- set contract_config = config.get('contract') -%}
+      {%- if contract_config.enforced -%}
         {{ get_assert_columns_equivalent(compiled_code) }}
         {{ get_columns_spec_ddl() }}
         {%- set compiled_code = get_select_subquery(compiled_code) %}
@@ -92,8 +92,8 @@
 
   create or replace view {{ relation }}
   {{ bigquery_view_options(config, model) }}
-  {%- set contract_config = config.get('contract', {}) -%}
-  {%- if contract_config.get('enforced', False) -%}
+  {%- set contract_config = config.get('contract') -%}
+  {%- if contract_config.enforced -%}
     {{ get_assert_columns_equivalent(sql) }}
   {%- endif %}
   as {{ sql }};

@@ -3,19 +3,26 @@ from dbt.tests.util import relation_from_name
 from dbt.tests.adapter.constraints.test_constraints import (
     BaseTableConstraintsColumnsEqual,
     BaseViewConstraintsColumnsEqual,
-    BaseConstraintsRuntimeEnforcement
+    BaseIncrementalConstraintsColumnsEqual,
+    BaseConstraintsRuntimeDdlEnforcement,
+    BaseConstraintsRollback,
+    BaseIncrementalConstraintsRuntimeDdlEnforcement,
+    BaseIncrementalConstraintsRollback,
 )
 from dbt.tests.adapter.constraints.fixtures import (
     my_model_sql,
+    my_incremental_model_sql,
     my_model_wrong_order_sql,
-    my_model_wrong_name_sql,
     my_model_view_wrong_order_sql,
+    my_model_incremental_wrong_order_sql,
+    my_model_wrong_name_sql,
     my_model_view_wrong_name_sql,
+    my_model_incremental_wrong_name_sql,
     model_schema_yml,
 )
 
 _expected_sql_bigquery = """
-create or replace table {0} (
+create or replace table <model_identifier> (
     id integer not null,
     color string,
     date_day string
@@ -65,7 +72,10 @@ class BigQueryColumnEqualSetup:
         ]
 
 
-class TestBigQueryTableConstraintsColumnsEqual(BigQueryColumnEqualSetup, BaseTableConstraintsColumnsEqual):
+class TestBigQueryTableConstraintsColumnsEqual(
+    BigQueryColumnEqualSetup,
+    BaseTableConstraintsColumnsEqual
+):
     @pytest.fixture(scope="class")
     def models(self):
         return {
@@ -75,7 +85,10 @@ class TestBigQueryTableConstraintsColumnsEqual(BigQueryColumnEqualSetup, BaseTab
         }
 
 
-class TestBigQueryViewConstraintsColumnsEqual(BigQueryColumnEqualSetup, BaseViewConstraintsColumnsEqual):
+class TestBigQueryViewConstraintsColumnsEqual(
+    BigQueryColumnEqualSetup,
+    BaseViewConstraintsColumnsEqual
+):
     @pytest.fixture(scope="class")
     def models(self):
         return {
@@ -85,7 +98,37 @@ class TestBigQueryViewConstraintsColumnsEqual(BigQueryColumnEqualSetup, BaseView
         }
 
 
-class TestBigQueryConstraintsRuntimeEnforcement(BaseConstraintsRuntimeEnforcement):
+class TestBigQueryIncrementalConstraintsColumnsEqual(
+    BigQueryColumnEqualSetup,
+    BaseIncrementalConstraintsColumnsEqual
+):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model_wrong_order.sql": my_model_incremental_wrong_order_sql,
+            "my_model_wrong_name.sql": my_model_incremental_wrong_name_sql,
+            "constraints_schema.yml": constraints_yml,
+        }
+
+
+class TestBigQueryTableConstraintsRuntimeDdlEnforcement(
+    BaseConstraintsRuntimeDdlEnforcement
+):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model.sql": my_model_wrong_order_sql,
+            "constraints_schema.yml": constraints_yml,
+        }
+
+    @pytest.fixture(scope="class")
+    def expected_sql(self, project):
+        return _expected_sql_bigquery
+
+
+class TestBigQueryTableConstraintsRollback(
+    BaseConstraintsRollback
+):
     @pytest.fixture(scope="class")
     def models(self):
         return {
@@ -94,9 +137,33 @@ class TestBigQueryConstraintsRuntimeEnforcement(BaseConstraintsRuntimeEnforcemen
         }
 
     @pytest.fixture(scope="class")
+    def expected_error_messages(self):
+        return ["Required field id cannot be null"]
+
+class TestBigQueryIncrementalConstraintsRuntimeDdlEnforcement(
+    BaseIncrementalConstraintsRuntimeDdlEnforcement
+):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model.sql": my_model_incremental_wrong_order_sql,
+            "constraints_schema.yml": constraints_yml,
+        }
+
+    @pytest.fixture(scope="class")
     def expected_sql(self, project):
-        relation = relation_from_name(project.adapter, "my_model")
-        return _expected_sql_bigquery.format(relation)
+        return _expected_sql_bigquery
+
+
+class TestBigQueryIncrementalConstraintsRollback(
+    BaseIncrementalConstraintsRollback
+):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model.sql": my_incremental_model_sql,
+            "constraints_schema.yml": constraints_yml,
+        }
 
     @pytest.fixture(scope="class")
     def expected_error_messages(self):

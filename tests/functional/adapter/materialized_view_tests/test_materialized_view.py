@@ -21,7 +21,8 @@ class TestMaterializedView:
     @staticmethod
     def get_records(project, relation_name) -> RecordSet:
         sql = f"select * from {project.database}.{project.test_schema}.{relation_name}"
-        return list(project.run_sql(sql, fetch="all"))
+        agate_rows = project.run_sql(sql, fetch="all")
+        return [list(row) for row in agate_rows]
 
     def test_create_materialized_view(self, project):
         """

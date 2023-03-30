@@ -7,7 +7,7 @@ from dbt.tests.util import run_dbt
 from tests.functional.adapter.materialized_view_tests import models
 
 
-RecordSet = List[list]
+RecordSet = List[tuple]
 
 
 class TestMaterializedView:
@@ -22,7 +22,7 @@ class TestMaterializedView:
     def get_records(project, relation_name) -> RecordSet:
         sql = f"select * from {project.database}.{project.test_schema}.{relation_name}"
         agate_rows = project.run_sql(sql, fetch="all")
-        return [list(row) for row in agate_rows]
+        return [tuple(row) for row in agate_rows]
 
     def test_create_materialized_view(self, project):
         """
@@ -33,7 +33,7 @@ class TestMaterializedView:
         """
         run_dbt()
         records = self.get_records(project, "mat_view")
-        assert records == [[1]]
+        assert records == [(1,)]
 
         sql = (
             f"insert into {project.database}.{project.test_schema}.base_table (my_col) values (2)"
@@ -41,4 +41,4 @@ class TestMaterializedView:
         project.run_sql(sql)
 
         records = self.get_records(project, "mat_view")
-        assert sorted(records) == sorted([[1], [2]])
+        assert sorted(records) == sorted([(1,), (2,)])

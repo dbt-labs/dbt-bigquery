@@ -41,4 +41,4 @@ class TestMaterializedView:
         project.run_sql(sql)
 
         records = self.get_records(project, "mat_view")
-        assert records == [[1], [2]]
+        assert sorted(records) == sorted([[1], [2]])

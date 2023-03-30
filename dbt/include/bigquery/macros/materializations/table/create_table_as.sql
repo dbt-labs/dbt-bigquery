@@ -1,6 +1,6 @@
 {% macro bigquery__create_table_as(temporary, relation, compiled_code, language='sql') %}
     {% if language == 'sql' %}
-        {% create_sql_table(temporary, compiled_code) %}
+        {{ create_sql_table(temporary, relation, compiled_code) }}
     {% elif language == 'python' %}
         {#--
         N.B. Python models _can_ write to temp views HOWEVER they use a different session
@@ -19,21 +19,20 @@
     {% else %}
         {% do exceptions.raise_compiler_error("bigquery__create_table_as macro didn't get supported language, it got %s" % language) %}
     {% endif %}
-
 {% endmacro %}
 
 
-{% macro create_sql_table(temporary) %}
+{% macro create_sql_table(temporary, relation, sql) %}
     {% set contract = config.get('contract') %}
     {% if contract.enforced %}
-        {{ create_sql_table_with_contract(temporary, sql) }}
+        {{ create_sql_table_with_contract(temporary, relation, sql) }}
     {% else %}
-        {{ create_sql_table_with_no_contract(temporary, sql) }}
+        {{ create_sql_table_with_no_contract(temporary, relation, sql) }}
     {% endif %}
 {% endmacro %}
 
 
-{% macro create_sql_table_with_contract(temporary, sql) %}
+{% macro create_sql_table_with_contract(temporary, relation, sql) %}
     {{ get_assert_columns_equivalent(sql) }}
     {% set sql = get_select_subquery(sql) %}
     {% set raw_partition_by = config.get('partition_by', none) %}
@@ -54,7 +53,7 @@
 {% endmacro %}
 
 
-{% macro create_sql_table_with_no_contract(temporary, sql) %}
+{% macro create_sql_table_with_no_contract(temporary, relation, sql) %}
     {% set raw_partition_by = config.get('partition_by', none) %}
     {% set partition_config = adapter.parse_partition_by(raw_partition_by) %}
     {% set raw_cluster_by = config.get('cluster_by', none) %}

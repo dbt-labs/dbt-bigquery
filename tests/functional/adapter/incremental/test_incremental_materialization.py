@@ -1,4 +1,5 @@
 import pytest
+
 from dbt.tests.util import run_dbt
 
 # This is a short term hack, we need to go back
@@ -31,6 +32,7 @@ class BaseIncrementalModelConfig:
     @pytest.fixture(scope="class")
     def models(self):
         return {"test_incremental.sql": _INCREMENTAL_MODEL}
+
 
 
 class TestIncrementalModel(BaseIncrementalModelConfig):

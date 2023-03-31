@@ -1,6 +1,8 @@
 import pytest
-
-from dbt.tests.util import run_dbt
+import os
+from dbt.tests.util import (
+    run_dbt
+)
 
 # This is a short term hack, we need to go back
 # and make adapter implementations of:
@@ -27,12 +29,10 @@ _INCREMENTAL_MODEL = """
 -- Test Comment To Prevent Reccurence of https://github.com/dbt-labs/dbt-core/issues/6485
 """
 
-
 class BaseIncrementalModelConfig:
     @pytest.fixture(scope="class")
     def models(self):
         return {"test_incremental.sql": _INCREMENTAL_MODEL}
-
 
 
 class TestIncrementalModel(BaseIncrementalModelConfig):

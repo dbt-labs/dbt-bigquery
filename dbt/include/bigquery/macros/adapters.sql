@@ -1,3 +1,4 @@
+
 {% macro partition_by(partition_config) -%}
     {%- if partition_config is none -%}
       {% do return('') %}
@@ -11,7 +12,6 @@
         )
     {%- endif -%}
 {%- endmacro -%}
-
 
 {% macro cluster_by(raw_cluster_by) %}
   {%- if raw_cluster_by is not none -%}
@@ -27,7 +27,6 @@
 
 {%- endmacro -%}
 
-
 {% macro bigquery_options(opts) %}
   {% set options -%}
     OPTIONS({% for opt_key, opt_val in opts.items() %}
@@ -37,18 +36,79 @@
   {%- do return(options) -%}
 {%- endmacro -%}
 
+{% macro bigquery_table_options(config, node, temporary) %}
+  {% set opts = adapter.get_table_options(config, node, temporary) %}
+  {%- do return(bigquery_options(opts)) -%}
+{%- endmacro -%}
+
+{% macro bigquery__create_table_as(temporary, relation, compiled_code, language='sql') -%}
+  {%- if language == 'sql' -%}
+    {%- set raw_partition_by = config.get('partition_by', none) -%}
+    {%- set raw_cluster_by = config.get('cluster_by', none) -%}
+    {%- set sql_header = config.get('sql_header', none) -%}
+
+    {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
+
+    {{ sql_header if sql_header is not none }}
+
+    create or replace table {{ relation }}
+      {%- set contract_config = config.get('contract') -%}
+      {%- if contract_config.enforced -%}
+        {{ get_assert_columns_equivalent(compiled_code) }}
+        {{ get_columns_spec_ddl() }}
+        {%- set compiled_code = get_select_subquery(compiled_code) %}
+      {% endif %}
+    {{ partition_by(partition_config) }}
+    {{ cluster_by(raw_cluster_by) }}
+
+    {{ bigquery_table_options(config, model, temporary) }}
+    as (
+      {{ compiled_code }}
+    );
+  {%- elif language == 'python' -%}
+    {#--
+    N.B. Python models _can_ write to temp views HOWEVER they use a different session
+    and have already expired by the time they need to be used (I.E. in merges for incremental models)
+
+    TODO: Deep dive into spark sessions to see if we can reuse a single session for an entire
+    dbt invocation.
+     --#}
+    {{ py_write_table(compiled_code=compiled_code, target_relation=relation.quote(database=False, schema=False, identifier=False)) }}
+  {%- else -%}
+    {% do exceptions.raise_compiler_error("bigquery__create_table_as macro didn't get supported language, it got %s" % language) %}
+  {%- endif -%}
+
+{%- endmacro -%}
+
+{% macro bigquery_view_options(config, node) %}
+  {% set opts = adapter.get_view_options(config, node) %}
+  {%- do return(bigquery_options(opts)) -%}
+{%- endmacro -%}
+
+{% macro bigquery__create_view_as(relation, sql) -%}
+  {%- set sql_header = config.get('sql_header', none) -%}
+
+  {{ sql_header if sql_header is not none }}
+
+  create or replace view {{ relation }}
+  {{ bigquery_view_options(config, model) }}
+  {%- set contract_config = config.get('contract') -%}
+  {%- if contract_config.enforced -%}
+    {{ get_assert_columns_equivalent(sql) }}
+  {%- endif %}
+  as {{ sql }};
+
+{% endmacro %}
 
 {% macro bigquery__drop_schema(relation) -%}
   {{ adapter.drop_schema(relation) }}
 {% endmacro %}
-
 
 {% macro bigquery__drop_relation(relation) -%}
   {% call statement('drop_relation') -%}
     drop {{ relation.type }} if exists {{ relation }}
   {%- endcall %}
 {% endmacro %}
-
 
 {% macro bigquery__get_columns_in_relation(relation) -%}
   {{ return(adapter.get_columns_in_relation(relation)) }}
@@ -69,7 +129,6 @@
   {{ return(adapter.check_schema_exists(information_schema.database, schema)) }}
 {% endmacro %}
 
-
 {#-- relation-level macro is not implemented. This is handled in the CTAs statement #}
 {% macro bigquery__persist_docs(relation, model, for_relation, for_columns) -%}
   {% if for_columns and config.persist_column_docs() and model.columns %}
@@ -77,16 +136,13 @@
   {% endif %}
 {% endmacro %}
 
-
 {% macro bigquery__alter_column_comment(relation, column_dict) -%}
   {% do adapter.update_columns(relation, column_dict) %}
 {% endmacro %}
 
-
 {% macro bigquery__rename_relation(from_relation, to_relation) -%}
   {% do adapter.rename_relation(from_relation, to_relation) %}
 {% endmacro %}
-
 
 {% macro bigquery__alter_relation_add_columns(relation, add_columns) %}
 

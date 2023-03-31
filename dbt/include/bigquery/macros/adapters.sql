@@ -1,10 +1,11 @@
+
 {% macro bigquery__create_table_as(temporary, relation, compiled_code, language='sql') -%}
   {%- if language == 'sql' -%}
     {%- set raw_partition_by = config.get('partition_by', none) -%}
     {%- set raw_cluster_by = config.get('cluster_by', none) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
 
-    {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
+{%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
     {%- if partition_config.time_ingestion_partitioning -%}
     {%- set columns = get_columns_with_types_in_query_sql(sql) -%}
     {%- set table_dest_columns_csv = columns_without_partition_fields_csv(partition_config, columns) -%}
@@ -41,7 +42,7 @@
     N.B. Python models _can_ write to temp views HOWEVER they use a different session
     and have already expired by the time they need to be used (I.E. in merges for incremental models)
 
-    TODO: Deep dive into spark sessions to see if we can reuse a single session for an entire
+TODO: Deep dive into spark sessions to see if we can reuse a single session for an entire
     dbt invocation.
      --#}
 
@@ -54,7 +55,6 @@
   {%- else -%}
     {% do exceptions.raise_compiler_error("bigquery__create_table_as macro didn't get supported language, it got %s" % language) %}
   {%- endif -%}
-
 {%- endmacro -%}
 
 {% macro bigquery__create_view_as(relation, sql) -%}
@@ -95,14 +95,12 @@
   {{ return(adapter.check_schema_exists(information_schema.database, schema)) }}
 {% endmacro %}
 
-
 {#-- relation-level macro is not implemented. This is handled in the CTAs statement #}
 {% macro bigquery__persist_docs(relation, model, for_relation, for_columns) -%}
   {% if for_columns and config.persist_column_docs() and model.columns %}
     {% do alter_column_comment(relation, model.columns) %}
   {% endif %}
 {% endmacro %}
-
 
 {% macro bigquery__alter_column_comment(relation, column_dict) -%}
   {% do adapter.update_columns(relation, column_dict) %}

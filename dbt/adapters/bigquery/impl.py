@@ -20,6 +20,9 @@ from dbt.adapters.base import (
     PythonJobHelper,
 )
 
+# TODO: why does BQ import them all from dbt.adapters.base instead of where they live?  other adapters don't
+from dbt.adapters.base.impl import ConstraintSupport
+
 from dbt.adapters.cache import _make_ref_key_dict
 
 from dbt.adapters.bigquery.relation import BigQueryRelation
@@ -32,7 +35,10 @@ from dbt.adapters.bigquery.python_submissions import (
 )
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse
 from dbt.contracts.graph.manifest import Manifest
-from dbt.events import AdapterLogger
+from dbt.contracts.graph.nodes import ColumnLevelConstraint, ConstraintType
+from dbt.events import (
+    AdapterLogger,
+)
 from dbt.events.functions import fire_event
 from dbt.events.types import SchemaCreation, SchemaDrop
 from dbt.utils import filter_null_values
@@ -167,6 +173,14 @@ class BigQueryAdapter(BaseAdapter):
     ConnectionManager = BigQueryConnectionManager
 
     AdapterSpecificConfigs = BigqueryConfig
+
+    CONSTRAINT_SUPPORT = {
+        ConstraintType.check: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.not_null: ConstraintSupport.ENFORCED,
+        ConstraintType.unique: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.primary_key: ConstraintSupport.ENFORCED,
+        ConstraintType.foreign_key: ConstraintSupport.ENFORCED,
+    }
 
     ###
     # Implementations of abstract methods

@@ -42,7 +42,6 @@ as (
 
 # Different on BigQuery:
 # - does not support a data type named 'text' (TODO handle this via type translation/aliasing!)
-# - raises an explicit error, if you try to set a primary key constraint, because it's not enforced
 constraints_yml = model_schema_yml.replace("text", "string")
 model_constraints_yml = constrained_model_schema_yml.replace("text", "string")
 

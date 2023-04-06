@@ -119,7 +119,7 @@ class TestBigQueryTableConstraintsRuntimeDdlEnforcement(
             "my_model.sql": my_model_wrong_order_sql,
             "constraints_schema.yml": constraints_yml,
         }
-    
+
     @pytest.fixture(scope="class")
     def expected_sql(self, project):
         return _expected_sql_bigquery
@@ -134,7 +134,7 @@ class TestBigQueryTableConstraintsRollback(
             "my_model.sql": my_model_sql,
             "constraints_schema.yml": constraints_yml,
         }
-   
+
     @pytest.fixture(scope="class")
     def expected_error_messages(self):
         return ["Required field id cannot be null"]
@@ -148,7 +148,7 @@ class TestBigQueryIncrementalConstraintsRuntimeDdlEnforcement(
             "my_model.sql": my_model_incremental_wrong_order_sql,
             "constraints_schema.yml": constraints_yml,
         }
-    
+
     @pytest.fixture(scope="class")
     def expected_sql(self, project):
         return _expected_sql_bigquery
@@ -163,7 +163,7 @@ class TestBigQueryIncrementalConstraintsRollback(
             "my_model.sql": my_incremental_model_sql,
             "constraints_schema.yml": constraints_yml,
         }
-    
+
     @pytest.fixture(scope="class")
     def expected_error_messages(self):
         return ["Required field id cannot be null"]

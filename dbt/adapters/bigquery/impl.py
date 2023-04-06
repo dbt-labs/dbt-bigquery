@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 import threading
 from typing import Dict, List, Optional, Any, Set, Union, Type
+
+from dbt.contracts.graph.nodes import ColumnLevelConstraint, ModelLevelConstraint, ConstraintType
 from dbt.dataclass_schema import dbtClassMixin, ValidationError
 
 import dbt.deprecations
@@ -907,3 +909,14 @@ class BigQueryAdapter(BaseAdapter):
             "cluster": ClusterDataprocHelper,
             "serverless": ServerlessDataProcHelper,
         }
+
+    @classmethod
+    def render_column_constraint(cls, constraint: ColumnLevelConstraint) -> str:
+        if constraint.type != ConstraintType.not_null:
+            return ""  # Only not null column constraints are supported by BigQuery
+        else:
+            return super().render_column_constraint(constraint)
+
+    @classmethod
+    def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
+        return None  # BigQuery doesn't currently support table constraints

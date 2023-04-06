@@ -7,7 +7,7 @@ from dbt.tests.adapter.constraints.test_constraints import (
     BaseConstraintsRuntimeDdlEnforcement,
     BaseConstraintsRollback,
     BaseIncrementalConstraintsRuntimeDdlEnforcement,
-    BaseIncrementalConstraintsRollback,
+    BaseIncrementalConstraintsRollback, BaseModelConstraintsRuntimeEnforcement,
 )
 from dbt.tests.adapter.constraints.fixtures import (
     my_model_sql,
@@ -168,3 +168,34 @@ class TestBigQueryIncrementalConstraintsRollback(
     @pytest.fixture(scope="class")
     def expected_error_messages(self):
         return ["Required field id cannot be null"]
+
+
+class TestBigQueryModelConstraintsRuntimeEnforcement(BaseModelConstraintsRuntimeEnforcement):
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model.sql": my_incremental_model_sql,
+            "constraints_schema.yml": constraints_yml,
+        }
+
+    @pytest.fixture(scope="class")
+    def expected_sql(self):
+        return """
+create or replace table <model_identifier> (
+    id integer not null,
+    color string,
+    date_day string
+)
+OPTIONS()
+as (
+    select id,
+    color, 
+    date_day from 
+  ( 
+    select 1 as id, 
+    'blue' as color, 
+    '2019-01-01' as date_day
+  ) as model_subq
+);
+"""

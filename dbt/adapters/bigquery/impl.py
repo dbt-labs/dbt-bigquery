@@ -12,6 +12,7 @@ import dbt.clients.agate_helper
 from dbt import ui  # type: ignore
 from dbt.adapters.base import (
     BaseAdapter,
+    ConstraintSupport,
     available,
     RelationType,
     BaseRelation,
@@ -19,9 +20,6 @@ from dbt.adapters.base import (
     AdapterConfig,
     PythonJobHelper,
 )
-
-# TODO: why does BQ import them all from dbt.adapters.base instead of where they live?  other adapters don't
-from dbt.adapters.base.impl import ConstraintSupport
 
 from dbt.adapters.cache import _make_ref_key_dict
 

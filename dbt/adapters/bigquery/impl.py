@@ -916,12 +916,18 @@ class BigQueryAdapter(BaseAdapter):
             return super().render_column_constraint(constraint)
         elif constraint.type == ConstraintType.primary_key:
             return "primary key not enforced"
+        elif constraint.type == ConstraintType.foreign_key:
+            c = super().render_column_constraint(constraint)
+            return f"{c} not enforced"
         else:
             return ""
 
     @classmethod
     def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
-        if constraint.type == ConstraintType.primary_key:
+        if (
+            constraint.type == ConstraintType.primary_key
+            or constraint.type == ConstraintType.foreign_key
+        ):
             c = super().render_model_constraint(constraint)
             return f"{c} not enforced" if c else None
         else:

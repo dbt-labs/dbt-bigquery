@@ -912,11 +912,17 @@ class BigQueryAdapter(BaseAdapter):
 
     @classmethod
     def render_column_constraint(cls, constraint: ColumnLevelConstraint) -> str:
-        if constraint.type != ConstraintType.not_null:
-            return ""  # Only not null column constraints are supported by BigQuery
-        else:
+        if constraint.type == ConstraintType.not_null:
             return super().render_column_constraint(constraint)
+        elif constraint.type == ConstraintType.primary_key:
+            return "primary key not enforced"
+        else:
+            return ""
 
     @classmethod
     def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
-        return None  # BigQuery doesn't currently support table constraints
+        if constraint.type == ConstraintType.primary_key:
+            c = super().render_model_constraint(constraint)
+            return f"{c} not enforced" if c else None
+        else:
+            return None

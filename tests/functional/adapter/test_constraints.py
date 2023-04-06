@@ -18,7 +18,7 @@ from dbt.tests.adapter.constraints.fixtures import (
     my_model_wrong_name_sql,
     my_model_view_wrong_name_sql,
     my_model_incremental_wrong_name_sql,
-    model_schema_yml,
+    model_schema_yml, constrained_model_schema_yml,
 )
 
 _expected_sql_bigquery = """
@@ -43,8 +43,8 @@ as (
 # Different on BigQuery:
 # - does not support a data type named 'text' (TODO handle this via type translation/aliasing!)
 # - raises an explicit error, if you try to set a primary key constraint, because it's not enforced
-constraints_yml = model_schema_yml.replace("text", "string").replace("primary key", "")
-
+constraints_yml = model_schema_yml.replace("text", "string")
+model_constraints_yml = constrained_model_schema_yml.replace("text", "string")
 
 class BigQueryColumnEqualSetup:
     @pytest.fixture
@@ -176,7 +176,7 @@ class TestBigQueryModelConstraintsRuntimeEnforcement(BaseModelConstraintsRuntime
     def models(self):
         return {
             "my_model.sql": my_incremental_model_sql,
-            "constraints_schema.yml": constraints_yml,
+            "constraints_schema.yml": model_constraints_yml,
         }
 
     @pytest.fixture(scope="class")
@@ -185,7 +185,8 @@ class TestBigQueryModelConstraintsRuntimeEnforcement(BaseModelConstraintsRuntime
 create or replace table <model_identifier> (
     id integer not null,
     color string,
-    date_day string
+    date_day string,
+    primary key (id) not enforced
 )
 OPTIONS()
 as (

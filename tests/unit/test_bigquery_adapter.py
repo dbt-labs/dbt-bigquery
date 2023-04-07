@@ -1,4 +1,3 @@
-from unicodedata import name
 import agate
 import decimal
 import json
@@ -13,8 +12,6 @@ from unittest.mock import patch, MagicMock, Mock, create_autospec, ANY
 
 import dbt.dataclass_schema
 
-import dbt.flags as flags
-
 from dbt.adapters.bigquery import BigQueryCredentials
 from dbt.adapters.bigquery import BigQueryAdapter
 from dbt.adapters.bigquery import BigQueryRelation
@@ -27,7 +24,6 @@ import dbt.exceptions
 from dbt.logger import GLOBAL_LOGGER as logger  # noqa
 from dbt.context.providers import RuntimeConfigObject
 
-import google.cloud.bigquery
 from google.cloud.bigquery import AccessEntry
 
 from .utils import config_from_parts_or_dicts, inject_adapter, TestAdapterConversions
@@ -121,7 +117,7 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
                             'execution_config' : {
                                 'service_account': 'dbt@dummy-project.iam.gserviceaccount.com',
                                 'subnetwork_uri': 'dataproc',
-                                'network_tags': [ "foo", "bar" ]
+                                'network_tags': ["foo", "bar"]
                             }
                         },
                         'labels': {
@@ -197,7 +193,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         except dbt.exceptions.DbtValidationError as e:
             self.fail('got DbtValidationError: {}'.format(str(e)))
 
-        except BaseException as e:
+        except BaseException:
             raise
 
         mock_open_connection.assert_not_called()
@@ -214,7 +210,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         except dbt.exceptions.DbtValidationError as e:
             self.fail('got DbtValidationError: {}'.format(str(e)))
 
-        except BaseException as e:
+        except BaseException:
             raise
 
         mock_open_connection.assert_not_called()
@@ -233,7 +229,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         except dbt.exceptions.ValidationException as e:
             self.fail('got ValidationException: {}'.format(str(e)))
 
-        except BaseException as e:
+        except BaseException:
             raise
 
         mock_open_connection.assert_not_called()
@@ -250,7 +246,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         except dbt.exceptions.DbtValidationError as e:
             self.fail('got DbtValidationError: {}'.format(str(e)))
 
-        except BaseException as e:
+        except BaseException:
             raise
 
         mock_open_connection.assert_not_called()
@@ -267,7 +263,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         except dbt.exceptions.DbtValidationError as e:
             self.fail('got DbtValidationError: {}'.format(str(e)))
 
-        except BaseException as e:
+        except BaseException:
             raise
 
         mock_open_connection.assert_not_called()
@@ -284,7 +280,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         except dbt.exceptions.DbtValidationError as e:
             self.fail('got DbtValidationError: {}'.format(str(e)))
 
-        except BaseException as e:
+        except BaseException:
             raise
 
         mock_open_connection.assert_not_called()
@@ -303,7 +299,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         except dbt.exceptions.DbtValidationError as e:
             self.fail('got DbtValidationError: {}'.format(str(e)))
 
-        except BaseException as e:
+        except BaseException:
             raise
 
         mock_open_connection.assert_not_called()
@@ -395,6 +391,7 @@ class TestConnectionNamePassthrough(BaseTestBigQueryAdapter):
         self.relation_cls = self._relation_patch.start()
 
         self.mock_connection_manager = self.conn_manager_cls.return_value
+        self.mock_connection_manager.get_if_exists().name = "mock_conn_name"
         self.conn_manager_cls.TYPE = "bigquery"
         self.relation_cls.get_default_quote_policy.side_effect = (
             BigQueryRelation.get_default_quote_policy
@@ -1053,8 +1050,10 @@ class TestBigQueryGrantAccessTo(BaseTestBigQueryAdapter):
         a_different_entity = BigQueryRelation.from_dict(
             {
                 "type": None,
-                "path": {"database": "another-test-project",
-                 "schema": "test_schema_2", "identifier": "my_view"},
+                "path": {
+                    "database": "another-test-project",
+                    "schema": "test_schema_2", "identifier": "my_view"
+                },
                 "quote_policy": {"identifier": True},
             }
         )

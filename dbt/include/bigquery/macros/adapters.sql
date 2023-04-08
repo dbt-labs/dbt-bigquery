@@ -74,7 +74,7 @@
     dbt invocation.
      --#}
 
-    {#-- when a user wants to change the schema of a relation, first drop the table in the big query dataset --#}
+    {#-- when a user wants to change the schema of an existing relation, they must intentionally drop the table in the dataset --#}
     {%- set old_relation = adapter.get_relation(database=relation.database, schema=relation.schema, identifier=relation.identifier) -%}
     {%- if (old_relation.is_table and (should_full_refresh())) -%}
       {% do adapter.drop_relation(relation) %}

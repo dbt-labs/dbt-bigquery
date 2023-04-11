@@ -23,7 +23,7 @@ from dbt.tests.adapter.constraints.fixtures import (
 
 _expected_sql_bigquery = """
 create or replace table <model_identifier> (
-    id integer not null,
+    id integer not null primary key not enforced,
     color string,
     date_day string
 )

@@ -12,6 +12,7 @@ import dbt.clients.agate_helper
 from dbt import ui  # type: ignore
 from dbt.adapters.base import (
     BaseAdapter,
+    ConstraintSupport,
     available,
     RelationType,
     BaseRelation,
@@ -32,7 +33,9 @@ from dbt.adapters.bigquery.python_submissions import (
 )
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse
 from dbt.contracts.graph.manifest import Manifest
-from dbt.events import AdapterLogger
+from dbt.events import (
+    AdapterLogger,
+)
 from dbt.events.functions import fire_event
 from dbt.events.types import SchemaCreation, SchemaDrop
 from dbt.utils import filter_null_values
@@ -167,6 +170,14 @@ class BigQueryAdapter(BaseAdapter):
     ConnectionManager = BigQueryConnectionManager
 
     AdapterSpecificConfigs = BigqueryConfig
+
+    CONSTRAINT_SUPPORT = {
+        ConstraintType.check: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.not_null: ConstraintSupport.ENFORCED,
+        ConstraintType.unique: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.primary_key: ConstraintSupport.ENFORCED,
+        ConstraintType.foreign_key: ConstraintSupport.ENFORCED,
+    }
 
     ###
     # Implementations of abstract methods
@@ -911,25 +922,22 @@ class BigQueryAdapter(BaseAdapter):
         }
 
     @classmethod
-    def render_column_constraint(cls, constraint: ColumnLevelConstraint) -> str:
-        if constraint.type == ConstraintType.not_null:
-            return super().render_column_constraint(constraint)
-        elif (
-            constraint.type == ConstraintType.primary_key
-            or constraint.type == ConstraintType.foreign_key
-        ):
-            c = super().render_column_constraint(constraint)
-            return f"{c} not enforced"
-        else:
-            return ""
-
-    @classmethod
-    def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
+    def render_column_constraint(cls, constraint: ColumnLevelConstraint) -> Optional[str]:
+        c = super().render_column_constraint(constraint)
         if (
             constraint.type == ConstraintType.primary_key
             or constraint.type == ConstraintType.foreign_key
         ):
-            c = super().render_model_constraint(constraint)
             return f"{c} not enforced" if c else None
-        else:
-            return None
+        return c
+
+    @classmethod
+    def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
+        c = super().render_model_constraint(constraint)
+        if (
+            constraint.type == ConstraintType.primary_key
+            or constraint.type == ConstraintType.foreign_key
+        ):
+            return f"{c} not enforced" if c else None
+
+        return c

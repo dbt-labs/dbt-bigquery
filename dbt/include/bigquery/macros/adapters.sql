@@ -55,7 +55,7 @@
       {%- set contract_config = config.get('contract') -%}
       {%- if contract_config.enforced -%}
         {{ get_assert_columns_equivalent(compiled_code) }}
-        {{ get_columns_spec_ddl() }}
+        {{ get_table_columns_and_constraints() }}
         {%- set compiled_code = get_select_subquery(compiled_code) %}
       {% endif %}
     {{ partition_by(partition_config) }}

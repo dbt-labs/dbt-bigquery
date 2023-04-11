@@ -1,0 +1,7 @@
+kind: Fixes
+body: ' add full refresh capabilities to tabular bigquery python models to accommodate
+  schema changes'
+time: 2023-04-08T03:51:17.167349-07:00
+custom:
+  Author: versusfacit
+  Issue: "653"

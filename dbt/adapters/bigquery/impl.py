@@ -33,7 +33,6 @@ from dbt.adapters.bigquery.python_submissions import (
 )
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import ColumnLevelConstraint, ConstraintType
 from dbt.events import (
     AdapterLogger,
 )
@@ -924,24 +923,21 @@ class BigQueryAdapter(BaseAdapter):
 
     @classmethod
     def render_column_constraint(cls, constraint: ColumnLevelConstraint) -> str:
-        if constraint.type == ConstraintType.not_null:
-            return super().render_column_constraint(constraint)
-        elif (
-            constraint.type == ConstraintType.primary_key
-            or constraint.type == ConstraintType.foreign_key
-        ):
-            c = super().render_column_constraint(constraint)
-            return f"{c} not enforced"
-        else:
-            return ""
-
-    @classmethod
-    def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
+        c = super().render_column_constraint(constraint)
         if (
             constraint.type == ConstraintType.primary_key
             or constraint.type == ConstraintType.foreign_key
         ):
-            c = super().render_model_constraint(constraint)
-            return f"{c} not enforced" if c else None
-        else:
-            return None
+            return f"{c} not enforced"
+        return c
+
+    @classmethod
+    def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
+        c = super().render_model_constraint(constraint)
+        if (
+            constraint.type == ConstraintType.primary_key
+            or constraint.type == ConstraintType.foreign_key
+        ):
+            return f"{c} not enforced"
+
+        return c

@@ -18,10 +18,10 @@ class TestSnapshot(BaseSimpleSnapshotBase):
         """
         Update the last 5 records. Show that all ids are current, but the last 5 reflect updates.
         """
-        dt_add_type = "date_add(updated_at, interval 1 day)"
+        date_add_expression = "date_add(updated_at, interval 1 day)"
         self.update_fact_records(
             {
-                "updated_at": dt_add_type
+                "updated_at": date_add_expression
             },
             "id between 16 and 20"
         )
@@ -73,11 +73,11 @@ class TestSnapshot(BaseSimpleSnapshotBase):
         i.e. if the column is added, but not updated, the record doesn't reflect that it's updated
         """
         self.add_fact_column("full_name", "varchar(200) default null")
-        dt_add_type = "date_add(date(updated_at), interval 1 day)"
+        date_add_expression = "date_add(date(updated_at), interval 1 day)"
         self.update_fact_records(
             {
                 "full_name": "first_name || ' ' || last_name",
-                "updated_at": dt_add_type,
+                "updated_at": date_add_expression,
             },
             "id between 11 and 20",
         )

@@ -72,8 +72,7 @@ class TestSnapshot(BaseSimpleSnapshotBase):
         Show that all ids are current, but the last 10 reflect updates and the first 10 don't
         i.e. if the column is added, but not updated, the record doesn't reflect that it's updated
         """
-        # Add a column to the fact table with a string type since BigQuery doesn't like varchar
-        self.add_fact_column("full_name", "string default null")
+        self.add_fact_column("full_name", "varchar(200) default null")
         dt_add_type = "date_add(date(updated_at), interval 1 day)"
         self.update_fact_records(
             {

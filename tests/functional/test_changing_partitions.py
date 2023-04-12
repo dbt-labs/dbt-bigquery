@@ -50,177 +50,210 @@ models:
 
 
 class BaseBigQueryChangingPartition:
-
     @pytest.fixture(scope="class")
     def macros(self):
-        return {
-            "partition_metadata.sql": _MACRO_SQL
-        }
+        return {"partition_metadata.sql": _MACRO_SQL}
 
-    @pytest.fixture(scope='class')
+    @pytest.fixture(scope="class")
     def models(self):
-        return {
-            "my_model.sql": _MODEL_SQL,
-            "schema.yml": _SCHEMA_YML
-        }
-
+        return {"my_model.sql": _MODEL_SQL, "schema.yml": _SCHEMA_YML}
 
     def run_changes(self, before, after):
-        results = run_dbt(['run', '--vars', json.dumps(before)])
+        results = run_dbt(["run", "--vars", json.dumps(before)])
         assert len(results) == 1
 
-        results = run_dbt(['run', '--vars', json.dumps(after)])
+        results = run_dbt(["run", "--vars", json.dumps(after)])
         assert len(results) == 1
 
     def partitions_test(self, expected):
-        test_results = run_dbt(['test', '--vars', json.dumps(expected)])
+        test_results = run_dbt(["test", "--vars", json.dumps(expected)])
 
         for result in test_results:
             assert result.status == "pass"
-            assert result.skipped == False
+            assert not result.skipped
             assert result.failures == 0
 
-class TestBigQueryChangingPartition(BaseBigQueryChangingPartition):
 
+class TestBigQueryChangingPartition(BaseBigQueryChangingPartition):
     def test_bigquery_add_partition(self, project):
-        before = {"partition_by": None,
-                  "cluster_by": None,
-                  'partition_expiration_days': None,
-                  'require_partition_filter': None}
-        after = {"partition_by": {'field': 'cur_time', 'data_type': 'timestamp'},
-                 "cluster_by": None,
-                 'partition_expiration_days': 7,
-                 'require_partition_filter': True}
+        before = {
+            "partition_by": None,
+            "cluster_by": None,
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
+        after = {
+            "partition_by": {"field": "cur_time", "data_type": "timestamp"},
+            "cluster_by": None,
+            "partition_expiration_days": 7,
+            "require_partition_filter": True,
+        }
         self.run_changes(before, after)
         self.partitions_test({"expected": 1})
 
     def test_bigquery_add_partition_year(self, project):
-        before = {"partition_by": None,
-                  "cluster_by": None,
-                  'partition_expiration_days': None,
-                  'require_partition_filter': None}
-        after = {"partition_by": {'field': 'cur_time', 'data_type': 'timestamp', 'granularity': 'year'},
-                 "cluster_by": None,
-                 'partition_expiration_days': None,
-                 'require_partition_filter': None}
+        before = {
+            "partition_by": None,
+            "cluster_by": None,
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
+        after = {
+            "partition_by": {"field": "cur_time", "data_type": "timestamp", "granularity": "year"},
+            "cluster_by": None,
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
         self.run_changes(before, after)
         self.partitions_test({"expected": 1})
 
     def test_bigquery_add_partition_month(self, project):
-        before = {"partition_by": None,
-                  "cluster_by": None,
-                  'partition_expiration_days': None,
-                  'require_partition_filter': None}
-        after = {"partition_by": {'field': 'cur_time', 'data_type': 'timestamp', 'granularity': 'month'},
-                 "cluster_by": None,
-                 'partition_expiration_days': None,
-                 'require_partition_filter': None}
+        before = {
+            "partition_by": None,
+            "cluster_by": None,
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
+        after = {
+            "partition_by": {
+                "field": "cur_time",
+                "data_type": "timestamp",
+                "granularity": "month",
+            },
+            "cluster_by": None,
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
         self.run_changes(before, after)
         self.partitions_test({"expected": 1})
 
     def test_bigquery_add_partition_hour(self, project):
-        before = {"partition_by": None,
-                  "cluster_by": None,
-                  'partition_expiration_days': None,
-                  'require_partition_filter': None}
-        after = {"partition_by": {'field': 'cur_time', 'data_type': 'timestamp', 'granularity': 'hour'},
-                 "cluster_by": None,
-                 'partition_expiration_days': None,
-                 'require_partition_filter': None}
-        self.run_changes(before, after)
-        self.partitions_test({"expected": 1})
-
-    def test_bigquery_add_partition_hour(self, project):
-        before = {"partition_by": {'field': 'cur_time', 'data_type': 'timestamp', 'granularity': 'day'},
-                  "cluster_by": None,
-                  'partition_expiration_days': None,
-                  'require_partition_filter': None}
-        after = {"partition_by": {'field': 'cur_time', 'data_type': 'timestamp', 'granularity': 'hour'},
-                 "cluster_by": None,
-                 'partition_expiration_days': None,
-                 'require_partition_filter': None}
+        before = {
+            "partition_by": {"field": "cur_time", "data_type": "timestamp", "granularity": "day"},
+            "cluster_by": None,
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
+        after = {
+            "partition_by": {"field": "cur_time", "data_type": "timestamp", "granularity": "hour"},
+            "cluster_by": None,
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
         self.run_changes(before, after)
         self.partitions_test({"expected": 1})
 
     def test_bigquery_remove_partition(self, project):
-        before = {"partition_by": {'field': 'cur_time', 'data_type': 'timestamp'},
-                  "cluster_by": None,
-                  'partition_expiration_days': None,
-                  'require_partition_filter': None}
-        after = {"partition_by": None,
-                 "cluster_by": None,
-                 'partition_expiration_days': None,
-                 'require_partition_filter': None}
+        before = {
+            "partition_by": {"field": "cur_time", "data_type": "timestamp"},
+            "cluster_by": None,
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
+        after = {
+            "partition_by": None,
+            "cluster_by": None,
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
         self.run_changes(before, after)
 
     def test_bigquery_change_partitions(self, project):
-        before = {"partition_by": {'field': 'cur_time', 'data_type': 'timestamp'},
-                  "cluster_by": None,
-                  'partition_expiration_days': None,
-                  'require_partition_filter': None}
-        after = {"partition_by": {'field': "cur_date"},
-                 "cluster_by": None,
-                 'partition_expiration_days': 7,
-                 'require_partition_filter': True}
+        before = {
+            "partition_by": {"field": "cur_time", "data_type": "timestamp"},
+            "cluster_by": None,
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
+        after = {
+            "partition_by": {"field": "cur_date"},
+            "cluster_by": None,
+            "partition_expiration_days": 7,
+            "require_partition_filter": True,
+        }
         self.run_changes(before, after)
         self.partitions_test({"expected": 1})
         self.run_changes(after, before)
         self.partitions_test({"expected": 1})
 
     def test_bigquery_change_partitions_from_int(self, project):
-        before = {"partition_by": {"field": "id", "data_type": "int64", "range": {"start": 0, "end": 10, "interval": 1}},
-                  "cluster_by": None,
-                  'partition_expiration_days': None,
-                  'require_partition_filter': None}
-        after = {"partition_by": {"field": "cur_date", "data_type": "date"},
-                 "cluster_by": None,
-                 'partition_expiration_days': None,
-                 'require_partition_filter': None}
+        before = {
+            "partition_by": {
+                "field": "id",
+                "data_type": "int64",
+                "range": {"start": 0, "end": 10, "interval": 1},
+            },
+            "cluster_by": None,
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
+        after = {
+            "partition_by": {"field": "cur_date", "data_type": "date"},
+            "cluster_by": None,
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
         self.run_changes(before, after)
         self.partitions_test({"expected": 1})
         self.run_changes(after, before)
         self.partitions_test({"expected": 2})
 
     def test_bigquery_add_clustering(self, project):
-        before = {"partition_by": {'field': 'cur_time', 'data_type': 'timestamp'},
-                  "cluster_by": None,
-                  'partition_expiration_days': None,
-                  'require_partition_filter': None}
-        after = {"partition_by": {'field': "cur_date"},
-                 "cluster_by": "id",
-                 'partition_expiration_days': None,
-                 'require_partition_filter': None}
+        before = {
+            "partition_by": {"field": "cur_time", "data_type": "timestamp"},
+            "cluster_by": None,
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
+        after = {
+            "partition_by": {"field": "cur_date"},
+            "cluster_by": "id",
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
         self.run_changes(before, after)
 
     def test_bigquery_remove_clustering(self, project):
-        before = {"partition_by": {'field': 'cur_time', 'data_type': 'timestamp'},
-                  "cluster_by": "id",
-                  'partition_expiration_days': None,
-                  'require_partition_filter': None}
-        after = {"partition_by": {'field': "cur_date"},
-                 "cluster_by": None,
-                 'partition_expiration_days': None,
-                 'require_partition_filter': None}
+        before = {
+            "partition_by": {"field": "cur_time", "data_type": "timestamp"},
+            "cluster_by": "id",
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
+        after = {
+            "partition_by": {"field": "cur_date"},
+            "cluster_by": None,
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
         self.run_changes(before, after)
 
     def test_bigquery_change_clustering(self, project):
-        before = {"partition_by": {'field': 'cur_time', 'data_type': 'timestamp'},
-                  "cluster_by": "id",
-                  'partition_expiration_days': None,
-                  'require_partition_filter': None}
-        after = {"partition_by": {'field': "cur_date"},
-                 "cluster_by": "name",
-                 'partition_expiration_days': None,
-                 'require_partition_filter': None}
+        before = {
+            "partition_by": {"field": "cur_time", "data_type": "timestamp"},
+            "cluster_by": "id",
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
+        after = {
+            "partition_by": {"field": "cur_date"},
+            "cluster_by": "name",
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
         self.run_changes(before, after)
 
     def test_bigquery_change_clustering_strict(self, project):
-        before = {'partition_by': {'field': 'cur_time', 'data_type': 'timestamp'},
-                  'cluster_by': 'id',
-                  'partition_expiration_days': None,
-                  'require_partition_filter': None}
-        after = {'partition_by': {'field': 'cur_date', 'data_type': 'date'},
-                 'cluster_by': 'name',
-                 'partition_expiration_days': None,
-                 'require_partition_filter': None}
+        before = {
+            "partition_by": {"field": "cur_time", "data_type": "timestamp"},
+            "cluster_by": "id",
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
+        after = {
+            "partition_by": {"field": "cur_date", "data_type": "date"},
+            "cluster_by": "name",
+            "partition_expiration_days": None,
+            "require_partition_filter": None,
+        }
         self.run_changes(before, after)

@@ -7,7 +7,7 @@ from tests.functional.adapter.simple_snapshot import snapshots
 
 
 class TestSnapshot(BaseSimpleSnapshotBase):
-    # Not importing the base case because the update tests need modification for updating intervals
+    # Not importing the base case because the test_updates* tests need modification for updating intervals
     @pytest.fixture(scope="class")
     def snapshots(self):
         # Using the snapshot defined the adapter itself rather than the base case
@@ -18,8 +18,6 @@ class TestSnapshot(BaseSimpleSnapshotBase):
         """
         Update the last 5 records. Show that all ids are current, but the last 5 reflect updates.
         """
-        dt_type = "updated_at + interval '1 day'"
-        ts_type = "timestamp_add(updated_at, interval 1 day)"
         dt_add_type = "date_add(updated_at, interval 1 day)"
         self.update_fact_records(
             {
@@ -39,7 +37,6 @@ class TestSnapshot(BaseSimpleSnapshotBase):
         """
         self.insert_fact_records("id between 21 and 30")
         run_dbt(["snapshot"])
-        print("REACHED HERE?")
         self._assert_results(
             ids_with_current_snapshot_records=range(1, 31), ids_with_closed_out_snapshot_records=[]
         )
@@ -75,9 +72,8 @@ class TestSnapshot(BaseSimpleSnapshotBase):
         Show that all ids are current, but the last 10 reflect updates and the first 10 don't
         i.e. if the column is added, but not updated, the record doesn't reflect that it's updated
         """
-        self.add_fact_column("full_name", "varchar(200) default null")
-        dt_type = "updated_at + interval '1 day'"
-        ts_type = "timestamp_add(updated_at, interval 1 day)"
+        # Add a column to the fact table with a string type since BigQuery doesn't like varchar
+        self.add_fact_column("full_name", "string default null")
         dt_add_type = "date_add(date(updated_at), interval 1 day)"
         self.update_fact_records(
             {

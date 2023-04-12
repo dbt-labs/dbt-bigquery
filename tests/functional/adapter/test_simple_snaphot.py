@@ -3,16 +3,29 @@ import pytest
 from dbt.tests.util import run_dbt
 
 from dbt.tests.adapter.simple_snapshot.test_snapshot import BaseSimpleSnapshotBase, BaseSnapshotCheck
-from tests.functional.adapter.simple_snapshot import snapshots
+
+SNAPSHOT_TIMESTAMP_SQL = """
+{% snapshot snapshot %}
+    {{ config(
+        target_database=database,
+        target_schema=schema,
+        unique_key='id',
+        strategy='timestamp',
+        updated_at='updated_at_ts',
+        invalidate_hard_deletes=True,
+    ) }}
+    select *, timestamp(updated_at) as updated_at_ts from {{ ref('fact') }}
+{% endsnapshot %}
+"""
 
 
 class TestSnapshot(BaseSimpleSnapshotBase):
     # Not importing the base case because the test_updates* tests need modification for updating intervals
     @pytest.fixture(scope="class")
     def snapshots(self):
-        # Using the snapshot defined the adapter itself rather than the base case
+        # Using the snapshot defined in the class itself rather than the base case
         # Reason: dbt-bigquery:#3710: UNION ALL issue when running snapshots with invalidate_hard_deletes=True
-        return {"snapshot.sql": snapshots.SNAPSHOT_TIMESTAMP_SQL}
+        return {"snapshot.sql": SNAPSHOT_TIMESTAMP_SQL}
 
     def test_updates_are_captured_by_snapshot(self, project):
         """

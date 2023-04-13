@@ -1,6 +1,0 @@
-kind: Fixes
-body: Align partitions to be updated in incremental insert_overwrite to _dbt_max_partition wrt to nulls
-time: 2023-02-22T13:33:01.607225-08:00
-custom:
-  Author: patkearns10
-  Issue: "544"

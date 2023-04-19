@@ -1,7 +1,0 @@
-kind: Fixes
-body: Make BQ access_grant updates thread safe
-time: 2022-12-13T10:20:05.714134-08:00
-custom:
-  Author: colin-rogers-dbt
-  Issue: "266"
-  PR: "404"

@@ -55,7 +55,7 @@
       {%- set contract_config = config.get('contract') -%}
       {%- if contract_config.enforced -%}
         {{ get_assert_columns_equivalent(compiled_code) }}
-        {{ get_columns_spec_ddl() }}
+        {{ get_table_columns_and_constraints() }}
         {%- set compiled_code = get_select_subquery(compiled_code) %}
       {% endif %}
     {{ partition_by(partition_config) }}
@@ -73,6 +73,12 @@
     TODO: Deep dive into spark sessions to see if we can reuse a single session for an entire
     dbt invocation.
      --#}
+
+    {#-- when a user wants to change the schema of an existing relation, they must intentionally drop the table in the dataset --#}
+    {%- set old_relation = adapter.get_relation(database=relation.database, schema=relation.schema, identifier=relation.identifier) -%}
+    {%- if (old_relation.is_table and (should_full_refresh())) -%}
+      {% do adapter.drop_relation(relation) %}
+    {%- endif -%}
     {{ py_write_table(compiled_code=compiled_code, target_relation=relation.quote(database=False, schema=False, identifier=False)) }}
   {%- else -%}
     {% do exceptions.raise_compiler_error("bigquery__create_table_as macro didn't get supported language, it got %s" % language) %}

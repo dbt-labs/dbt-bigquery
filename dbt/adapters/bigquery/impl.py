@@ -78,25 +78,25 @@ class PartitionConfig(dbtClassMixin):
     copy_partitions: bool = False
 
     def data_type_for_partition(self):
-        """Return the data type of partitions for replacement."""
-        return self.data_type if not self.time_ingestion_partitioning else "timestamp"
+        """Return the data type of partitions for replacement.
+        When time_ingestion_partitioning is enabled, the data type supported are date & timestamp.
+        """
+        if not self.time_ingestion_partitioning:
+            return self.data_type
+        elif self.data_type.lower() == "date":
+            return "date"
+        else:
+            return "timestamp"
 
     def reject_partition_field_column(self, columns: List[Any]) -> List[str]:
         return [c for c in columns if not c.name.upper() == self.field.upper()]
 
     def data_type_should_be_truncated(self):
         """Return true if the data type should be truncated instead of cast to the data type."""
-        logger.info(
-            "data_type_should_be_truncated: {} / {}".format(
-                self.data_type.lower(), self.granularity.lower()
-            )
-        )
-        should_be = not (
+        return not (
             self.data_type.lower() == "int64"
             or (self.data_type.lower() == "date" and self.granularity.lower() == "day")
         )
-        logger.info("data_type_should_be_truncated: {}".format(should_be))
-        return should_be
 
     def time_partitioning_field(self) -> str:
         """Return the time partitioning field name based on the data type.

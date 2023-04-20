@@ -24,7 +24,7 @@ from tests.functional.adapter.incremental.incremental_strategy_fixtures import (
     overwrite_range_sql,
     overwrite_time_sql,
     overwrite_day_with_time_ingestion_sql,
-    overwrite_day_with_time_partition_datetime_sql
+    overwrite_day_with_time_partition_datetime_sql,
 )
 
 
@@ -45,7 +45,7 @@ class TestBigQueryScripting(SeedConfigBase):
             "incremental_overwrite_range.sql": overwrite_range_sql,
             "incremental_overwrite_time.sql": overwrite_time_sql,
             "incremental_overwrite_day_with_time_partition.sql": overwrite_day_with_time_ingestion_sql,
-            "incremental_overwrite_day_with_time_partition_datetime.sql": overwrite_day_with_time_partition_datetime_sql
+            "incremental_overwrite_day_with_time_partition_datetime.sql": overwrite_day_with_time_partition_datetime_sql,
         }
 
     @pytest.fixture(scope="class")
@@ -57,8 +57,7 @@ class TestBigQueryScripting(SeedConfigBase):
             "incremental_overwrite_date_expected.csv": seed_incremental_overwrite_date_expected_csv,
             "incremental_overwrite_day_expected.csv": seed_incremental_overwrite_day_expected_csv,
             "incremental_overwrite_range_expected.csv": seed_incremental_overwrite_range_expected_csv,
-            "incremental_overwrite_day_with_time_partition_expected.csv":
-                seed_incremental_overwrite_day_with_time_partition_expected_csv
+            "incremental_overwrite_day_with_time_partition_expected.csv": seed_incremental_overwrite_day_with_time_partition_expected_csv,
         }
 
     def test__bigquery_assert_incremental_configurations_apply_the_right_strategy(self, project):
@@ -76,8 +75,10 @@ class TestBigQueryScripting(SeedConfigBase):
             ("incremental_overwrite_partitions", "incremental_overwrite_date_expected"),
             ("incremental_overwrite_day", "incremental_overwrite_day_expected"),
             ("incremental_overwrite_range", "incremental_overwrite_range_expected"),
-            ("incremental_overwrite_day_with_time_partition", "incremental_overwrite_day_with_time_partition_expected"),
-            ("incremental_overwrite_day_with_time_partition_datetime", "incremental_overwrite_day_with_time_partition_expected"),
+            (
+                "incremental_overwrite_day_with_time_partition_datetime",
+                "incremental_overwrite_day_with_time_partition_expected",
+            ),
         ]
         db_with_schema = f"{project.database}.{project.test_schema}"
         for incremental_strategy in incremental_strategies:
@@ -91,4 +92,12 @@ class TestBigQueryScripting(SeedConfigBase):
             project.adapter, "incremental_overwrite_day_with_copy_partitions"
         )
         expected = get_relation_columns(project.adapter, "incremental_overwrite_day_expected")
+        assert created == expected
+
+        created = get_relation_columns(
+            project.adapter, "incremental_overwrite_day_with_time_partition"
+        )
+        expected = get_relation_columns(
+            project.adapter, "incremental_overwrite_day_with_time_partition_expected"
+        )
         assert created == expected

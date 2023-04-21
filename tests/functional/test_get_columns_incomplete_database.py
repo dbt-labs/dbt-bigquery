@@ -33,6 +33,7 @@ models:
       - get_cols_in
 """
 
+
 class TestIncompleteRelationSetup:
     @pytest.fixture(scope="class")
     def properties(self):
@@ -44,11 +45,9 @@ class TestIncompleteRelationSetup:
 
     @pytest.fixture(scope="class")
     def models(self):
-        return { "my_model.sql": models__my_model }
+        return {"my_model.sql": models__my_model}
 
 
 class TestIncompleteRelation(TestIncompleteRelationSetup):
-
-  def test_incomplete_relation(self, project):
-     run_dbt(["build"])
-
+    def test_incomplete_relation(self, project):
+        run_dbt(["build"])

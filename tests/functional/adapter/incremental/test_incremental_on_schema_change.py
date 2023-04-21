@@ -40,8 +40,8 @@ WITH source_data AS (SELECT * FROM {{ ref('model_a') }} )
 
 {% if is_incremental() %}
 
-SELECT id, 
-       cast(field1 as {{string_type}}) as field1, 
+SELECT id,
+       cast(field1 as {{string_type}}) as field1,
        cast(field3 as {{string_type}}) as field3, -- to validate new fields
        cast(field4 as {{string_type}}) AS field4 -- to validate new fields
 
@@ -49,8 +49,8 @@ FROM source_data WHERE id > _dbt_max_partition
 
 {% else %}
 
-select id, 
-       cast(field1 as {{string_type}}) as field1, 
+select id,
+       cast(field1 as {{string_type}}) as field1,
        cast(field2 as {{string_type}}) as field2
 
 from source_data where id <= 3
@@ -125,30 +125,27 @@ _MODELS__INCREMENTAL_TIME_INGESTION_PARTITIONING_TARGET = """
 {% endif %}
 """
 
+
 class TestIncrementalOnSchemaChangeBigQuerySpecific(BaseIncrementalOnSchemaChangeSetup):
     @pytest.fixture(scope="class")
     def models(self):
         return {
             "model_a.sql": _MODELS__A,
-            "incremental_sync_all_columns_dynamic_insert_overwrite.sql":
-                _MODELS__INCREMENTAL_SYNC_ALL_COLUMNS_DYNAMIC_INSERT_OVERWRITE,
-            "incremental_sync_all_columns_target.sql":
-                _MODELS__INCREMENTAL_SYNC_ALL_COLUMNS_TARGET,
-            "incremental_time_ingestion_partitioning.sql":
-                _MODELS__INCREMENTAL_TIME_INGESTION_PARTITIONING,
-            "incremental_time_ingestion_partitioning_target.sql":
-                _MODELS__INCREMENTAL_TIME_INGESTION_PARTITIONING_TARGET,
+            "incremental_sync_all_columns_dynamic_insert_overwrite.sql": _MODELS__INCREMENTAL_SYNC_ALL_COLUMNS_DYNAMIC_INSERT_OVERWRITE,
+            "incremental_sync_all_columns_target.sql": _MODELS__INCREMENTAL_SYNC_ALL_COLUMNS_TARGET,
+            "incremental_time_ingestion_partitioning.sql": _MODELS__INCREMENTAL_TIME_INGESTION_PARTITIONING,
+            "incremental_time_ingestion_partitioning_target.sql": _MODELS__INCREMENTAL_TIME_INGESTION_PARTITIONING_TARGET,
         }
-    
+
     def test_run_incremental_sync_all_columns_dynamic_insert_overwrite(self, project):
-        select = 'model_a incremental_sync_all_columns_dynamic_insert_overwrite incremental_sync_all_columns_target'
-        compare_source = 'incremental_sync_all_columns_dynamic_insert_overwrite'
-        compare_target = 'incremental_sync_all_columns_target'
+        select = "model_a incremental_sync_all_columns_dynamic_insert_overwrite incremental_sync_all_columns_target"
+        compare_source = "incremental_sync_all_columns_dynamic_insert_overwrite"
+        compare_target = "incremental_sync_all_columns_target"
         self.run_twice_and_assert(select, compare_source, compare_target, project)
-    
+
     # TODO: this test was added here, but it doesn't actually use 'on_schema_change'
     def test_run_incremental_time_ingestion_partitioning(self, project):
-        select = 'model_a incremental_time_ingestion_partitioning incremental_time_ingestion_partitioning_target'
-        compare_source = 'incremental_time_ingestion_partitioning'
-        compare_target = 'incremental_time_ingestion_partitioning_target'
+        select = "model_a incremental_time_ingestion_partitioning incremental_time_ingestion_partitioning_target"
+        compare_source = "incremental_time_ingestion_partitioning"
+        compare_target = "incremental_time_ingestion_partitioning_target"
         self.run_twice_and_assert(select, compare_source, compare_target, project)

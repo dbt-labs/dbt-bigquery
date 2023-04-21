@@ -1,6 +1,4 @@
-from abc import abstractmethod
 import pytest
-import os
 from dbt.tests.util import run_dbt
 
 SELECT_1 = """

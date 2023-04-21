@@ -1,16 +1,10 @@
-import json
-import os
 import pytest
 
 from pathlib import Path
-from pytest import mark
 
 from dbt.tests.util import run_dbt, rm_file, write_file, check_relations_equal
 
-from dbt.tests.adapter.simple_copy.test_simple_copy import (
-   SimpleCopySetup,
-   SimpleCopyBase
-)
+from dbt.tests.adapter.simple_copy.test_simple_copy import SimpleCopyBase
 
 from tests.functional.adapter.simple_copy.fixtures import (
     _MODELS_INCREMENTAL_UPDATE_COLS,
@@ -19,6 +13,7 @@ from tests.functional.adapter.simple_copy.fixtures import (
     _SEEDS__SEED_MERGE_COLS_EXPECTED_RESULT,
 )
 
+
 class TestSimpleCopyBase(SimpleCopyBase):
     pass
 
@@ -26,9 +21,7 @@ class TestSimpleCopyBase(SimpleCopyBase):
 class TestIncrementalMergeColumns:
     @pytest.fixture(scope="class")
     def models(self):
-        return {
-            "incremental_update_cols.sql": _MODELS_INCREMENTAL_UPDATE_COLS
-        }
+        return {"incremental_update_cols.sql": _MODELS_INCREMENTAL_UPDATE_COLS}
 
     @pytest.fixture(scope="class")
     def seeds(self):
@@ -46,6 +39,4 @@ class TestIncrementalMergeColumns:
 
         run_dbt(["seed"])
         run_dbt(["run"])
-        check_relations_equal(
-            project.adapter, ["incremental_update_cols", "expected_result"]
-        )
+        check_relations_equal(project.adapter, ["incremental_update_cols", "expected_result"])

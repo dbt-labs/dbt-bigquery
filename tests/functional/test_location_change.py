@@ -6,11 +6,11 @@ _MODEL_SQL = """
 select 1 as id
 """
 
-_INVALID_LOCATION = os.getenv('DBT_TEST_BIGQUERY_BAD_LOCATION', 'northamerica-northeast1')
-_VALID_LOCATION = os.getenv('DBT_TEST_BIGQUERY_INITIAL_LOCATION', 'US')
+_INVALID_LOCATION = os.getenv("DBT_TEST_BIGQUERY_BAD_LOCATION", "northamerica-northeast1")
+_VALID_LOCATION = os.getenv("DBT_TEST_BIGQUERY_INITIAL_LOCATION", "US")
+
 
 class BaseBigQueryLocation:
-
     @pytest.fixture(scope="class")
     def models(self):
         return {
@@ -19,7 +19,6 @@ class BaseBigQueryLocation:
 
 
 class TestBigqueryValidLocation(BaseBigQueryLocation):
-
     def test_bigquery_valid_location(self, project):
         results = run_dbt()
         for result in results:
@@ -27,7 +26,6 @@ class TestBigqueryValidLocation(BaseBigQueryLocation):
 
 
 class TestBigqueryInvalidLocation(BaseBigQueryLocation):
-
     @pytest.fixture(scope="class")
     def profiles_config_update(self, dbt_profile_target):
         outputs = {"default": dbt_profile_target}

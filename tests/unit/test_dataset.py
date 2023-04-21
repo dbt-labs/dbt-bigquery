@@ -10,7 +10,11 @@ def test_add_access_entry_to_dataset_idempotently_adds_entries():
     entity = BigQueryRelation.from_dict(
         {
             "type": None,
-            "path": {"database": "test-project", "schema": "test_schema", "identifier": "my_table"},
+            "path": {
+                "database": "test-project",
+                "schema": "test_schema",
+                "identifier": "my_table",
+            },
             "quote_policy": {"identifier": False},
         }
     ).to_dict()
@@ -29,7 +33,11 @@ def test_add_access_entry_to_dataset_does_not_add_with_pre_existing_entries():
     entity_2 = BigQueryRelation.from_dict(
         {
             "type": None,
-            "path": {"database": "test-project", "schema": "test_schema", "identifier": "some_other_view"},
+            "path": {
+                "database": "test-project",
+                "schema": "test_schema",
+                "identifier": "some_other_view",
+            },
             "quote_policy": {"identifier": False},
         }
     ).to_dict()

@@ -2,6 +2,12 @@ import pytest
 import os
 from dbt.tests.util import run_dbt, check_relations_equal_with_relations
 
+from tests.functional.test_override_database.fixtures import (  # noqa: F401
+    models,
+    seeds,
+    project_files,
+)
+
 ALT_DATABASE = os.getenv("BIGQUERY_TEST_ALT_DATABASE")
 
 

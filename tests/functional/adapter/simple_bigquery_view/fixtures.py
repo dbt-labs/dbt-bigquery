@@ -4,11 +4,11 @@
 
 clustered_model_sql = """
 {{
-	config(
-		materialized = "table",
-		partition_by = {"field": "updated_at", "data_type": "date"},
-		cluster_by = "dupe",
-	)
+    config(
+        materialized = "table",
+        partition_by = {"field": "updated_at", "data_type": "date"},
+        cluster_by = "dupe",
+    )
 }}
 
 select * from {{ ref('view_model') }}
@@ -20,10 +20,10 @@ select 1 as id
 
 labeled_model_sql = """
 {{
-	config(
-		materialized = "table",
-		labels = {'town': 'fish', 'analytics': 'yes'}
-	)
+    config(
+        materialized = "table",
+        labels = {'town': 'fish', 'analytics': 'yes'}
+    )
 }}
 
 select * from {{ ref('view_model') }}
@@ -31,11 +31,11 @@ select * from {{ ref('view_model') }}
 
 multi_clustered_model_sql = """
 {{
-	config(
-		materialized = "table",
-		partition_by = {"field": "updated_at", "data_type": "date"},
-		cluster_by = ["dupe","id"],
-	)
+    config(
+        materialized = "table",
+        partition_by = {"field": "updated_at", "data_type": "date"},
+        cluster_by = ["dupe","id"],
+    )
 }}
 
 select * from {{ ref('view_model') }}
@@ -44,10 +44,10 @@ select * from {{ ref('view_model') }}
 
 partitioned_model_sql = """
 {{
-	config(
-		materialized = "table",
-		partition_by = {'field': 'updated_at', 'data_type': 'date'},
-	)
+    config(
+        materialized = "table",
+        partition_by = {'field': 'updated_at', 'data_type': 'date'},
+    )
 }}
 
 select * from {{ ref('view_model') }}
@@ -121,13 +121,13 @@ sql_header_model_sql = """
 
 {# This will fail if it is not extracted correctly #}
 {% call set_sql_header(config) %}
-  	CREATE TEMPORARY FUNCTION a_to_b(str STRING)
-	RETURNS STRING AS (
-	  CASE
-	  WHEN LOWER(str) = 'a' THEN 'b'
-	  ELSE str
-	  END
-	);
+    CREATE TEMPORARY FUNCTION a_to_b(str STRING)
+    RETURNS STRING AS (
+      CASE
+      WHEN LOWER(str) = 'a' THEN 'b'
+      ELSE str
+      END
+    );
 {% endcall %}
 
 select a_to_b(dupe) as dupe from {{ ref('view_model') }}
@@ -140,13 +140,13 @@ sql_header_model_incr_sql = """
 {% call set_sql_header(config) %}
     DECLARE int_var INT64 DEFAULT 42;
 
-  	CREATE TEMPORARY FUNCTION a_to_b(str STRING)
-	RETURNS STRING AS (
-	  CASE
-	  WHEN LOWER(str) = 'a' THEN 'b'
-	  ELSE str
-	  END
-	);
+    CREATE TEMPORARY FUNCTION a_to_b(str STRING)
+    RETURNS STRING AS (
+      CASE
+      WHEN LOWER(str) = 'a' THEN 'b'
+      ELSE str
+      END
+    );
 {% endcall %}
 
 select a_to_b(dupe) as dupe from {{ ref('view_model') }}
@@ -171,13 +171,13 @@ sql_header_model_incr_insert_overwrite_sql = """
 {% call set_sql_header(config) %}
     DECLARE int_var INT64 DEFAULT 42;
 
-  	CREATE TEMPORARY FUNCTION a_to_b(str STRING)
-	RETURNS STRING AS (
-	  CASE
-	  WHEN LOWER(str) = 'a' THEN 'b'
-	  ELSE str
-	  END
-	);
+    CREATE TEMPORARY FUNCTION a_to_b(str STRING)
+    RETURNS STRING AS (
+      CASE
+      WHEN LOWER(str) = 'a' THEN 'b'
+      ELSE str
+      END
+    );
 {% endcall %}
 
 select
@@ -205,13 +205,13 @@ sql_header_model_incr_insert_overwrite_static_sql = """
 
 {# This will fail if it is not extracted correctly #}
 {% call set_sql_header(config) %}
-  	CREATE TEMPORARY FUNCTION a_to_b(str STRING)
-	RETURNS STRING AS (
-	  CASE
-	  WHEN LOWER(str) = 'a' THEN 'b'
-	  ELSE str
-	  END
-	);
+    CREATE TEMPORARY FUNCTION a_to_b(str STRING)
+    RETURNS STRING AS (
+      CASE
+      WHEN LOWER(str) = 'a' THEN 'b'
+      ELSE str
+      END
+    );
 {% endcall %}
 
 select

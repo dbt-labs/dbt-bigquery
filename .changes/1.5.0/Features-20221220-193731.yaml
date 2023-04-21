@@ -1,6 +1,0 @@
-kind: Features
-body: 'Support for data type constraints in BigQuery'
-time: 2022-12-20T19:37:31.982821+01:00
-custom:
-  Author: victoriapm, emmyoop
-  Issue: 444 568

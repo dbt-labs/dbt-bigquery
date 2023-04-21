@@ -1,5 +1,3 @@
-import pytest
-
 from dbt.tests.adapter.grants.base_grants import BaseGrants
 from dbt.tests.adapter.grants.test_model_grants import BaseModelGrants
 from dbt.tests.adapter.grants.test_incremental_grants import BaseIncrementalGrants
@@ -16,6 +14,7 @@ class BaseGrantsBigQuery(BaseGrants):
             "fake_privilege": "roles/invalid",
             "invalid_user": "user:fake@dbtlabs.com",
         }
+
 
 class TestModelGrantsBigQuery(BaseGrantsBigQuery, BaseModelGrants):
     pass

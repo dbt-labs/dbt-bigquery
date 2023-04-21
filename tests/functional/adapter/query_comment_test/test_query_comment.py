@@ -1,4 +1,3 @@
-import pytest
 from dbt.tests.adapter.query_comment.test_query_comment import (
     BaseQueryComments,
     BaseMacroQueryComments,
@@ -12,17 +11,22 @@ from dbt.tests.adapter.query_comment.test_query_comment import (
 class TestQueryCommentsBigQuery(BaseQueryComments):
     pass
 
+
 class TestMacroQueryCommentsBigQuery(BaseMacroQueryComments):
     pass
+
 
 class TestMacroArgsQueryCommentsBigQuery(BaseMacroArgsQueryComments):
     pass
 
+
 class TestMacroInvalidQueryCommentsBigQuery(BaseMacroInvalidQueryComments):
     pass
 
+
 class TestNullQueryCommentsBigQuery(BaseNullQueryComments):
     pass
+
 
 class TestEmptyQueryCommentsBigQuery(BaseEmptyQueryComments):
     pass

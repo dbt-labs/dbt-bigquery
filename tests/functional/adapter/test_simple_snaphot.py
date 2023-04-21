@@ -2,7 +2,10 @@ import pytest
 
 from dbt.tests.util import run_dbt
 
-from dbt.tests.adapter.simple_snapshot.test_snapshot import BaseSimpleSnapshotBase, BaseSnapshotCheck
+from dbt.tests.adapter.simple_snapshot.test_snapshot import (
+    BaseSimpleSnapshotBase,
+    BaseSnapshotCheck,
+)
 
 SNAPSHOT_TIMESTAMP_SQL = """
 {% snapshot snapshot %}
@@ -32,12 +35,7 @@ class TestSnapshot(BaseSimpleSnapshotBase):
         Update the last 5 records. Show that all ids are current, but the last 5 reflect updates.
         """
         date_add_expression = "date_add(updated_at, interval 1 day)"
-        self.update_fact_records(
-            {
-                "updated_at": date_add_expression
-            },
-            "id between 16 and 20"
-        )
+        self.update_fact_records({"updated_at": date_add_expression}, "id between 16 and 20")
         run_dbt(["snapshot"])
         self._assert_results(
             ids_with_current_snapshot_records=range(1, 21),

@@ -1,6 +1,0 @@
-kind: Fixes
-body: Pin dataproc serverless spark runtime to `1.1`
-time: 2023-02-13T20:33:17.839861-08:00
-custom:
-  Author: colin-rogers-dbt
-  Issue: "531"

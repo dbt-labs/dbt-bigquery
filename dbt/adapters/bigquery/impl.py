@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import threading
 from typing import Dict, List, Optional, Any, Set, Union, Type
 
-from dbt.contracts.graph.nodes import ColumnLevelConstraint, ModelLevelConstraint, ConstraintType
+from dbt.contracts.graph.nodes import ColumnLevelConstraint, ModelLevelConstraint, ConstraintType  # type: ignore
 from dbt.dataclass_schema import dbtClassMixin, ValidationError
 
 import dbt.deprecations
@@ -10,7 +10,7 @@ import dbt.exceptions
 import dbt.clients.agate_helper
 
 from dbt import ui  # type: ignore
-from dbt.adapters.base import (
+from dbt.adapters.base import (  # type: ignore
     BaseAdapter,
     ConstraintSupport,
     available,
@@ -21,7 +21,7 @@ from dbt.adapters.base import (
     PythonJobHelper,
 )
 
-from dbt.adapters.cache import _make_ref_key_dict
+from dbt.adapters.cache import _make_ref_key_dict  # type: ignore
 
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset
@@ -923,7 +923,7 @@ class BigQueryAdapter(BaseAdapter):
 
     @classmethod
     def render_column_constraint(cls, constraint: ColumnLevelConstraint) -> Optional[str]:
-        c = super().render_column_constraint(constraint)
+        c = super().render_column_constraint(constraint)  # type: ignore
         if (
             constraint.type == ConstraintType.primary_key
             or constraint.type == ConstraintType.foreign_key
@@ -933,7 +933,7 @@ class BigQueryAdapter(BaseAdapter):
 
     @classmethod
     def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
-        c = super().render_model_constraint(constraint)
+        c = super().render_model_constraint(constraint)  # type: ignore
         if (
             constraint.type == ConstraintType.primary_key
             or constraint.type == ConstraintType.foreign_key

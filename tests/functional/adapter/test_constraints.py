@@ -1,5 +1,4 @@
 import pytest
-from dbt.tests.util import relation_from_name
 from dbt.tests.adapter.constraints.test_constraints import (
     BaseTableConstraintsColumnsEqual,
     BaseViewConstraintsColumnsEqual,
@@ -7,7 +6,8 @@ from dbt.tests.adapter.constraints.test_constraints import (
     BaseConstraintsRuntimeDdlEnforcement,
     BaseConstraintsRollback,
     BaseIncrementalConstraintsRuntimeDdlEnforcement,
-    BaseIncrementalConstraintsRollback, BaseModelConstraintsRuntimeEnforcement,
+    BaseIncrementalConstraintsRollback,
+    BaseModelConstraintsRuntimeEnforcement,
 )
 from dbt.tests.adapter.constraints.fixtures import (
     my_model_sql,
@@ -18,7 +18,8 @@ from dbt.tests.adapter.constraints.fixtures import (
     my_model_wrong_name_sql,
     my_model_view_wrong_name_sql,
     my_model_incremental_wrong_name_sql,
-    model_schema_yml, constrained_model_schema_yml,
+    model_schema_yml,
+    constrained_model_schema_yml,
 )
 
 _expected_sql_bigquery = """
@@ -30,11 +31,11 @@ create or replace table <model_identifier> (
 OPTIONS()
 as (
     select id,
-    color, 
-    date_day from 
-  ( 
-    select 'blue' as color, 
-    1 as id, 
+    color,
+    date_day from
+  (
+    select 'blue' as color,
+    1 as id,
     '2019-01-01' as date_day
   ) as model_subq
 );
@@ -44,6 +45,7 @@ as (
 # - does not support a data type named 'text' (TODO handle this via type translation/aliasing!)
 constraints_yml = model_schema_yml.replace("text", "string")
 model_constraints_yml = constrained_model_schema_yml.replace("text", "string")
+
 
 class BigQueryColumnEqualSetup:
     @pytest.fixture
@@ -58,22 +60,25 @@ class BigQueryColumnEqualSetup:
     def data_types(self, int_type, string_type):
         # sql_column_value, schema_data_type, error_data_type
         return [
-            ['1', int_type, int_type],
+            ["1", int_type, int_type],
             ["'1'", string_type, string_type],
-            ["cast('2019-01-01' as date)", 'date', 'DATE'],
-            ["true", 'bool', 'BOOL'],
-            ["cast('2013-11-03 00:00:00-07' as TIMESTAMP)", 'timestamp', 'TIMESTAMP'],
-            ["['a','b','c']", f'ARRAY<{string_type}>', f'ARRAY<{string_type}>'],
-            ["[1,2,3]", f'ARRAY<{int_type}>', f'ARRAY<{int_type}>'],
-            ["cast(1 as NUMERIC)", 'numeric', 'NUMERIC'],
-            ["""JSON '{"name": "Cooper", "forname": "Alice"}'""", 'json', 'JSON'],
-            ['STRUCT("Rudisha" AS name, [23.4, 26.3, 26.4, 26.1] AS laps)', 'STRUCT<name STRING, laps ARRAY<FLOAT64>>', 'STRUCT<name STRING, laps ARRAY<FLOAT64>>']
+            ["cast('2019-01-01' as date)", "date", "DATE"],
+            ["true", "bool", "BOOL"],
+            ["cast('2013-11-03 00:00:00-07' as TIMESTAMP)", "timestamp", "TIMESTAMP"],
+            ["['a','b','c']", f"ARRAY<{string_type}>", f"ARRAY<{string_type}>"],
+            ["[1,2,3]", f"ARRAY<{int_type}>", f"ARRAY<{int_type}>"],
+            ["cast(1 as NUMERIC)", "numeric", "NUMERIC"],
+            ["""JSON '{"name": "Cooper", "forname": "Alice"}'""", "json", "JSON"],
+            [
+                'STRUCT("Rudisha" AS name, [23.4, 26.3, 26.4, 26.1] AS laps)',
+                "STRUCT<name STRING, laps ARRAY<FLOAT64>>",
+                "STRUCT<name STRING, laps ARRAY<FLOAT64>>",
+            ],
         ]
 
 
 class TestBigQueryTableConstraintsColumnsEqual(
-    BigQueryColumnEqualSetup,
-    BaseTableConstraintsColumnsEqual
+    BigQueryColumnEqualSetup, BaseTableConstraintsColumnsEqual
 ):
     @pytest.fixture(scope="class")
     def models(self):
@@ -85,8 +90,7 @@ class TestBigQueryTableConstraintsColumnsEqual(
 
 
 class TestBigQueryViewConstraintsColumnsEqual(
-    BigQueryColumnEqualSetup,
-    BaseViewConstraintsColumnsEqual
+    BigQueryColumnEqualSetup, BaseViewConstraintsColumnsEqual
 ):
     @pytest.fixture(scope="class")
     def models(self):
@@ -98,8 +102,7 @@ class TestBigQueryViewConstraintsColumnsEqual(
 
 
 class TestBigQueryIncrementalConstraintsColumnsEqual(
-    BigQueryColumnEqualSetup,
-    BaseIncrementalConstraintsColumnsEqual
+    BigQueryColumnEqualSetup, BaseIncrementalConstraintsColumnsEqual
 ):
     @pytest.fixture(scope="class")
     def models(self):
@@ -110,9 +113,7 @@ class TestBigQueryIncrementalConstraintsColumnsEqual(
         }
 
 
-class TestBigQueryTableConstraintsRuntimeDdlEnforcement(
-    BaseConstraintsRuntimeDdlEnforcement
-):
+class TestBigQueryTableConstraintsRuntimeDdlEnforcement(BaseConstraintsRuntimeDdlEnforcement):
     @pytest.fixture(scope="class")
     def models(self):
         return {
@@ -125,9 +126,7 @@ class TestBigQueryTableConstraintsRuntimeDdlEnforcement(
         return _expected_sql_bigquery
 
 
-class TestBigQueryTableConstraintsRollback(
-    BaseConstraintsRollback
-):
+class TestBigQueryTableConstraintsRollback(BaseConstraintsRollback):
     @pytest.fixture(scope="class")
     def models(self):
         return {
@@ -138,6 +137,7 @@ class TestBigQueryTableConstraintsRollback(
     @pytest.fixture(scope="class")
     def expected_error_messages(self):
         return ["Required field id cannot be null"]
+
 
 class TestBigQueryIncrementalConstraintsRuntimeDdlEnforcement(
     BaseIncrementalConstraintsRuntimeDdlEnforcement
@@ -154,9 +154,7 @@ class TestBigQueryIncrementalConstraintsRuntimeDdlEnforcement(
         return _expected_sql_bigquery
 
 
-class TestBigQueryIncrementalConstraintsRollback(
-    BaseIncrementalConstraintsRollback
-):
+class TestBigQueryIncrementalConstraintsRollback(BaseIncrementalConstraintsRollback):
     @pytest.fixture(scope="class")
     def models(self):
         return {
@@ -170,7 +168,6 @@ class TestBigQueryIncrementalConstraintsRollback(
 
 
 class TestBigQueryModelConstraintsRuntimeEnforcement(BaseModelConstraintsRuntimeEnforcement):
-
     @pytest.fixture(scope="class")
     def models(self):
         return {
@@ -190,11 +187,11 @@ create or replace table <model_identifier> (
 OPTIONS()
 as (
     select id,
-    color, 
-    date_day from 
-  ( 
-    select 1 as id, 
-    'blue' as color, 
+    color,
+    date_day from
+  (
+    select 1 as id,
+    'blue' as color,
     '2019-01-01' as date_day
   ) as model_subq
 );

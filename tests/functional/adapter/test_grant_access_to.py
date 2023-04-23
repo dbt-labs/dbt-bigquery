@@ -1,7 +1,9 @@
-from abc import abstractmethod
+import threading
+
 import pytest
-import os
+
 from dbt.tests.util import run_dbt
+
 
 SELECT_1 = """
 {{ config(
@@ -43,10 +45,11 @@ class TestAccessGrantSucceeds:
 
     def test_grant_access_succeeds(self, project):
         # Need to run twice to validate idempotency
-        results = run_dbt(["run"])
-        assert len(results) == 2
-        results = run_dbt(["run"])
-        assert len(results) == 2
+        with threading.Lock():
+            results = run_dbt(["run"])
+            assert len(results) == 2
+            results = run_dbt(["run"])
+            assert len(results) == 2
 
 
 class TestAccessGrantFails:

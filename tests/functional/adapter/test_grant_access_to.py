@@ -1,4 +1,4 @@
-import threading
+import time
 
 import pytest
 
@@ -45,11 +45,11 @@ class TestAccessGrantSucceeds:
 
     def test_grant_access_succeeds(self, project):
         # Need to run twice to validate idempotency
-        with threading.Lock():
-            results = run_dbt(["run"])
-            assert len(results) == 2
-            results = run_dbt(["run"])
-            assert len(results) == 2
+        results = run_dbt(["run"])
+        assert len(results) == 2
+        time.sleep(10)
+        results = run_dbt(["run"])
+        assert len(results) == 2
 
 
 class TestAccessGrantFails:

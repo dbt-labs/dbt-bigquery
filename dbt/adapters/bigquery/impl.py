@@ -77,16 +77,17 @@ class PartitionConfig(dbtClassMixin):
     time_ingestion_partitioning: bool = False
     copy_partitions: bool = False
 
+    PARTITION_DATE = "_PARTITIONDATE"
+    PARTITION_TIME = "_PARTITIONTIME"
+
     def data_type_for_partition(self):
         """Return the data type of partitions for replacement.
         When time_ingestion_partitioning is enabled, the data type supported are date & timestamp.
         """
         if not self.time_ingestion_partitioning:
             return self.data_type
-        elif self.data_type.lower() == "date":
-            return "date"
-        else:
-            return "timestamp"
+
+        return "date" if self.data_type == "date" else "timestamp"
 
     def reject_partition_field_column(self, columns: List[Any]) -> List[str]:
         return [c for c in columns if not c.name.upper() == self.field.upper()]
@@ -94,8 +95,7 @@ class PartitionConfig(dbtClassMixin):
     def data_type_should_be_truncated(self):
         """Return true if the data type should be truncated instead of cast to the data type."""
         return not (
-            self.data_type.lower() == "int64"
-            or (self.data_type.lower() == "date" and self.granularity.lower() == "day")
+            self.data_type == "int64" or (self.data_type == "date" and self.granularity == "day")
         )
 
     def time_partitioning_field(self) -> str:
@@ -103,15 +103,15 @@ class PartitionConfig(dbtClassMixin):
         The default is _PARTITIONTIME, but for date it is _PARTITIONDATE
         else it will fail statements for type mismatch."""
         if self.data_type == "date":
-            return "_PARTITIONDATE"
+            return self.PARTITION_DATE
         else:
-            return "_PARTITIONTIME"
+            return self.PARTITION_TIME
 
     def insertable_time_partitioning_field(self) -> str:
         """Return the insertable time partitioning field name based on the data type.
         Practically, only _PARTITIONTIME works so far.
         The function is meant to keep the call sites consistent as it might evolve."""
-        return "_PARTITIONTIME"
+        return self.PARTITION_TIME
 
     def render(self, alias: Optional[str] = None):
         column: str = (
@@ -145,7 +145,12 @@ class PartitionConfig(dbtClassMixin):
             return None
         try:
             cls.validate(raw_partition_by)
-            return cls.from_dict(raw_partition_by)
+            return cls.from_dict(
+                {
+                    key: (value.lower() if isinstance(value, str) else value)
+                    for key, value in raw_partition_by.items()
+                }
+            )
         except ValidationError as exc:
             raise dbt.exceptions.DbtValidationError("Could not parse partition config") from exc
         except TypeError:
@@ -601,12 +606,12 @@ class BigQueryAdapter(BaseAdapter):
             table_field = (
                 table.time_partitioning.field.lower() if table.time_partitioning.field else None
             )
-            table_granularity = table.partitioning_type.lower()
+            table_granularity = table.partitioning_type
             conf_table_field = conf_partition.field
             return (
-                table_field == conf_table_field.lower()
+                table_field == conf_table_field
                 or (conf_partition.time_ingestion_partitioning and table_field is not None)
-            ) and table_granularity == conf_partition.granularity.lower()
+            ) and table_granularity == conf_partition.granularity
         elif conf_partition and table.range_partitioning is not None:
             dest_part = table.range_partitioning
             conf_part = conf_partition.range or {}

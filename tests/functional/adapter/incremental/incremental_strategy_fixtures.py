@@ -54,7 +54,7 @@ merge_time_sql = """
         cluster_by="id",
         partition_by={
             "field": "date_time",
-            "data_type": "datetime"
+            "data_type": "dateTime"
         }
     )
 }}

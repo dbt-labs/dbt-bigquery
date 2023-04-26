@@ -65,12 +65,17 @@
         {{ get_table_columns_and_constraints() }}
         {%- set compiled_code = get_select_subquery(compiled_code) %}
       {% else %}
+        {#-- cannot do contracts at the same time as time ingestion partitioning -#}
         {{ columns }}
       {% endif %}
     {{ partition_by(partition_config) }}
     {{ cluster_by(raw_cluster_by) }}
 
     {{ bigquery_table_options(config, model, temporary) }}
+
+    {#-- PARTITION BY cannot be used with the AS query_statement clause.
+         https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#partition_expression
+    -#}
     {%- if not partition_config.time_ingestion_partitioning %}
     as (
       {{ compiled_code }}

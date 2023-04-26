@@ -752,7 +752,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "MONTH",
+                "granularity": "month",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },
@@ -765,7 +765,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "YEAR",
+                "granularity": "year",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },
@@ -778,7 +778,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "timestamp",
-                "granularity": "HOUR",
+                "granularity": "hour",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },
@@ -791,7 +791,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "timestamp",
-                "granularity": "MONTH",
+                "granularity": "month",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },
@@ -804,7 +804,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "timestamp",
-                "granularity": "YEAR",
+                "granularity": "year",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },
@@ -817,7 +817,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "datetime",
-                "granularity": "HOUR",
+                "granularity": "hour",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },
@@ -830,7 +830,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "datetime",
-                "granularity": "MONTH",
+                "granularity": "month",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },
@@ -843,7 +843,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "datetime",
-                "granularity": "YEAR",
+                "granularity": "year",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },

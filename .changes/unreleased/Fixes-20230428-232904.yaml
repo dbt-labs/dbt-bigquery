@@ -1,0 +1,6 @@
+kind: Fixes
+body: Fixes adding policy tags when a struct is defined in the yml
+time: 2023-04-28T23:29:04.08966+01:00
+custom:
+  Author: dgren161
+  Issue: "687"

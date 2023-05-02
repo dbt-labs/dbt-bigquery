@@ -376,7 +376,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         mock_client.assert_not_called()
         connection.handle
         mock_client.assert_called_once_with(
-            "dbt-unit-000000", creds, location="Luna Station", client_info=HasUserAgent()
+            "dbt-unit-000000", creds, location="Luna Station", client_info=HasUserAgent(), client_options={"api_endpoint": None}
         )
 
 

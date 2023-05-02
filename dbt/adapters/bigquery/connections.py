@@ -14,6 +14,7 @@ import google.auth.exceptions
 import google.cloud.bigquery
 import google.cloud.exceptions
 from google.api_core import retry, client_info
+from google.api_core.client_options import ClientOptions
 from google.auth import impersonated_credentials
 from google.oauth2 import (
     credentials as GoogleCredentials,
@@ -110,6 +111,7 @@ class BigQueryCredentials(Credentials):
     database: Optional[str]  # type: ignore
     execution_project: Optional[str] = None
     location: Optional[str] = None
+    api_endpoint: Optional[str] = None
     priority: Optional[Priority] = None
     maximum_bytes_billed: Optional[int] = None
     impersonate_service_account: Optional[str] = None
@@ -171,6 +173,7 @@ class BigQueryCredentials(Credentials):
             "database",
             "schema",
             "location",
+            "api_endpoint",
             "priority",
             "timeout_seconds",
             "maximum_bytes_billed",
@@ -340,6 +343,10 @@ class BigQueryConnectionManager(BaseConnectionManager):
             return cls.get_impersonated_credentials(profile_credentials)
         else:
             return cls.get_google_credentials(profile_credentials)
+        
+    @classmethod
+    def get_api_endpoint(cls, profile_credentials):
+        return profile_credentials.api_endpoint
 
     @classmethod
     @retry.Retry()  # google decorator. retries on transient errors with exponential backoff
@@ -347,6 +354,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         creds = cls.get_credentials(profile_credentials)
         execution_project = profile_credentials.execution_project
         location = getattr(profile_credentials, "location", None)
+        api_endpoint = cls.get_api_endpoint(profile_credentials)
 
         info = client_info.ClientInfo(user_agent=f"dbt-{dbt_version}")
         return google.cloud.bigquery.Client(
@@ -354,6 +362,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             creds,
             location=location,
             client_info=info,
+            client_options={"api_endpoint": api_endpoint},
         )
 
     @classmethod

@@ -11,7 +11,9 @@ _POLICY_TAG_MODEL = """{{
 }}
 
 select
-  1 field
+  struct(
+    1 as field
+  ) as first_struct
 """
 
 _POLICY_TAG_YML = """version: 2
@@ -19,7 +21,8 @@ _POLICY_TAG_YML = """version: 2
 models:
 - name: policy_tag_table
   columns:
-  - name: field
+  - name: first_struct
+  - name: first_struct.field
     policy_tags:
       - '{{ var("policy_tag") }}'
 """
@@ -29,7 +32,8 @@ _POLICY_TAG_YML_NO_POLICY_TAGS = """version: 2
 models:
 - name: policy_tag_table
   columns:
-  - name: field
+  - name: first_struct
+  - name: first_struct.field
 """
 
 # Manually generated https://console.cloud.google.com/bigquery/policy-tags?project=dbt-test-env

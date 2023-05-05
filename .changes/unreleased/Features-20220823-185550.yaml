@@ -1,0 +1,7 @@
+kind: Features
+body: Add macro which returns the largest partition of a table
+time: 2022-08-23T18:55:50.019071+01:00
+custom:
+  Author: judahrand
+  Issue: "286"
+  PR: "285"

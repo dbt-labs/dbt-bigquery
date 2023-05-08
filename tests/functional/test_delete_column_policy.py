@@ -37,7 +37,8 @@ _POLICY_TAG_YML_NO_POLICY_TAGS = """version: 2
 models:
 - name: policy_tag_table
   columns:
-  - name: field
+  - name: first_struct
+  - name: first_struct.field
 """
 
 # Manually generated https://console.cloud.google.com/bigquery/policy-tags?project=dbt-test-env

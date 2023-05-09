@@ -47,7 +47,7 @@ class TestAccessGrantSucceeds:
         # Need to run twice to validate idempotency
         results = run_dbt(["run"])
         assert len(results) == 2
-        time.sleep(10)
+        time.sleep(30)
         results = run_dbt(["run"])
         assert len(results) == 2
 

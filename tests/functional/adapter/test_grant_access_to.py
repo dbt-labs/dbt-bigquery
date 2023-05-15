@@ -1,7 +1,9 @@
-from abc import abstractmethod
+import time
+
 import pytest
-import os
+
 from dbt.tests.util import run_dbt
+
 
 SELECT_1 = """
 {{ config(
@@ -45,6 +47,7 @@ class TestAccessGrantSucceeds:
         # Need to run twice to validate idempotency
         results = run_dbt(["run"])
         assert len(results) == 2
+        time.sleep(10)
         results = run_dbt(["run"])
         assert len(results) == 2
 

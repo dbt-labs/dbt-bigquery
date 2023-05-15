@@ -58,7 +58,7 @@
       {%- set source_sql -%}
         (
           {%- if partition_by.time_ingestion_partitioning -%}
-          {{ wrap_with_time_ingestion_partitioning_sql(build_partition_time_exp(partition_by), sql, True) }}
+          {{ wrap_with_time_ingestion_partitioning_sql(partition_by, sql, True) }}
           {%- else -%}
           {{sql}}
           {%- endif -%}
@@ -85,8 +85,7 @@
   ) %}
   {# We run temp table creation in a separated script to move to partitions copy #}
   {%- call statement('create_tmp_relation_for_copy', language='sql') -%}
-    {{ declare_dbt_max_partition(this, partition_by, sql, 'sql') +
-     bq_create_table_as(partition_by.time_ingestion_partitioning, True, tmp_relation, sql, 'sql')
+    {{ bq_create_table_as(partition_by, True, tmp_relation, sql, 'sql')
   }}
   {%- endcall %}
   {%- set partitions_sql -%}
@@ -112,7 +111,7 @@
       (
         select
         {% if partition_by.time_ingestion_partitioning -%}
-        _PARTITIONTIME,
+        {{ partition_by.insertable_time_partitioning_field() }},
         {%- endif -%}
         * from {{ tmp_relation }}
       )
@@ -123,18 +122,18 @@
 
       {# have we already created the temp table to check for schema changes? #}
       {% if not tmp_relation_exists %}
-        {{ declare_dbt_max_partition(this, partition_by, sql) }}
-
        -- 1. create a temp table with model data
-        {{ bq_create_table_as(partition_by.time_ingestion_partitioning, True, tmp_relation, sql, 'sql') }}
+        {{ bq_create_table_as(partition_by, True, tmp_relation, sql, 'sql') }}
       {% else %}
         -- 1. temp table already exists, we used it to check for schema changes
       {% endif %}
+      {%- set partition_field = partition_by.time_partitioning_field() if partition_by.time_ingestion_partitioning else partition_by.render_wrapped() -%}
 
       -- 2. define partitions to update
       set (dbt_partitions_for_replacement) = (
           select as struct
-              array_agg(distinct {{ partition_by.render_wrapped() }})
+              -- IGNORE NULLS: this needs to be aligned to _dbt_max_partition, which ignores null
+              array_agg(distinct {{ partition_field }} IGNORE NULLS)
           from {{ tmp_relation }}
       );
 

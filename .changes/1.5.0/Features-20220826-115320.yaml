@@ -1,7 +1,0 @@
-kind: Features
-body: add option to specify excluded columns on merge
-time: 2022-08-26T11:53:20.194981-05:00
-custom:
-  Author: dave-connors-3
-  Issue: "5260"
-  PR: "227"

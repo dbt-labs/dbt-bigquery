@@ -1,6 +1,0 @@
-kind: Fixes
-body: Update connections.py with retry logic for 502 BadGateway
-time: 2023-02-27T11:04:26.978726+11:00
-custom:
-  Author: patkearns10
-  Issue: "562"

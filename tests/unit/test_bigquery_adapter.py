@@ -54,6 +54,13 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
                     "keyfile": "/tmp/dummy-service-account.json",
                     "threads": 1,
                 },
+                "anonymous-credentials": {
+                    "type": "bigquery",
+                    "method": "anonymous-credentials",
+                    "project": "dbt-unit-000000",
+                    "schema": "dummy_schema",
+                    "threads": 1,
+                },
                 "loc": {
                     "type": "bigquery",
                     "method": "oauth",
@@ -205,6 +212,23 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
     @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())
     def test_acquire_connection_oauth_validations(self, mock_open_connection):
         adapter = self.get_adapter("oauth")
+        try:
+            connection = adapter.acquire_connection("dummy")
+            self.assertEqual(connection.type, "bigquery")
+
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail("got DbtValidationError: {}".format(str(e)))
+
+        except BaseException:
+            raise
+
+        mock_open_connection.assert_not_called()
+        connection.handle
+        mock_open_connection.assert_called_once()
+
+    @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())
+    def test_acquire_connection_anonymous_credentials_validations(self, mock_open_connection):
+        adapter = self.get_adapter("anonymous-credentials")
         try:
             connection = adapter.acquire_connection("dummy")
             self.assertEqual(connection.type, "bigquery")

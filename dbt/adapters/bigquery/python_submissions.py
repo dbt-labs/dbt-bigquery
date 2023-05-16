@@ -118,6 +118,7 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         request = dataproc_v1.CreateBatchRequest(
             parent=parent,
             batch=batch,
+            batch_id=self.credential.batch_id,
         )
         # make the request
         operation = self.job_client.create_batch(request=request)  # type: ignore

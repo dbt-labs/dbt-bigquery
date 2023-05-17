@@ -46,7 +46,7 @@ jobs:
     - name: Call CI workflow for ${{ matrix.branch }} branch
       id: trigger-step
       continue-on-error: true
-      uses: aurelien-baudet/workflow-dispatch@v2.1.1
+      uses: aurelien-baudet/workflow-dispatch@v2
       with:
         workflow: ${{ matrix.workflow_name }}
         ref: ${{ matrix.branch }}

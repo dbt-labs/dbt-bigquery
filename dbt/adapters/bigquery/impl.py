@@ -293,6 +293,56 @@ class BigQueryAdapter(BaseAdapter):
             return False
         return True
 
+    @available.parse(lambda *a, **k: {})
+    @classmethod
+    def nest_columns(cls, columns: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, str]]:
+        unformatted_columns: Dict[str, Union[str, Dict[str, Any]]] = {}
+        for column in columns.values():
+            cls._update_unformatted_columns(
+                column["name"], column["data_type"], unformatted_columns
+            )
+        formatted_columns: Dict[str, Dict[str, str]] = {}
+        for unformatted_column_name, unformatted_column_type in unformatted_columns.items():
+            formatted_columns[unformatted_column_name] = {
+                "name": unformatted_column_name,
+                "data_type": cls._format_column_type(unformatted_column_type),
+            }
+        return formatted_columns
+
+    @classmethod
+    def _update_unformatted_columns(
+        cls, column_name: str, column_data_type: str, unformatted_columns
+    ) -> None:
+        column_name_parts = column_name.split(".")
+        if len(column_name_parts) == 1:
+            unformatted_columns[column_name_parts[0]] = column_data_type
+        elif len(column_name_parts) == 2:
+            struct_field_name, nested_name = column_name_parts
+            if struct_field_name in unformatted_columns:
+                unformatted_columns[struct_field_name][nested_name] = column_data_type
+            else:
+                unformatted_columns[struct_field_name] = {nested_name: column_data_type}
+        else:
+            struct_field_name = column_name_parts[0]
+            rest = ".".join(column_name_parts[1:])
+            struct_unformatted_columns: Dict[str, Union[str, Dict[str, Any]]] = {}
+            cls._update_unformatted_columns(rest, column_data_type, struct_unformatted_columns)
+            if struct_field_name in unformatted_columns:
+                unformatted_columns[struct_field_name].update(struct_unformatted_columns)
+            else:
+                unformatted_columns[struct_field_name] = struct_unformatted_columns
+
+    @classmethod
+    def _format_column_type(cls, unformatted_column_type: Union[str, Dict[str, Any]]) -> str:
+        if isinstance(unformatted_column_type, str):
+            return unformatted_column_type
+        else:
+            formatted_nested_types = [
+                f"{column_name} {cls._format_column_type(column_type)}"
+                for column_name, column_type in unformatted_column_type.items()
+            ]
+            return f"""struct<{", ".join(formatted_nested_types)}>"""
+
     def get_columns_in_relation(self, relation: BigQueryRelation) -> List[BigQueryColumn]:
         try:
             table = self.connections.get_bq_table(

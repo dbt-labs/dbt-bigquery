@@ -75,7 +75,7 @@ class TestUploadFile:
             }
         )
         upload_result = run_dbt(["run-operation", "upload_file", "--args", upload_args])
-        assert upload_result.success
+        assert upload_result.results[0].status
 
         # Check if the uploaded table contains expected values and schema
         self.perform_uploaded_table_checks(project.test_schema, "TestUploadFileCSV", project)
@@ -94,7 +94,7 @@ class TestUploadFile:
             }
         )
         upload_result = run_dbt(["run-operation", "upload_file", "--args", upload_args])
-        assert upload_result.success
+        assert upload_result.results[0].status
 
         # Check if the uploaded table contains expected values and schema
         self.perform_uploaded_table_checks(project.test_schema, "TestUploadFileNDJSON", project)
@@ -112,7 +112,7 @@ class TestUploadFile:
             }
         )
         upload_result = run_dbt(["run-operation", "upload_file", "--args", upload_args])
-        assert upload_result.success
+        assert upload_result.results[0].status
 
         # Check if the uploaded table contains expected values and schema
         self.perform_uploaded_table_checks(project.test_schema, "TestUploadFileParquet", project)

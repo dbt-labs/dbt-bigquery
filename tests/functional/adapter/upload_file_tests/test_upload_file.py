@@ -1,5 +1,6 @@
 import pytest
 from dbt.tests.util import get_relation_columns, run_dbt, run_sql_with_adapter
+from dbt.contracts.results import NodeStatus
 import datetime
 import yaml
 
@@ -75,7 +76,7 @@ class TestUploadFile:
             }
         )
         upload_result = run_dbt(["run-operation", "upload_file", "--args", upload_args])
-        assert upload_result.results[0].status
+        assert upload_result.results[0].status == NodeStatus.Success
 
         # Check if the uploaded table contains expected values and schema
         self.perform_uploaded_table_checks(project.test_schema, "TestUploadFileCSV", project)
@@ -94,7 +95,7 @@ class TestUploadFile:
             }
         )
         upload_result = run_dbt(["run-operation", "upload_file", "--args", upload_args])
-        assert upload_result.results[0].status
+        assert upload_result.results[0].status == NodeStatus.Success
 
         # Check if the uploaded table contains expected values and schema
         self.perform_uploaded_table_checks(project.test_schema, "TestUploadFileNDJSON", project)
@@ -112,7 +113,7 @@ class TestUploadFile:
             }
         )
         upload_result = run_dbt(["run-operation", "upload_file", "--args", upload_args])
-        assert upload_result.results[0].status
+        assert upload_result.results[0].status == NodeStatus.Success
 
         # Check if the uploaded table contains expected values and schema
         self.perform_uploaded_table_checks(project.test_schema, "TestUploadFileParquet", project)

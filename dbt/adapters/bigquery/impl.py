@@ -296,11 +296,15 @@ class BigQueryAdapter(BaseAdapter):
     @available.parse(lambda *a, **k: {})
     @classmethod
     def nest_columns(cls, columns: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, str]]:
-        unformatted_columns: Dict[str, Union[str, Dict[str, Any]]] = {}
+        unformatted_columns: Dict[str, Union[str, Dict]] = {}
         for column in columns.values():
             cls._update_unformatted_columns(
-                column["name"], column["data_type"], unformatted_columns
+                column["name"],
+                column["data_type"],
+                column.get("_rendered_constraint"),
+                unformatted_columns,
             )
+
         formatted_columns: Dict[str, Dict[str, str]] = {}
         for unformatted_column_name, unformatted_column_type in unformatted_columns.items():
             formatted_columns[unformatted_column_name] = {
@@ -311,26 +315,33 @@ class BigQueryAdapter(BaseAdapter):
 
     @classmethod
     def _update_unformatted_columns(
-        cls, column_name: str, column_data_type: str, unformatted_columns
+        cls,
+        column_name: str,
+        column_data_type: str,
+        column_rendered_constraint: Optional[str],
+        unformatted_columns: Dict[str, Union[str, Dict]],
     ) -> None:
         column_name_parts = column_name.split(".")
         if len(column_name_parts) == 1:
-            unformatted_columns[column_name_parts[0]] = column_data_type
-        elif len(column_name_parts) == 2:
-            struct_field_name, nested_name = column_name_parts
-            if struct_field_name in unformatted_columns:
-                unformatted_columns[struct_field_name][nested_name] = column_data_type
-            else:
-                unformatted_columns[struct_field_name] = {nested_name: column_data_type}
+            unformatted_columns[column_name_parts[0]] = (
+                column_data_type
+                if column_rendered_constraint is None
+                else f"{column_data_type} {column_rendered_constraint}"
+            )
         else:
             struct_field_name = column_name_parts[0]
-            rest = ".".join(column_name_parts[1:])
-            struct_unformatted_columns: Dict[str, Union[str, Dict[str, Any]]] = {}
-            cls._update_unformatted_columns(rest, column_data_type, struct_unformatted_columns)
-            if struct_field_name in unformatted_columns:
-                unformatted_columns[struct_field_name].update(struct_unformatted_columns)
-            else:
-                unformatted_columns[struct_field_name] = struct_unformatted_columns
+            if struct_field_name not in unformatted_columns:
+                unformatted_columns[struct_field_name] = {}
+
+            struct_field_name_rest = ".".join(column_name_parts[1:])
+            unformatted_columns_struct = unformatted_columns[struct_field_name]
+            assert isinstance(unformatted_columns_struct, dict)  # keeping mypy happy
+            cls._update_unformatted_columns(
+                struct_field_name_rest,
+                column_data_type,
+                column_rendered_constraint,
+                unformatted_columns_struct,
+            )
 
     @classmethod
     def _format_column_type(cls, unformatted_column_type: Union[str, Dict[str, Any]]) -> str:
@@ -576,7 +587,10 @@ class BigQueryAdapter(BaseAdapter):
         """
         _, iterator = self.connections.raw_execute(sql)
         columns = [self.Column.create_from_field(field) for field in iterator.schema]
-        return columns
+        flattened_columns = []
+        for column in columns:
+            flattened_columns += column.flatten()
+        return flattened_columns
 
     @available.parse(lambda *a, **k: False)
     def get_columns_in_select_sql(self, select_sql: str) -> List[BigQueryColumn]:
@@ -1007,6 +1021,28 @@ class BigQueryAdapter(BaseAdapter):
             "cluster": ClusterDataprocHelper,
             "serverless": ServerlessDataProcHelper,
         }
+
+    @available
+    @classmethod
+    def render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]]) -> List:
+        columns_with_rendered_constraints = {}
+        for v in raw_columns.values():
+            column = {"name": v["name"], "data_type": v["data_type"], "_rendered_constraint": None}
+            for con in v.get("constraints", None):
+                constraint = cls._parse_column_constraint(con)
+                c = cls.process_parsed_constraint(constraint, cls.render_column_constraint)
+                if c is not None:
+                    if column["_rendered_constraint"] is None:
+                        column["_rendered_constraint"] = c
+                    else:
+                        column["_rendered_constraint"] += f" {c}"
+            columns_with_rendered_constraints[v["name"]] = column
+
+        nested_columns = cls.nest_columns(columns_with_rendered_constraints)
+        rendered_column_constraints = [
+            f"{column['name']} {column['data_type']}" for column in nested_columns.values()
+        ]
+        return rendered_column_constraints
 
     @classmethod
     def render_column_constraint(cls, constraint: ColumnLevelConstraint) -> Optional[str]:

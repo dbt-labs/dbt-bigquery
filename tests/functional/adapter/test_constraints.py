@@ -3,6 +3,8 @@ from dbt.tests.adapter.constraints.test_constraints import (
     BaseTableConstraintsColumnsEqual,
     BaseViewConstraintsColumnsEqual,
     BaseIncrementalConstraintsColumnsEqual,
+    BaseTableContractSqlHeader,
+    BaseIncrementalContractSqlHeader,
     BaseConstraintsRuntimeDdlEnforcement,
     BaseConstraintsRollback,
     BaseIncrementalConstraintsRuntimeDdlEnforcement,
@@ -20,6 +22,7 @@ from dbt.tests.adapter.constraints.fixtures import (
     my_model_incremental_wrong_name_sql,
     model_schema_yml,
     constrained_model_schema_yml,
+    model_contract_header_schema_yml,
 )
 
 _expected_sql_bigquery = """
@@ -45,6 +48,37 @@ as (
 # - does not support a data type named 'text' (TODO handle this via type translation/aliasing!)
 constraints_yml = model_schema_yml.replace("text", "string")
 model_constraints_yml = constrained_model_schema_yml.replace("text", "string")
+model_contract_header_schema_yml = model_contract_header_schema_yml.replace("text", "string")
+
+
+my_model_contract_sql_header_sql = """
+{{
+  config(
+    materialized = "table"
+  )
+}}
+
+{% call set_sql_header(config) %}
+DECLARE DEMO STRING DEFAULT 'hello world';
+{% endcall %}
+
+SELECT DEMO as column_name
+"""
+
+my_model_incremental_contract_sql_header_sql = """
+{{
+  config(
+    materialized = "incremental",
+    on_schema_change="append_new_columns"
+  )
+}}
+
+{% call set_sql_header(config) %}
+DECLARE DEMO STRING DEFAULT 'hello world';
+{% endcall %}
+
+SELECT DEMO as column_name
+"""
 
 
 class BigQueryColumnEqualSetup:
@@ -110,6 +144,24 @@ class TestBigQueryIncrementalConstraintsColumnsEqual(
             "my_model_wrong_order.sql": my_model_incremental_wrong_order_sql,
             "my_model_wrong_name.sql": my_model_incremental_wrong_name_sql,
             "constraints_schema.yml": constraints_yml,
+        }
+
+
+class TestBigQueryTableContractsSqlHeader(BaseTableContractSqlHeader):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model_contract_sql_header.sql": my_model_contract_sql_header_sql,
+            "constraints_schema.yml": model_contract_header_schema_yml,
+        }
+
+
+class TestBigQueryIncrementalContractsSqlHeader(BaseIncrementalContractSqlHeader):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model_contract_sql_header.sql": my_model_incremental_contract_sql_header_sql,
+            "constraints_schema.yml": model_contract_header_schema_yml,
         }
 
 

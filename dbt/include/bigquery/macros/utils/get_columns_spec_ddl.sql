@@ -5,12 +5,12 @@
 {%- endmacro -%}
 
 {% macro bigquery__get_empty_schema_sql(columns) %}
-    {%- set columns = adapter.nest_columns(columns) -%}
+    {%- set columns = adapter.nest_column_data_types(columns) -%}
     {{ return(dbt.default__get_empty_schema_sql(columns)) }}
 {% endmacro %}
 
 {% macro bigquery__get_select_subquery(sql) %}
-    {%- set columns = adapter.nest_columns(model['columns']) -%}
+    {%- set columns = adapter.nest_column_data_types(model['columns']) -%}
     select
     {% for column in columns %}
       {{ column }}{{ ", " if not loop.last }}

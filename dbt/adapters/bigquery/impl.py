@@ -295,62 +295,125 @@ class BigQueryAdapter(BaseAdapter):
 
     @available.parse(lambda *a, **k: {})
     @classmethod
-    def nest_columns(cls, columns: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, str]]:
-        unformatted_columns: Dict[str, Union[str, Dict]] = {}
+    def nest_column_data_types(
+        cls,
+        columns: Dict[str, Dict[str, Any]],
+        constraints: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Dict[str, str]]:
+        """
+        columns:
+            * Dictionary where keys are of flat columns names and values are dictionary of column attributes
+            * column names with "." indicate a nested column within a STRUCT type
+            * e.g. {"a": {"name": "a", "data_type": "string", ...}}
+        constraints:
+            * Dictionary where keys are flat column names and values are rendered constraints for the column
+            * If provided, rendered column is included in returned "data_type" values.
+        returns:
+            * Dictionary where keys are root column names and values are corresponding nested data_type values.
+            * Fields other than "name" and "data_type" are not preserved in the return value.
+
+        Example:
+        columns: {
+            "a": {"name": "a", "data_type": "string", "description": ...},
+            "b.nested": {"name": "b.nested", "data_type": "string"},
+            "b.nested2": {"name": "b.nested2", "data_type": "string"}
+            }
+
+        returns: {
+            "a": {"name": "a", "data_type": "string"},
+            "b": {"name": "b": "data_type": "struct<nested string, nested2 string>}
+        }
+        """
+        constraints = constraints or {}
+
+        nested_column_data_types: Dict[str, Union[str, Dict]] = {}
         for column in columns.values():
-            cls._update_unformatted_columns(
+            cls._update_nested_column_data_types(
                 column["name"],
                 column["data_type"],
-                column.get("_rendered_constraint"),
-                unformatted_columns,
+                constraints.get(column["name"]),
+                nested_column_data_types,
             )
 
-        formatted_columns: Dict[str, Dict[str, str]] = {}
-        for unformatted_column_name, unformatted_column_type in unformatted_columns.items():
-            formatted_columns[unformatted_column_name] = {
-                "name": unformatted_column_name,
-                "data_type": cls._format_column_type(unformatted_column_type),
+        formatted_nested_column_data_types: Dict[str, Dict[str, str]] = {}
+        for column_name, unformatted_column_type in nested_column_data_types.items():
+            formatted_nested_column_data_types[column_name] = {
+                "name": column_name,
+                "data_type": cls._format_nested_data_type(unformatted_column_type),
             }
-        return formatted_columns
+
+        return formatted_nested_column_data_types
 
     @classmethod
-    def _update_unformatted_columns(
+    def _update_nested_column_data_types(
         cls,
         column_name: str,
         column_data_type: str,
         column_rendered_constraint: Optional[str],
-        unformatted_columns: Dict[str, Union[str, Dict]],
+        nested_column_data_types: Dict[str, Union[str, Dict]],
     ) -> None:
+        """
+        Recursively update nested_column_data_types given a column_name, column_data_type, and optional column_rendered_constraint.
+
+        Examples:
+        >>> nested_column_data_types = {}
+        >>> BigQueryAdapter._update_nested_column_data_types("a", "string", "not_null", nested_column_data_types)
+        >>> nested_column_data_types
+        {"a": "string not null"}
+        >>> BigQueryAdapter._update_nested_column_data_types("b.c", "string", "not_null", nested_column_data_types)
+        >>> nested_column_data_types
+        {"a": "string not null", "b": {"c": "string not null"}}
+        >>> BigQueryAdapter._update_nested_column_data_types("b.d", "string", None, nested_column_data_types)
+        >>> nested_column_data_types
+        {"a": "string not null", "b": {"c": "string not null", "d": "string"}}
+        """
         column_name_parts = column_name.split(".")
+        root_column_name = column_name_parts[0]
+
         if len(column_name_parts) == 1:
-            unformatted_columns[column_name_parts[0]] = (
+            # Base case: column is not nested - store its data_type concatenated with constraint if provided.
+            nested_column_data_types[root_column_name] = (
                 column_data_type
                 if column_rendered_constraint is None
                 else f"{column_data_type} {column_rendered_constraint}"
             )
         else:
-            struct_field_name = column_name_parts[0]
-            if struct_field_name not in unformatted_columns:
-                unformatted_columns[struct_field_name] = {}
+            # Initialize nested dictionary
+            if root_column_name not in nested_column_data_types:
+                nested_column_data_types[root_column_name] = {}
 
-            struct_field_name_rest = ".".join(column_name_parts[1:])
-            unformatted_columns_struct = unformatted_columns[struct_field_name]
-            assert isinstance(unformatted_columns_struct, dict)  # keeping mypy happy
-            cls._update_unformatted_columns(
-                struct_field_name_rest,
+            # Recursively process rest of remaining column name
+            remaining_column_name = ".".join(column_name_parts[1:])
+            remaining_column_data_types = nested_column_data_types[root_column_name]
+            assert isinstance(remaining_column_data_types, dict)  # keeping mypy happy
+            cls._update_nested_column_data_types(
+                remaining_column_name,
                 column_data_type,
                 column_rendered_constraint,
-                unformatted_columns_struct,
+                remaining_column_data_types,
             )
 
     @classmethod
-    def _format_column_type(cls, unformatted_column_type: Union[str, Dict[str, Any]]) -> str:
-        if isinstance(unformatted_column_type, str):
-            return unformatted_column_type
+    def _format_nested_data_type(
+        cls, unformatted_nested_data_type: Union[str, Dict[str, Any]]
+    ) -> str:
+        """
+        Recursively format a (STRUCT) data type given an arbitrarily nested data type structure.
+
+        Examples:
+        >>> BigQueryAdapter._format_nested_data_type("string")
+        'string'
+        >>> BigQueryAdapter._format_nested_data_type({'c': 'string not_null', 'd': 'string'})
+        'struct<c string not_null, d string>'
+        >>> BigQueryAdapter._format_nested_data_type({'c': 'string not_null', 'd': {'e': 'string'}})
+        'struct<c string not_null, d struct<e string>>'
+        """
+        if isinstance(unformatted_nested_data_type, str):
+            return unformatted_nested_data_type
         else:
             formatted_nested_types = [
-                f"{column_name} {cls._format_column_type(column_type)}"
-                for column_name, column_type in unformatted_column_type.items()
+                f"{column_name} {cls._format_nested_data_type(column_type)}"
+                for column_name, column_type in unformatted_nested_data_type.items()
             ]
             return f"""struct<{", ".join(formatted_nested_types)}>"""
 
@@ -1025,20 +1088,22 @@ class BigQueryAdapter(BaseAdapter):
     @available
     @classmethod
     def render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]]) -> List:
-        columns_with_rendered_constraints = {}
-        for v in raw_columns.values():
-            column = {"name": v["name"], "data_type": v["data_type"], "_rendered_constraint": None}
-            for con in v.get("constraints", None):
+        rendered_constraints: Dict[str, str] = {}
+        for raw_column in raw_columns.values():
+            for con in raw_column.get("constraints", None):
                 constraint = cls._parse_column_constraint(con)
-                c = cls.process_parsed_constraint(constraint, cls.render_column_constraint)
-                if c is not None:
-                    if column["_rendered_constraint"] is None:
-                        column["_rendered_constraint"] = c
-                    else:
-                        column["_rendered_constraint"] += f" {c}"
-            columns_with_rendered_constraints[v["name"]] = column
+                rendered_constraint = cls.process_parsed_constraint(
+                    constraint, cls.render_column_constraint
+                )
 
-        nested_columns = cls.nest_columns(columns_with_rendered_constraints)
+                if rendered_constraint:
+                    column_name = raw_column["name"]
+                    if column_name not in rendered_constraints:
+                        rendered_constraints[column_name] = rendered_constraint
+                    else:
+                        rendered_constraints[column_name] += f" {rendered_constraint}"
+
+        nested_columns = cls.nest_column_data_types(raw_columns, rendered_constraints)
         rendered_column_constraints = [
             f"{column['name']} {column['data_type']}" for column in nested_columns.values()
         ]

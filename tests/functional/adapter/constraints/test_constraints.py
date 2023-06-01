@@ -29,6 +29,8 @@ from tests.functional.adapter.constraints.fixtures import (
     my_model_double_struct_correct_data_type_sql,
     model_struct_data_type_schema_yml,
     model_double_struct_data_type_schema_yml,
+    my_model_struct_sql,
+    model_struct_schema_yml,
 )
 
 from dbt.tests.util import run_dbt_and_capture, run_dbt
@@ -48,6 +50,19 @@ as (
     select 'blue' as color,
     1 as id,
     '2019-01-01' as date_day
+  ) as model_subq
+);
+"""
+
+_expected_struct_sql_bigquery = """
+create or replace table <model_identifier> (
+    id struct<nested_column string not null, nested_column2 string>
+)
+OPTIONS()
+as (
+    select id from
+  (
+    select STRUCT("test" as nested_column, "test" as nested_column2) as id
   ) as model_subq
 );
 """
@@ -185,6 +200,21 @@ class TestBigQueryTableConstraintsRuntimeDdlEnforcement(BaseConstraintsRuntimeDd
     @pytest.fixture(scope="class")
     def expected_sql(self, project):
         return _expected_sql_bigquery
+
+
+class TestBigQueryStructTableConstraintsRuntimeDdlEnforcement(
+    BaseConstraintsRuntimeDdlEnforcement
+):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model.sql": my_model_struct_sql,
+            "constraints_schema.yml": model_struct_schema_yml,
+        }
+
+    @pytest.fixture(scope="class")
+    def expected_sql(self, project):
+        return _expected_struct_sql_bigquery
 
 
 class TestBigQueryTableConstraintsRollback(BaseConstraintsRollback):

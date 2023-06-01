@@ -83,3 +83,36 @@ models:
       - name: a.d
         data_type: string
 """
+
+
+my_model_struct_sql = """
+{{
+  config(
+    materialized = "table"
+  )
+}}
+
+select STRUCT("test" as nested_column, "test" as nested_column2) as id
+"""
+
+
+model_struct_schema_yml = """
+version: 2
+models:
+  - name: my_model
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: id.nested_column
+        quote: true
+        data_type: string
+        description: hello
+        constraints:
+          - type: not_null
+          - type: unique
+      - name: id.nested_column2
+        data_type: string
+        constraints:
+          - type: unique
+"""

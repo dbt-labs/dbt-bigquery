@@ -168,8 +168,9 @@ class BigQueryCredentials(Credentials):
     def _connection_keys(self):
         return (
             "method",
-            "project",
+            "database",
             "execution_project",
+            "schema",
             "location",
             "priority",
             "maximum_bytes_billed",

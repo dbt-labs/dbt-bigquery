@@ -23,11 +23,15 @@ from dbt.tests.adapter.constraints.fixtures import (
     model_schema_yml,
     constrained_model_schema_yml,
     model_quoted_column_schema_yml,
+    model_fk_constraint_schema_yml,
+    my_model_wrong_order_depends_on_fk_sql,
+    foreign_key_model_sql,
+    my_model_incremental_wrong_order_depends_on_fk_sql,
 )
 
 _expected_sql_bigquery = """
 create or replace table <model_identifier> (
-    id integer not null primary key not enforced,
+    id integer not null primary key not enforced references <foreign_key_model_identifier> (id) not enforced,
     color string,
     date_day string
 )
@@ -37,6 +41,7 @@ as (
     color,
     date_day from
   (
+    -- depends_on: <foreign_key_model_identifier>
     select 'blue' as color,
     1 as id,
     '2019-01-01' as date_day
@@ -48,6 +53,8 @@ as (
 # - does not support a data type named 'text' (TODO handle this via type translation/aliasing!)
 constraints_yml = model_schema_yml.replace("text", "string")
 model_constraints_yml = constrained_model_schema_yml.replace("text", "string")
+model_fk_constraint_schema_yml = model_fk_constraint_schema_yml.replace("text", "string")
+constrained_model_schema_yml = constrained_model_schema_yml.replace("text", "string")
 
 
 class BigQueryColumnEqualSetup:
@@ -120,8 +127,9 @@ class TestBigQueryTableConstraintsRuntimeDdlEnforcement(BaseConstraintsRuntimeDd
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "my_model.sql": my_model_wrong_order_sql,
-            "constraints_schema.yml": constraints_yml,
+            "my_model.sql": my_model_wrong_order_depends_on_fk_sql,
+            "foreign_key_model.sql": foreign_key_model_sql,
+            "constraints_schema.yml": model_fk_constraint_schema_yml,
         }
 
     @pytest.fixture(scope="class")
@@ -148,8 +156,9 @@ class TestBigQueryIncrementalConstraintsRuntimeDdlEnforcement(
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "my_model.sql": my_model_incremental_wrong_order_sql,
-            "constraints_schema.yml": constraints_yml,
+            "my_model.sql": my_model_incremental_wrong_order_depends_on_fk_sql,
+            "foreign_key_model.sql": foreign_key_model_sql,
+            "constraints_schema.yml": model_fk_constraint_schema_yml,
         }
 
     @pytest.fixture(scope="class")
@@ -174,8 +183,9 @@ class TestBigQueryModelConstraintsRuntimeEnforcement(BaseModelConstraintsRuntime
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "my_model.sql": my_incremental_model_sql,
-            "constraints_schema.yml": model_constraints_yml,
+            "my_model.sql": my_model_wrong_order_depends_on_fk_sql,
+            "foreign_key_model.sql": foreign_key_model_sql,
+            "constraints_schema.yml": constrained_model_schema_yml,
         }
 
     @pytest.fixture(scope="class")
@@ -185,7 +195,8 @@ create or replace table <model_identifier> (
     id integer not null,
     color string,
     date_day string,
-    primary key (id) not enforced
+    primary key (id) not enforced,
+    foreign key (id) references <foreign_key_model_identifier> (id) not enforced
 )
 OPTIONS()
 as (
@@ -193,8 +204,10 @@ as (
     color,
     date_day from
   (
-    select 1 as id,
+    -- depends_on: <foreign_key_model_identifier>
+    select
     'blue' as color,
+    1 as id,
     '2019-01-01' as date_day
   ) as model_subq
 );

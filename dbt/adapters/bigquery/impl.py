@@ -1129,3 +1129,7 @@ class BigQueryAdapter(BaseAdapter):
             return f"{c} not enforced" if c else None
 
         return c
+
+    def debug_query(self):
+        """Override for DebugTask method"""
+        self.execute("select 1 as id")

@@ -162,7 +162,7 @@ jobs:
           BIGQUERY_TEST_ALT_DATABASE: ${{ secrets.BIGQUERY_TEST_ALT_DATABASE }}
           BIGQUERY_TEST_NO_ACCESS_DATABASE: ${{ secrets.BIGQUERY_TEST_NO_ACCESS_DATABASE }}
           DBT_TEST_USER_1: group:buildbot@dbtlabs.com
-          DBT_TEST_USER_2: group:dev-core@dbtlabs.com
+          DBT_TEST_USER_2: group:engineering-core-team@dbtlabs.com
           DBT_TEST_USER_3: serviceAccount:dbt-integration-test-user@dbt-test-env.iam.gserviceaccount.com
           DATAPROC_REGION: us-central1
           DATAPROC_CLUSTER_NAME: dbt-test-1

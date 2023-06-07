@@ -6,7 +6,7 @@ echo "TOXENV=integration-bigquery" >> $GITHUB_ENV
 echo "INTEGRATION_TESTS_SECRETS_PREFIX=BIGQUERY_TEST" >> $GITHUB_ENV
 # Set environment variables required for integration tests
 echo "DBT_TEST_USER_1=group:buildbot@dbtlabs.com" >> $GITHUB_ENV
-echo "DBT_TEST_USER_2=group:dev-core@dbtlabs.com" >> $GITHUB_ENV
+echo "DBT_TEST_USER_2=group:engineering-core-team@dbtlabs.com" >> $GITHUB_ENV
 echo "DBT_TEST_USER_3=serviceAccount:dbt-integration-test-user@dbt-test-env.iam.gserviceaccount.com" >> $GITHUB_ENV
 echo "DATAPROC_REGION=us-central1" >> $GITHUB_ENV
 echo "DATAPROC_CLUSTER_NAME=dbt-test-1" >> $GITHUB_ENV

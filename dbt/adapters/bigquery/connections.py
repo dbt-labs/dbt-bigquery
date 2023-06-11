@@ -467,7 +467,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         @retry.Retry(
             predicate=error_counter.count_error,
             sleep_generator=self._retry_generator(),
-            deadline=self.get_job_retry_deadline_seconds(),
+            deadline=self.get_job_retry_deadline_seconds(conn),
             on_error=reopen_conn_on_error
         )
         def fn():

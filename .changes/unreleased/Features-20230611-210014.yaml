@@ -1,0 +1,6 @@
+kind: Features
+body: Provide bigquery job link after it's submitted
+time: 2023-06-11T21:00:14.376652604+07:00
+custom:
+  Author: tbog
+  Issue: "696"

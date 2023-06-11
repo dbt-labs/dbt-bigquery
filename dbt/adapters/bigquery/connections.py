@@ -672,6 +672,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             and query_job.project is not None
             and query_job.location is not None
         ):
+            # get attemp num
             attemp = error_counter.error_count
             maximum_attemp = error_counter.retries
             bq_link = self._bq_job_link(
@@ -679,6 +680,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 query_job.project,
                 query_job.job_id,
             )
+
+            # get node info
             node_info = get_node_info()
             materialized = node_info.get("materialized")
             resource_type = node_info.get("resource_type")

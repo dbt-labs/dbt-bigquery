@@ -35,6 +35,7 @@ from dbt.adapters.base import BaseConnectionManager, Credentials
 from dbt.events import AdapterLogger
 from dbt.events.functions import fire_event
 from dbt.events.types import SQLQuery
+from dbt.events.contextvars import get_node_info
 from dbt.version import __version__ as dbt_version
 
 from dbt.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
@@ -454,17 +455,33 @@ class BigQueryConnectionManager(BaseConnectionManager):
         job_creation_timeout = self.get_job_creation_timeout_seconds(conn)
         job_execution_timeout = self.get_job_execution_timeout_seconds(conn)
 
+        def reopen_conn_on_error(error):
+            if isinstance(error, REOPENABLE_ERRORS):
+                logger.warning("Reopening connection after {!r}".format(error))
+                self.close(conn)
+                self.open(conn)
+                return
+
+        error_counter = _ErrorCounter(self.get_job_retries(conn))
+
+        @retry.Retry(
+            predicate=error_counter.count_error,
+            sleep_generator=self._retry_generator(),
+            deadline=self.get_job_retry_deadline_seconds(),
+            on_error=reopen_conn_on_error
+        )
         def fn():
             return self._query_and_results(
                 client,
                 sql,
                 job_params,
+                error_counter=error_counter,
                 job_creation_timeout=job_creation_timeout,
                 job_execution_timeout=job_execution_timeout,
                 limit=limit,
             )
 
-        query_job, iterator = self._retry_and_handle(msg=sql, conn=conn, fn=fn)
+        query_job, iterator = fn()
 
         return query_job, iterator
 
@@ -649,11 +666,34 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         self._retry_and_handle(msg="create dataset", conn=conn, fn=fn)
 
+    def _gen_submitted_log_query(self, query_job, error_counter):
+        if (
+            query_job.job_id is not None
+            and query_job.project is not None
+            and query_job.location is not None
+        ):
+            attemp = error_counter.error_count
+            maximum_attemp = error_counter.retries
+            bq_link = self._bq_job_link(
+                query_job.location,
+                query_job.project,
+                query_job.job_id,
+            )
+            node_info = get_node_info()
+            materialized = node_info.get("materialized")
+            resource_type = node_info.get("resource_type")
+            node_name = node_info.get("node_name")
+
+            logger.info(
+                f"[{attemp}/{maximum_attemp} attempts for {materialized} {resource_type} {node_name} {bq_link}]"
+            )
+
     def _query_and_results(
         self,
         client,
         sql,
         job_params,
+        error_counter,
         job_creation_timeout=None,
         job_execution_timeout=None,
         limit: Optional[int] = None,
@@ -662,6 +702,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
         query_job = client.query(query=sql, job_config=job_config, timeout=job_creation_timeout)
+        self._gen_submitted_log_query(query_job=query_job, error_counter=error_counter)
         iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
 
         return query_job, iterator

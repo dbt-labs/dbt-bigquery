@@ -8,6 +8,7 @@ from dbt.tests.adapter.constraints.test_constraints import (
     BaseIncrementalConstraintsRuntimeDdlEnforcement,
     BaseIncrementalConstraintsRollback,
     BaseModelConstraintsRuntimeEnforcement,
+    BaseConstraintQuotedColumn,
 )
 from dbt.tests.adapter.constraints.fixtures import (
     my_model_sql,
@@ -18,8 +19,10 @@ from dbt.tests.adapter.constraints.fixtures import (
     my_model_wrong_name_sql,
     my_model_view_wrong_name_sql,
     my_model_incremental_wrong_name_sql,
+    my_model_with_quoted_column_name_sql,
     model_schema_yml,
     constrained_model_schema_yml,
+    model_quoted_column_schema_yml,
     model_fk_constraint_schema_yml,
     my_model_wrong_order_depends_on_fk_sql,
     foreign_key_model_sql,
@@ -207,5 +210,34 @@ as (
     1 as id,
     '2019-01-01' as date_day
   ) as model_subq
+);
+"""
+
+
+class TestBigQueryConstraintQuotedColumn(BaseConstraintQuotedColumn):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model.sql": my_model_with_quoted_column_name_sql,
+            "constraints_schema.yml": model_quoted_column_schema_yml.replace("text", "string"),
+        }
+
+    @pytest.fixture(scope="class")
+    def expected_sql(self):
+        return """
+create or replace table <model_identifier> (
+    id integer not null,
+    `from` string not null,
+    date_day string
+)
+options()
+as (
+    select id, `from`, date_day
+    from (
+        select
+          'blue' as `from`,
+          1 as id,
+          '2019-01-01' as date_day
+    ) as model_subq
 );
 """

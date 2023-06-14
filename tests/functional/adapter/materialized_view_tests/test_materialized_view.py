@@ -4,7 +4,9 @@ import pytest
 
 from dbt.tests.util import run_dbt
 
-from tests.functional.adapter.materialized_view_tests import models
+from tests.functional.adapter.materialized_view_tests.fixtures import (
+    BigQuerytBasicBase,
+)
 
 
 RecordSet = List[tuple]
@@ -14,8 +16,8 @@ class TestMaterializedView:
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "base_table.sql": models.MODEL_BASE_TABLE,
-            "mat_view.sql": models.MODEL_MAT_VIEW,
+            "base_table.sql": fixtures.MODEL_BASE_TABLE,
+            "mat_view.sql": fixtures.MODEL_MAT_VIEW,
         }
 
     @staticmethod

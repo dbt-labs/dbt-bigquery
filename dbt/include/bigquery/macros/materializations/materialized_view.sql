@@ -1,19 +1,43 @@
-{% materialization materialized_view, adapter='bigquery' %}
-    -- this is a copy/paste of the view materialization
+{% macro bigquery__get_create_materialized_view_as_sql(relation, sql) %}
+    create materialized view if not exists {{ relation }} as {{ sql }}
+{% endmacro %}
 
-    -- grab current tables grants config for comparison later on
-    {% set grant_config = config.get('grants') %}
-    {% set to_return = create_or_replace_view() %}
-    {% set target_relation = this.incorporate(type='view') %}
+{% macro bigquery__drop_materialized_view_sql(relation) %}
+    drop materialized view if exists {{ relation }}
+{% endmacro %}
 
-    {% do persist_docs(target_relation, model) %}
+{% macro bigquery__get_replace_materialized_view_as_sql(
+    relation,
+    sql,
+    existing_relation,
+    backup_relation,
+    intermediate_relation
+) %}
+    {{- drop_relation_sql(existing_relation) -}}
+    {{- get_create_materialized_view_as_sql(intermediate_relation, sql) -}}
+{% endmacro %}
 
-    {% if config.get('grant_access_to') %}
-        {% for grant_target_dict in config.get('grant_access_to') %}
-            {% do adapter.grant_access_to(this, 'view', None, grant_target_dict) %}
-        {% endfor %}
-    {% endif %}
+{% macro bigquery__refresh_materialized_view(relation) %}
+    get_replace_materialized_view_as_sql(
+        relation,
+        sql,
+        existing_relation,
+        backup_relation,
+        intermediate_relation
+    )
+{% endmacro %}
 
-    {% do return(to_return) %}
+{% macro bigquery__get_alter_materialized_view_as_sql(
+    relation,
+    configuration_changes,
+    sql,
+    existing_relation,
+    backup_relation,
+    intermediate_relation
+) %}
+    get_replace_materialized_view_as_sql(relation, sql, existing_relation, backup_relation, intermediate_relation)
+{% endmacro %}
 
-{% endmaterialization %}
+{% macro bigquery__get_materialized_view_configuration_changes() %}
+    return none
+{% endmacro %}

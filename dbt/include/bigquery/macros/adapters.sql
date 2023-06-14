@@ -110,6 +110,15 @@
   {%- endcall %}
 {% endmacro %}
 
+{% macro bigquery__drop_relation_sql(relation) -%}
+  {% if relation.type == "materialized_view" %}
+    drop_materialized_view_sql(relation)
+  {% else %}
+    drop {{ relation.type }} if exists {{ relation }} cascade
+  {% endif %}
+{% endmacro %}
+
+
 {% macro bigquery__get_columns_in_relation(relation) -%}
   {{ return(adapter.get_columns_in_relation(relation)) }}
 {% endmacro %}

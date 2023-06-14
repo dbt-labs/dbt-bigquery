@@ -991,7 +991,8 @@ class BigQueryAdapter(BaseAdapter):
 
         nested_columns = cls.nest_column_data_types(raw_columns, rendered_constraints)
         rendered_column_constraints = [
-            f"{column['name']} {column['data_type']}" for column in nested_columns.values()
+            f"{cls.quote(column['name']) if column.get('quote') else column['name']} {column['data_type']}"
+            for column in nested_columns.values()
         ]
         return rendered_column_constraints
 

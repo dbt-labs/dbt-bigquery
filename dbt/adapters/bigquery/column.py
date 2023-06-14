@@ -142,7 +142,8 @@ def get_nested_column_data_types(
         * If provided, rendered column is included in returned "data_type" values.
     returns:
         * Dictionary where keys are root column names and values are corresponding nested data_type values.
-        * Fields other than "name" and "data_type" are not preserved in the return value.
+        * Fields other than "name" and "data_type" are __not__ preserved in the return value for nested columns.
+        * Fields other than "name" and "data_type" are preserved in the return value for flat columns.
 
     Example:
     columns: {
@@ -173,6 +174,17 @@ def get_nested_column_data_types(
             "name": column_name,
             "data_type": _format_nested_data_type(unformatted_column_type),
         }
+
+    # add column configs back to flat columns
+    for column_name in formatted_nested_column_data_types:
+        if column_name in columns:
+            formatted_nested_column_data_types[column_name].update(
+                {
+                    k: v
+                    for k, v in columns[column_name].items()
+                    if k not in formatted_nested_column_data_types[column_name]
+                }
+            )
 
     return formatted_nested_column_data_types
 

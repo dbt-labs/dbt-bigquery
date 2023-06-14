@@ -10,12 +10,18 @@
 {% endmacro %}
 
 {% macro bigquery__get_select_subquery(sql) %}
-    {%- set columns = adapter.nest_column_data_types(model['columns']) -%}
-    select
-    {% for column in columns %}
-      {{ column }}{{ ", " if not loop.last }}
-    {% endfor %}
+    select {{ adapter.dispatch('get_column_names')() }}
     from (
         {{ sql }}
     ) as model_subq
 {%- endmacro %}
+
+{% macro bigquery__get_column_names() %}
+  {#- loop through nested user_provided_columns to get column names -#}
+    {%- set user_provided_columns = adapter.nest_column_data_types(model['columns']) -%}
+    {%- for i in user_provided_columns %}
+      {%- set col = user_provided_columns[i] -%}
+      {%- set col_name = adapter.quote(col['name']) if col.get('quote') else col['name'] -%}
+      {{ col_name }}{{ ", " if not loop.last }}
+    {%- endfor -%}
+{% endmacro %}

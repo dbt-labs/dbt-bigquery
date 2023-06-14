@@ -20,6 +20,12 @@ from dbt.adapters.bigquery.column import get_nested_column_data_types
             {"a": "not null"},
             {"a": {"name": "a", "data_type": "string not null"}},
         ),
+        # Flat column - with constraints + other keys
+        (
+            {"a": {"name": "a", "data_type": "string", "quote": True}},
+            {"a": "not null"},
+            {"a": {"name": "a", "data_type": "string not null", "quote": True}},
+        ),
         # Single nested column, 1 level
         (
             {"b.nested": {"name": "b.nested", "data_type": "string"}},
@@ -29,6 +35,12 @@ from dbt.adapters.bigquery.column import get_nested_column_data_types
         # Single nested column, 1 level - with constraints
         (
             {"b.nested": {"name": "b.nested", "data_type": "string"}},
+            {"b.nested": "not null"},
+            {"b": {"name": "b", "data_type": "struct<nested string not null>"}},
+        ),
+        # Single nested column, 1 level - with constraints + other keys
+        (
+            {"b.nested": {"name": "b.nested", "data_type": "string", "other": "unpreserved"}},
             {"b.nested": "not null"},
             {"b": {"name": "b", "data_type": "struct<nested string not null>"}},
         ),

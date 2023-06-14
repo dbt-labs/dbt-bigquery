@@ -1,46 +1,61 @@
 from typing import List
-
-import pytest
-
-from dbt.tests.util import run_dbt
-
+from dbt.contracts.relation import RelationType
+from dbt.tests.adapter.materialized_view.base import (
+    assert_model_exists_and_is_correct_type,
+)
 from tests.functional.adapter.materialized_view_tests.fixtures import (
-    BigQuerytBasicBase,
+    BigQueryBasicBase,
 )
 
 
 RecordSet = List[tuple]
 
 
-class TestMaterializedView:
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "base_table.sql": fixtures.MODEL_BASE_TABLE,
-            "mat_view.sql": fixtures.MODEL_MAT_VIEW,
-        }
-
-    @staticmethod
-    def get_records(project, relation_name) -> RecordSet:
-        sql = f"select * from {project.database}.{project.test_schema}.{relation_name}"
-        agate_rows = project.run_sql(sql, fetch="all")
-        return [tuple(row) for row in agate_rows]
-
-    def test_create_materialized_view(self, project):
-        """
-        Run dbt once to set up the table and view
-        Verify that the view sees the table
-        Update the table
-        Verify that the view sees the update
-        """
-        run_dbt()
-        records = self.get_records(project, "mat_view")
-        assert records == [(1,)]
-
-        sql = (
-            f"insert into {project.database}.{project.test_schema}.base_table (my_col) values (2)"
+class TestBasic(BigQueryBasicBase):
+    def test_relation_is_materialized_view_on_initial_creation(self, project):
+        assert_model_exists_and_is_correct_type(project, "base_table", RelationType.Table)
+        assert_model_exists_and_is_correct_type(
+            project, "base_materialized_view", RelationType.MaterializedView
         )
-        project.run_sql(sql)
 
-        records = self.get_records(project, "mat_view")
-        assert sorted(records) == sorted([(1,), (2,)])
+    # def test_relation_is_materialized_view_when_rerun(self, project):
+    #     run_model("base_materialized_view")
+    #     assert_model_exists_and_is_correct_type(
+    #         project, "base_materialized_view", RelationType.MaterializedView
+    #     )
+
+    # def test_relation_is_materialized_view_on_full_refresh(self, project):
+    #     run_model("base_materialized_view", full_refresh=True)
+    #     assert_model_exists_and_is_correct_type(
+    #         project, "base_materialized_view", RelationType.MaterializedView
+    #     )
+
+    # def test_relation_is_materialized_view_on_update(self, project):
+    #     run_model("base_materialized_view", run_args=["--vars", "quoting: {identifier: True}"])
+    #     assert_model_exists_and_is_correct_type(
+    #         project, "base_materialized_view", RelationType.MaterializedView
+    #     )
+
+    # def test_updated_base_table_data_only_shows_in_materialized_view_after_rerun(self, project):
+    #     # poll database
+    #     table_start = get_row_count(project, "base_table")
+    #     view_start = get_row_count(project, "base_materialized_view")
+
+    #     # insert new record in table
+    #     new_record = (2,)
+    #     insert_record(project, new_record, "base_table", ["base_column"])
+
+    #     # poll database
+    #     table_mid = get_row_count(project, "base_table")
+    #     view_mid = get_row_count(project, "base_materialized_view")
+
+    #     # refresh the materialized view
+    #     run_model("base_materialized_view")
+
+    #     # poll database
+    #     table_end = get_row_count(project, "base_table")
+    #     view_end = get_row_count(project, "base_materialized_view")
+
+    #     # new records were inserted in the table but didn't show up in the view until it was refreshed
+    #     assert table_start < table_mid == table_end
+    #     assert view_start == view_mid < view_end

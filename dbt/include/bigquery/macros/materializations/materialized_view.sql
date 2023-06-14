@@ -1,3 +1,5 @@
+
+
 {% macro bigquery__get_create_materialized_view_as_sql(relation, sql) %}
     create materialized view if not exists {{ relation }} as {{ sql }}
 {% endmacro %}
@@ -13,8 +15,8 @@
     backup_relation,
     intermediate_relation
 ) %}
-    {{- drop_relation_sql(existing_relation) -}}
-    {{- get_create_materialized_view_as_sql(intermediate_relation, sql) -}}
+     bigquery__drop_relation_sql(existing_relation)
+     get_create_materialized_view_as_sql(intermediate_relation, sql)
 {% endmacro %}
 
 {% macro bigquery__refresh_materialized_view(relation) %}
@@ -35,7 +37,13 @@
     backup_relation,
     intermediate_relation
 ) %}
-    get_replace_materialized_view_as_sql(relation, sql, existing_relation, backup_relation, intermediate_relation)
+    get_replace_materialized_view_as_sql(
+        relation,
+        sql,
+        existing_relation,
+        backup_relation,
+        intermediate_relation
+    )
 {% endmacro %}
 
 {% macro bigquery__get_materialized_view_configuration_changes() %}

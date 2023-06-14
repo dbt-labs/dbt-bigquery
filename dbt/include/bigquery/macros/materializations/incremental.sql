@@ -16,24 +16,25 @@
 {% macro source_sql_with_partition(partition_by, source_sql) %}
 
   {%- if partition_by.time_ingestion_partitioning %}
-    {{ return(wrap_with_time_ingestion_partitioning_sql(build_partition_time_exp(partition_by.field), source_sql, False))  }}
+    {{ return(wrap_with_time_ingestion_partitioning_sql(partition_by, source_sql, False))  }}
   {% else %}
     {{ return(source_sql)  }}
   {%- endif -%}
 
 {% endmacro %}
-{% macro bq_create_table_as(is_time_ingestion_partitioning, temporary, relation, compiled_code, language='sql') %}
-  {% if is_time_ingestion_partitioning and language == 'python' %}
+
+{% macro bq_create_table_as(partition_by, temporary, relation, compiled_code, language='sql') %}
+  {%- set _dbt_max_partition = declare_dbt_max_partition(this, partition_by, compiled_code, language) -%}
+  {% if partition_by.time_ingestion_partitioning and language == 'python' %}
     {% do exceptions.raise_compiler_error(
       "Python models do not support ingestion time partitioning"
     ) %}
-  {% endif %}
-  {% if is_time_ingestion_partitioning and language == 'sql' %}
+  {% elif partition_by.time_ingestion_partitioning and language == 'sql' %}
     {#-- Create the table before inserting data as ingestion time partitioned tables can't be created with the transformed data --#}
-    {% do run_query(create_ingestion_time_partitioned_table_as_sql(temporary, relation, compiled_code)) %}
-    {{ return(bq_insert_into_ingestion_time_partitioned_table_sql(relation, compiled_code)) }}
+    {% do run_query(create_table_as(temporary, relation, compiled_code)) %}
+    {{ return(_dbt_max_partition + bq_insert_into_ingestion_time_partitioned_table_sql(relation, compiled_code)) }}
   {% else %}
-    {{ return(create_table_as(temporary, relation, compiled_code, language)) }}
+    {{ return(_dbt_max_partition + create_table_as(temporary, relation, compiled_code, language)) }}
   {% endif %}
 {% endmacro %}
 
@@ -93,14 +94,14 @@
 
   {% elif existing_relation is none %}
       {%- call statement('main', language=language) -%}
-        {{ bq_create_table_as(partition_by.time_ingestion_partitioning, False, target_relation, compiled_code, language) }}
+        {{ bq_create_table_as(partition_by, False, target_relation, compiled_code, language) }}
       {%- endcall -%}
 
   {% elif existing_relation.is_view %}
       {#-- There's no way to atomically replace a view with a table on BQ --#}
       {{ adapter.drop_relation(existing_relation) }}
       {%- call statement('main', language=language) -%}
-        {{ bq_create_table_as(partition_by.time_ingestion_partitioning, False, target_relation, compiled_code, language) }}
+        {{ bq_create_table_as(partition_by, False, target_relation, compiled_code, language) }}
       {%- endcall -%}
 
   {% elif full_refresh_mode %}
@@ -110,7 +111,7 @@
           {{ adapter.drop_relation(existing_relation) }}
       {% endif %}
       {%- call statement('main', language=language) -%}
-        {{ bq_create_table_as(partition_by.time_ingestion_partitioning, False, target_relation, compiled_code, language) }}
+        {{ bq_create_table_as(partition_by, False, target_relation, compiled_code, language) }}
       {%- endcall -%}
 
   {% else %}
@@ -127,9 +128,7 @@
       {#-- Check first, since otherwise we may not build a temp table --#}
       {#-- Python always needs to create a temp table --#}
       {%- call statement('create_tmp_relation', language=language) -%}
-        {{ declare_dbt_max_partition(this, partition_by, compiled_code, language) +
-           bq_create_table_as(partition_by.time_ingestion_partitioning, True, tmp_relation, compiled_code, language)
-        }}
+        {{ bq_create_table_as(partition_by, True, tmp_relation, compiled_code, language) }}
       {%- endcall -%}
       {% set tmp_relation_exists = true %}
       {#-- Process schema changes. Returns dict of changes if successful. Use source columns for upserting/merging --#}
@@ -139,9 +138,11 @@
     {% if not dest_columns %}
       {% set dest_columns = adapter.get_columns_in_relation(existing_relation) %}
     {% endif %}
+    {#--  Add time ingestion pseudo column to destination column as not part of the 'schema' but still need it for actual data insertion --#}
     {% if partition_by.time_ingestion_partitioning %}
-      {% set dest_columns = adapter.add_time_ingestion_partition_column(dest_columns) %}
+      {% set dest_columns = adapter.add_time_ingestion_partition_column(partition_by, dest_columns) %}
     {% endif %}
+
     {% set build_sql = bq_generate_incremental_build_sql(
         strategy, tmp_relation, target_relation, compiled_code, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, partition_by.copy_partitions, incremental_predicates
     ) %}

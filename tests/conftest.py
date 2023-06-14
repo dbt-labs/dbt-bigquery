@@ -26,29 +26,31 @@ def dbt_profile_target(request):
 
 def oauth_target():
     return {
-        'type': 'bigquery',
-        'method': 'oauth',
-        'threads': 1,
-        'job_retries': 2,
-        'dataproc_region': os.getenv("DATAPROC_REGION"),
-        'dataproc_cluster_name': os.getenv("DATAPROC_CLUSTER_NAME"),
-        'gcs_bucket': os.getenv("GCS_BUCKET")
+        "type": "bigquery",
+        "method": "oauth",
+        "threads": 1,
+        "job_retries": 2,
+        "dataproc_region": os.getenv("DATAPROC_REGION"),
+        "dataproc_cluster_name": os.getenv("DATAPROC_CLUSTER_NAME"),
+        "gcs_bucket": os.getenv("GCS_BUCKET"),
     }
 
 
 def service_account_target():
-    credentials_json_str = os.getenv('BIGQUERY_TEST_SERVICE_ACCOUNT_JSON').replace("'", '')
+    credentials_json_str = os.getenv("BIGQUERY_TEST_SERVICE_ACCOUNT_JSON").replace("'", "")
     credentials = json.loads(credentials_json_str)
-    project_id = credentials.get('project_id')
+    project_id = credentials.get("project_id")
     return {
-        'type': 'bigquery',
-        'method': 'service-account-json',
-        'threads': 1,
-        'job_retries': 2,
-        'project': project_id,
-        'keyfile_json': credentials,
+        "type": "bigquery",
+        "method": "service-account-json",
+        "threads": 1,
+        "job_retries": 2,
+        "project": project_id,
+        "keyfile_json": credentials,
         # following 3 for python model
-        'dataproc_region': os.getenv("DATAPROC_REGION"),
-        'dataproc_cluster_name': os.getenv("DATAPROC_CLUSTER_NAME"), # only needed for cluster submission method
-        'gcs_bucket': os.getenv("GCS_BUCKET")
+        "dataproc_region": os.getenv("DATAPROC_REGION"),
+        "dataproc_cluster_name": os.getenv(
+            "DATAPROC_CLUSTER_NAME"
+        ),  # only needed for cluster submission method
+        "gcs_bucket": os.getenv("GCS_BUCKET"),
     }

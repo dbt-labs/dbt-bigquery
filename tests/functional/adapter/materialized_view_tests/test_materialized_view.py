@@ -2,6 +2,9 @@ from typing import List
 from dbt.contracts.relation import RelationType
 from dbt.tests.adapter.materialized_view.base import (
     assert_model_exists_and_is_correct_type,
+    run_model,
+    # get_row_count,
+    # insert_record,
 )
 from tests.functional.adapter.materialized_view_tests.fixtures import (
     BigQueryBasicBase,
@@ -13,16 +16,16 @@ RecordSet = List[tuple]
 
 class TestBasic(BigQueryBasicBase):
     def test_relation_is_materialized_view_on_initial_creation(self, project):
-        assert_model_exists_and_is_correct_type(project, "base_table", RelationType.Table)
         assert_model_exists_and_is_correct_type(
             project, "base_materialized_view", RelationType.MaterializedView
         )
+        assert_model_exists_and_is_correct_type(project, "base_table", RelationType.Table)
 
-    # def test_relation_is_materialized_view_when_rerun(self, project):
-    #     run_model("base_materialized_view")
-    #     assert_model_exists_and_is_correct_type(
-    #         project, "base_materialized_view", RelationType.MaterializedView
-    #     )
+    def test_relation_is_materialized_view_when_rerun(self, project):
+        run_model("base_materialized_view")
+        assert_model_exists_and_is_correct_type(
+            project, "base_materialized_view", RelationType.MaterializedView
+        )
 
     # def test_relation_is_materialized_view_on_full_refresh(self, project):
     #     run_model("base_materialized_view", full_refresh=True)

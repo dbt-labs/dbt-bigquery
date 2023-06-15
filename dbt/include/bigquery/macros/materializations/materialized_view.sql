@@ -10,10 +10,12 @@
     relation,
     sql,
     existing_relation,
-    intermediate_relation
+    intermediate_relation,
+    backup_relation,
+    temp_relation
 ) %}
-     bigquery__drop_relation_sql(existing_relation)
-     get_create_materialized_view_as_sql(intermediate_relation, sql)
+     {% do bigquery__drop_relation_sql(existing_relation) %}
+    {{ get_create_materialized_view_as_sql(relation, sql) }}
 {% endmacro %}
 
 {% macro bigquery__refresh_materialized_view(relation) %}
@@ -21,7 +23,9 @@
         relation,
         sql,
         existing_relation,
-        intermediate_relation
+        intermediate_relation,
+        backup_relation,
+        temp_relation
     )
 {% endmacro %}
 
@@ -36,7 +40,9 @@
         relation,
         sql,
         existing_relation,
-        intermediate_relation
+        intermediate_relation,
+        backup_relation,
+        temp_relation
     )
 {% endmacro %}
 
@@ -51,7 +57,7 @@
     {% if existing_relation is none %}
         set build_sql = get_create_materialized_view_as_sql(target_relation, sql)
     {% elif full_refresh_mode or not existing_relation.is_materialized_view %}
-        {% set build_sql = get_replace_materialized_view_as_sql(target_relation, sql, existing_relation, backup_relation, intermediate_relation) %}
+        {% set build_sql = get_replace_materialized_view_as_sql(target_relation, sql, existing_relation, backup_relation, intermediate_relation, temp_relation) %}
     {% else %}
         {% set build_sql = refresh_materialized_view(relation) %}
     {% endif %}
@@ -59,6 +65,8 @@
     {% do return build_sql %}
 
 {% endmacro %}
+
+
 
 {% materialization materialized_view, adapter='bigquery' %}
 
@@ -78,7 +86,7 @@
             {{ materialized_view_execute_build_sql(build_sql, existing_relation, target_relation, post_hooks) }}
         {% endif %}
 
-    {{ materialized_view_teardown(intermediate_relation, post_hooks) }}
+    {{ run_hooks(post_hooks, inside_transaction=False) }}
 
     {{ return({'relations': [target_relation]}) }}
 

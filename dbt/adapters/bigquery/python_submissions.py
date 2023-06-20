@@ -45,7 +45,9 @@ class BaseDataProcHelper(PythonJobHelper):
         self.timeout = self.parsed_model["config"].get(
             "timeout", self.credential.job_execution_timeout_seconds or 60 * 60 * 24
         )
-        self.retry = retry.Retry(predicate=POLLING_PREDICATE, maximum=10.0, timeout=self.timeout)
+        self.result_polling_policy = retry.Retry(
+            predicate=POLLING_PREDICATE, maximum=10.0, timeout=self.timeout
+        )
         self.client_options = ClientOptions(
             api_endpoint="{}-dataproc.googleapis.com:443".format(self.credential.dataproc_region)
         )
@@ -100,7 +102,7 @@ class ClusterDataprocHelper(BaseDataProcHelper):
                 "job": job,
             }
         )
-        response = operation.result(polling=self.retry)
+        response = operation.result(polling=self.result_polling_policy)
         # check if job failed
         if response.status.state == 6:
             raise ValueError(response.status.details)
@@ -125,7 +127,7 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         operation = self.job_client.create_batch(request=request)  # type: ignore
         # this takes quite a while, waiting on GCP response to resolve
         # (not a google-api-core issue, more likely a dataproc serverless issue)
-        response = operation.result(polling=self.retry)
+        response = operation.result(polling=self.result_polling_policy)
         return response
         # there might be useful results here that we can parse and return
         # Dataproc job output is saved to the Cloud Storage bucket

@@ -78,7 +78,6 @@ setup(
         "google-cloud-bigquery~=3.0",
         "google-cloud-storage~=2.4",
         "google-cloud-dataproc~=5.0",
-        "agate~=1.6.3",
     ],
     zip_safe=False,
     classifiers=[

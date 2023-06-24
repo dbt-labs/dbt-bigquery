@@ -416,21 +416,27 @@ overwrite_day_with_time_ingestion_sql = """
 }}
 
 
+{%- call set_sql_header(config) %}
+ CREATE TEMP FUNCTION asDateTime(date STRING) AS (
+   cast(date as datetime)
+ );
+{%- endcall %}
+
 with data as (
 
     {% if not is_incremental() %}
 
-        select 1 as id, cast('2020-01-01' as datetime) as date_time union all
-        select 2 as id, cast('2020-01-01' as datetime) as date_time union all
-        select 3 as id, cast('2020-01-01' as datetime) as date_time union all
-        select 4 as id, cast('2020-01-01' as datetime) as date_time
+        select 1 as id, asDateTime('2020-01-01') as date_time union all
+        select 2 as id, asDateTime('2020-01-01') as date_time union all
+        select 3 as id, asDateTime('2020-01-01') as date_time union all
+        select 4 as id, asDateTime('2020-01-01') as date_time
 
     {% else %}
 
         -- we want to overwrite the 4 records in the 2020-01-01 partition
         -- with the 2 records below, but add two more in the 2020-01-02 partition
-        select 10 as id, cast('2020-01-01' as datetime) as date_time union all
-        select 20 as id, cast('2020-01-01' as datetime) as date_time union all
+        select 10 as id, asDateTime('2020-01-01') as date_time union all
+        select 20 as id, asDateTime('2020-01-01') as date_time union all
         select 30 as id, cast('2020-01-02' as datetime) as date_time union all
         select 40 as id, cast('2020-01-02' as datetime) as date_time
 

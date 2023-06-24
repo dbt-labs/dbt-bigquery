@@ -169,17 +169,28 @@ class BigQueryCredentials(Credentials):
         return (
             "method",
             "database",
+            "execution_project",
             "schema",
             "location",
             "priority",
-            "timeout_seconds",
             "maximum_bytes_billed",
-            "execution_project",
+            "impersonate_service_account",
             "job_retry_deadline_seconds",
             "job_retries",
             "job_creation_timeout_seconds",
             "job_execution_timeout_seconds",
+            "keyfile",
+            "keyfile_json",
+            "timeout_seconds",
+            "token",
+            "refresh_token",
+            "client_id",
+            "client_secret",
+            "token_uri",
+            "dataproc_region",
+            "dataproc_cluster_name",
             "gcs_bucket",
+            "dataproc_batch",
         )
 
     @classmethod
@@ -410,7 +421,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         column_names = [field.name for field in resp.schema]
         return agate_helper.table_from_data_flat(resp, column_names)
 
-    def raw_execute(self, sql, fetch=False, *, use_legacy_sql=False):
+    def raw_execute(self, sql, use_legacy_sql=False, limit: Optional[int] = None):
         conn = self.get_thread_connection()
         client = conn.handle
 
@@ -420,8 +431,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
             and self.profile.query_comment
             and self.profile.query_comment.job_label
         ):
-            query_comment = self.query_header.comment.query_comment
-            labels = self._labels_from_query_comment(query_comment)
+            query_comment = self.profile.query_comment
+            labels = self._labels_from_query_comment(query_comment.comment)
         else:
             labels = {}
 
@@ -450,6 +461,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 job_params,
                 job_creation_timeout=job_creation_timeout,
                 job_execution_timeout=job_execution_timeout,
+                limit=limit,
             )
 
         query_job, iterator = self._retry_and_handle(msg=sql, conn=conn, fn=fn)
@@ -457,11 +469,11 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return query_job, iterator
 
     def execute(
-        self, sql, auto_begin=False, fetch=None
+        self, sql, auto_begin=False, fetch=None, limit: Optional[int] = None
     ) -> Tuple[BigQueryAdapterResponse, agate.Table]:
         sql = self._add_query_comment(sql)
         # auto_begin is ignored on bigquery, and only included for consistency
-        query_job, iterator = self.raw_execute(sql, fetch=fetch)
+        query_job, iterator = self.raw_execute(sql, limit=limit)
 
         if fetch:
             table = self.get_table_from_response(iterator)
@@ -547,7 +559,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         sql = self._add_query_comment(legacy_sql)
         # auto_begin is ignored on bigquery, and only included for consistency
-        _, iterator = self.raw_execute(sql, fetch="fetch_result", use_legacy_sql=True)
+        _, iterator = self.raw_execute(sql, use_legacy_sql=True)
         return self.get_table_from_response(iterator)
 
     def copy_bq_table(self, source, destination, write_disposition):
@@ -641,6 +653,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         job_params,
         job_creation_timeout=None,
         job_execution_timeout=None,
+        limit: Optional[int] = None,
     ):
         """Query the client and wait for results."""
         # Cannot reuse job_config if destination is set and ddl is used
@@ -656,7 +669,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
             )
 
-        iterator = query_job.result(timeout=job_execution_timeout)
+        iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
 
         return query_job, iterator
 

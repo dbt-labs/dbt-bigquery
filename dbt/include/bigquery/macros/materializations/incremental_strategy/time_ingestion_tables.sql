@@ -24,6 +24,8 @@
 {%- endmacro -%}
 
 {% macro bq_insert_into_ingestion_time_partitioned_table_sql(target_relation, sql) -%}
+  {%- set sql_header = config.get('sql_header', none) -%}
+  {{ sql_header if sql_header is not none }}
   {%- set raw_partition_by = config.get('partition_by', none) -%}
   {%- set partition_by = adapter.parse_partition_by(raw_partition_by) -%}
   {% set dest_columns = adapter.get_columns_in_relation(target_relation) %}
@@ -36,6 +38,8 @@
 
 {% macro get_columns_with_types_in_query_sql(select_sql) %}
   {% set sql %}
+    {%- set sql_header = config.get('sql_header', none) -%}
+    {{ sql_header if sql_header is not none }}
     select * from (
       {{ select_sql }}
     ) as __dbt_sbq

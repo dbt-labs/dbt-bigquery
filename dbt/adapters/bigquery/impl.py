@@ -25,7 +25,7 @@ from dbt.adapters.cache import _make_ref_key_dict  # type: ignore
 
 from dbt.adapters.bigquery.column import get_nested_column_data_types
 from dbt.adapters.bigquery.relation import BigQueryRelation
-from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset
+from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset, is_access_entry_in_dataset
 from dbt.adapters.bigquery import BigQueryColumn
 from dbt.adapters.bigquery import BigQueryConnectionManager
 from dbt.adapters.bigquery.python_submissions import (
@@ -899,9 +899,11 @@ class BigQueryAdapter(BaseAdapter):
             dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
             dataset = client.get_dataset(dataset_ref)
             access_entry = AccessEntry(role, entity_type, entity)
-            dataset = add_access_entry_to_dataset(dataset, access_entry)
-            # only perform update if dataset has changed
-            if dataset:
+            # only perform update if access entry not in dataset
+            if is_access_entry_in_dataset(dataset, access_entry):
+                logger.warning(f"Access entry {access_entry} " f"already exists in dataset")
+            else:
+                dataset = add_access_entry_to_dataset(dataset, access_entry)
                 client.update_dataset(dataset, ["access_entries"])
 
     @available.parse_none

@@ -4,7 +4,7 @@ from dbt.adapters.bigquery import BigQueryRelation
 from google.cloud.bigquery import Dataset, AccessEntry, DatasetReference
 
 
-def test_add_access_entry_to_dataset_idempotently_adds_entries():
+def test_add_access_entry_to_dataset_returns_none_if_no_change():
     database = "someDb"
     dataset = "someDataset"
     entity = BigQueryRelation.from_dict(
@@ -27,7 +27,7 @@ def test_add_access_entry_to_dataset_idempotently_adds_entries():
     assert dataset is None
 
 
-def test_add_access_entry_to_dataset_does_not_add_with_pre_existing_entries():
+def test_add_access_entry_to_dataset_returns_none_with_pre_existing_entries():
     database = "someOtherDb"
     dataset = "someOtherDataset"
     entity_2 = BigQueryRelation.from_dict(

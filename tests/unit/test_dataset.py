@@ -24,7 +24,7 @@ def test_add_access_entry_to_dataset_idempotently_adds_entries():
     dataset = add_access_entry_to_dataset(dataset, access_entry)
     assert access_entry in dataset.access_entries
     dataset = add_access_entry_to_dataset(dataset, access_entry)
-    assert len(dataset.access_entries) == 1
+    assert dataset is None
 
 
 def test_add_access_entry_to_dataset_does_not_add_with_pre_existing_entries():
@@ -48,4 +48,4 @@ def test_add_access_entry_to_dataset_does_not_add_with_pre_existing_entries():
     dataset.access_entries = [initial_entry]
     access_entry = AccessEntry(None, "view", entity_2)
     dataset = add_access_entry_to_dataset(dataset, access_entry)
-    assert len(dataset.access_entries) == 1
+    assert dataset is None

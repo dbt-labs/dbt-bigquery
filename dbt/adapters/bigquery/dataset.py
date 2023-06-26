@@ -14,7 +14,7 @@ def add_access_entry_to_dataset(dataset: Dataset, access_entry: AccessEntry) -> 
         access_entry (AccessEntry): the access entry to be added to the dataset
 
     Returns:
-        Dataset
+        Dataset or None: the updated dataset or None if the access entry already exists
     """
     access_entries: List[AccessEntry] = dataset.access_entries
     # we can't simply check if an access entry is in the list as the current equality check
@@ -25,7 +25,7 @@ def add_access_entry_to_dataset(dataset: Dataset, access_entry: AccessEntry) -> 
         property_match = existing_entry._properties.items() <= access_entry._properties.items()
         if role_match and entity_type_match and property_match:
             logger.warning(f"Access entry {access_entry} " f"already exists in dataset")
-            return dataset
+            return None  # access entry already exists
     access_entries.append(access_entry)
     dataset.access_entries = access_entries
     return dataset

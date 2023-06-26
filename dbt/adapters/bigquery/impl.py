@@ -900,7 +900,9 @@ class BigQueryAdapter(BaseAdapter):
             dataset = client.get_dataset(dataset_ref)
             access_entry = AccessEntry(role, entity_type, entity)
             dataset = add_access_entry_to_dataset(dataset, access_entry)
-            client.update_dataset(dataset, ["access_entries"])
+            # only perform update if dataset has changed
+            if dataset:
+                client.update_dataset(dataset, ["access_entries"])
 
     @available.parse_none
     def get_dataset_location(self, relation):

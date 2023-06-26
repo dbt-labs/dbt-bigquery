@@ -1,0 +1,7 @@
+kind: Fixes
+body: Pass python model timeout to polling operation so model execution times out
+  as expected.
+time: 2023-06-09T13:27:27.279842-07:00
+custom:
+  Author: colin-rogers-dbt
+  Issue: "577"

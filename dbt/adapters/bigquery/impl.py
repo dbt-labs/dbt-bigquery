@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 import threading
 from typing import Dict, List, Optional, Any, Set, Union, Type
+
+from dbt.contracts.graph.nodes import ColumnLevelConstraint, ModelLevelConstraint, ConstraintType  # type: ignore
 from dbt.dataclass_schema import dbtClassMixin, ValidationError
 
 import dbt.deprecations
@@ -8,8 +10,9 @@ import dbt.exceptions
 import dbt.clients.agate_helper
 
 from dbt import ui  # type: ignore
-from dbt.adapters.base import (
+from dbt.adapters.base import (  # type: ignore
     BaseAdapter,
+    ConstraintSupport,
     available,
     RelationType,
     BaseRelation,
@@ -18,8 +21,9 @@ from dbt.adapters.base import (
     PythonJobHelper,
 )
 
-from dbt.adapters.cache import _make_ref_key_dict
+from dbt.adapters.cache import _make_ref_key_dict  # type: ignore
 
+from dbt.adapters.bigquery.column import get_nested_column_data_types
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset
 from dbt.adapters.bigquery import BigQueryColumn
@@ -30,7 +34,9 @@ from dbt.adapters.bigquery.python_submissions import (
 )
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse
 from dbt.contracts.graph.manifest import Manifest
-from dbt.events import AdapterLogger
+from dbt.events import (
+    AdapterLogger,
+)
 from dbt.events.functions import fire_event
 from dbt.events.types import SchemaCreation, SchemaDrop
 from dbt.utils import filter_null_values
@@ -72,9 +78,17 @@ class PartitionConfig(dbtClassMixin):
     time_ingestion_partitioning: bool = False
     copy_partitions: bool = False
 
+    PARTITION_DATE = "_PARTITIONDATE"
+    PARTITION_TIME = "_PARTITIONTIME"
+
     def data_type_for_partition(self):
-        """Return the data type of partitions for replacement."""
-        return self.data_type if not self.time_ingestion_partitioning else "timestamp"
+        """Return the data type of partitions for replacement.
+        When time_ingestion_partitioning is enabled, the data type supported are date & timestamp.
+        """
+        if not self.time_ingestion_partitioning:
+            return self.data_type
+
+        return "date" if self.data_type == "date" else "timestamp"
 
     def reject_partition_field_column(self, columns: List[Any]) -> List[str]:
         return [c for c in columns if not c.name.upper() == self.field.upper()]
@@ -82,12 +96,28 @@ class PartitionConfig(dbtClassMixin):
     def data_type_should_be_truncated(self):
         """Return true if the data type should be truncated instead of cast to the data type."""
         return not (
-            self.data_type.lower() == "int64"
-            or (self.data_type.lower() == "date" and self.granularity.lower() == "day")
+            self.data_type == "int64" or (self.data_type == "date" and self.granularity == "day")
         )
 
+    def time_partitioning_field(self) -> str:
+        """Return the time partitioning field name based on the data type.
+        The default is _PARTITIONTIME, but for date it is _PARTITIONDATE
+        else it will fail statements for type mismatch."""
+        if self.data_type == "date":
+            return self.PARTITION_DATE
+        else:
+            return self.PARTITION_TIME
+
+    def insertable_time_partitioning_field(self) -> str:
+        """Return the insertable time partitioning field name based on the data type.
+        Practically, only _PARTITIONTIME works so far.
+        The function is meant to keep the call sites consistent as it might evolve."""
+        return self.PARTITION_TIME
+
     def render(self, alias: Optional[str] = None):
-        column: str = self.field if not self.time_ingestion_partitioning else "_PARTITIONTIME"
+        column: str = (
+            self.field if not self.time_ingestion_partitioning else self.time_partitioning_field()
+        )
         if alias:
             column = f"{alias}.{column}"
 
@@ -102,6 +132,9 @@ class PartitionConfig(dbtClassMixin):
         if (
             self.data_type in ("date", "timestamp", "datetime")
             and not self.data_type_should_be_truncated()
+            and not (
+                self.time_ingestion_partitioning and self.data_type == "date"
+            )  # _PARTITIONDATE is already a date
         ):
             return f"{self.data_type}({self.render(alias)})"
         else:
@@ -113,7 +146,12 @@ class PartitionConfig(dbtClassMixin):
             return None
         try:
             cls.validate(raw_partition_by)
-            return cls.from_dict(raw_partition_by)
+            return cls.from_dict(
+                {
+                    key: (value.lower() if isinstance(value, str) else value)
+                    for key, value in raw_partition_by.items()
+                }
+            )
         except ValidationError as exc:
             raise dbt.exceptions.DbtValidationError("Could not parse partition config") from exc
         except TypeError:
@@ -165,6 +203,14 @@ class BigQueryAdapter(BaseAdapter):
     ConnectionManager = BigQueryConnectionManager
 
     AdapterSpecificConfigs = BigqueryConfig
+
+    CONSTRAINT_SUPPORT = {
+        ConstraintType.check: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.not_null: ConstraintSupport.ENFORCED,
+        ConstraintType.unique: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.primary_key: ConstraintSupport.ENFORCED,
+        ConstraintType.foreign_key: ConstraintSupport.ENFORCED,
+    }
 
     ###
     # Implementations of abstract methods
@@ -248,6 +294,15 @@ class BigQueryAdapter(BaseAdapter):
             return False
         return True
 
+    @available.parse(lambda *a, **k: {})
+    @classmethod
+    def nest_column_data_types(
+        cls,
+        columns: Dict[str, Dict[str, Any]],
+        constraints: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Dict[str, str]]:
+        return get_nested_column_data_types(columns, constraints)
+
     def get_columns_in_relation(self, relation: BigQueryRelation) -> List[BigQueryColumn]:
         try:
             table = self.connections.get_bq_table(
@@ -260,9 +315,16 @@ class BigQueryAdapter(BaseAdapter):
             return []
 
     @available.parse(lambda *a, **k: [])
-    def add_time_ingestion_partition_column(self, columns) -> List[BigQueryColumn]:
-        "Add time ingestion partition column to columns list"
-        columns.append(self.Column("_PARTITIONTIME", "TIMESTAMP", None, "NULLABLE"))
+    def add_time_ingestion_partition_column(self, partition_by, columns) -> List[BigQueryColumn]:
+        """Add time ingestion partition column to columns list"""
+        columns.append(
+            self.Column(
+                partition_by.insertable_time_partitioning_field(),
+                partition_by.data_type,
+                None,
+                "NULLABLE",
+            )
+        )
         return columns
 
     def expand_column_types(self, goal: BigQueryRelation, current: BigQueryRelation) -> None:  # type: ignore[override]
@@ -474,7 +536,10 @@ class BigQueryAdapter(BaseAdapter):
         """
         _, iterator = self.connections.raw_execute(sql)
         columns = [self.Column.create_from_field(field) for field in iterator.schema]
-        return columns
+        flattened_columns = []
+        for column in columns:
+            flattened_columns += column.flatten()
+        return flattened_columns
 
     @available.parse(lambda *a, **k: False)
     def get_columns_in_select_sql(self, select_sql: str) -> List[BigQueryColumn]:
@@ -551,18 +616,15 @@ class BigQueryAdapter(BaseAdapter):
         if not is_partitioned and not conf_partition:
             return True
         elif conf_partition and table.time_partitioning is not None:
-            partitioning_field = table.time_partitioning.field or "_PARTITIONTIME"
-            table_field = partitioning_field.lower()
-            table_granularity = table.partitioning_type.lower()
-            conf_table_field = (
-                conf_partition.field
-                if not conf_partition.time_ingestion_partitioning
-                else "_PARTITIONTIME"
+            table_field = (
+                table.time_partitioning.field.lower() if table.time_partitioning.field else None
             )
+            table_granularity = table.partitioning_type
+            conf_table_field = conf_partition.field
             return (
-                table_field == conf_table_field.lower()
-                and table_granularity == conf_partition.granularity.lower()
-            )
+                table_field == conf_table_field
+                or (conf_partition.time_ingestion_partitioning and table_field is not None)
+            ) and table_granularity == conf_partition.granularity
         elif conf_partition and table.range_partitioning is not None:
             dest_part = table.range_partitioning
             conf_part = conf_partition.range or {}
@@ -644,7 +706,8 @@ class BigQueryAdapter(BaseAdapter):
         if dotted_column_name in dbt_columns:
             column_config = dbt_columns[dotted_column_name]
             bq_column_dict["description"] = column_config.get("description")
-            bq_column_dict["policyTags"] = {"names": column_config.get("policy_tags", list())}
+            if bq_column_dict["type"] != "RECORD":
+                bq_column_dict["policyTags"] = {"names": column_config.get("policy_tags", list())}
 
         new_fields = []
         for child_col_dict in bq_column_dict.get("fields", list()):
@@ -907,3 +970,53 @@ class BigQueryAdapter(BaseAdapter):
             "cluster": ClusterDataprocHelper,
             "serverless": ServerlessDataProcHelper,
         }
+
+    @available
+    @classmethod
+    def render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]]) -> List:
+        rendered_constraints: Dict[str, str] = {}
+        for raw_column in raw_columns.values():
+            for con in raw_column.get("constraints", None):
+                constraint = cls._parse_column_constraint(con)
+                rendered_constraint = cls.process_parsed_constraint(
+                    constraint, cls.render_column_constraint
+                )
+
+                if rendered_constraint:
+                    column_name = raw_column["name"]
+                    if column_name not in rendered_constraints:
+                        rendered_constraints[column_name] = rendered_constraint
+                    else:
+                        rendered_constraints[column_name] += f" {rendered_constraint}"
+
+        nested_columns = cls.nest_column_data_types(raw_columns, rendered_constraints)
+        rendered_column_constraints = [
+            f"{cls.quote(column['name']) if column.get('quote') else column['name']} {column['data_type']}"
+            for column in nested_columns.values()
+        ]
+        return rendered_column_constraints
+
+    @classmethod
+    def render_column_constraint(cls, constraint: ColumnLevelConstraint) -> Optional[str]:
+        c = super().render_column_constraint(constraint)  # type: ignore
+        if (
+            constraint.type == ConstraintType.primary_key
+            or constraint.type == ConstraintType.foreign_key
+        ):
+            return f"{c} not enforced" if c else None
+        return c
+
+    @classmethod
+    def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
+        c = super().render_model_constraint(constraint)  # type: ignore
+        if (
+            constraint.type == ConstraintType.primary_key
+            or constraint.type == ConstraintType.foreign_key
+        ):
+            return f"{c} not enforced" if c else None
+
+        return c
+
+    def debug_query(self):
+        """Override for DebugTask method"""
+        self.execute("select 1 as id")

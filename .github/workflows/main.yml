@@ -177,7 +177,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: [3.8, 3.9]
+        python-version: [3.8] # only testing 3.8 since v1.0 of dbt is deprecated but we are still running with 3.8 in Cloud
 
     steps:
       - name: Set up Python ${{ matrix.python-version }}

@@ -1,0 +1,6 @@
+kind: Features
+body: Add batch_id param to profile
+time: 2023-05-17T09:22:05.264368+01:00
+custom:
+  Author: nickozilla
+  Issue: "671"

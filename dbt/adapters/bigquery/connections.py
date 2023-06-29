@@ -133,6 +133,7 @@ class BigQueryCredentials(Credentials):
     dataproc_region: Optional[str] = None
     dataproc_cluster_name: Optional[str] = None
     gcs_bucket: Optional[str] = None
+    batch_id: Optional[str] = None
 
     dataproc_batch: Optional[DataprocBatchConfig] = field(
         metadata={
@@ -169,17 +170,28 @@ class BigQueryCredentials(Credentials):
         return (
             "method",
             "database",
+            "execution_project",
             "schema",
             "location",
             "priority",
-            "timeout_seconds",
             "maximum_bytes_billed",
-            "execution_project",
+            "impersonate_service_account",
             "job_retry_deadline_seconds",
             "job_retries",
             "job_creation_timeout_seconds",
             "job_execution_timeout_seconds",
+            "keyfile",
+            "keyfile_json",
+            "timeout_seconds",
+            "token",
+            "refresh_token",
+            "client_id",
+            "client_secret",
+            "token_uri",
+            "dataproc_region",
+            "dataproc_cluster_name",
             "gcs_bucket",
+            "dataproc_batch",
         )
 
     @classmethod
@@ -524,9 +536,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         else:
             message = f"{code}"
 
-        if location is not None and job_id is not None and project_id is not None:
-            logger.debug(self._bq_job_link(location, project_id, job_id))
-
         response = BigQueryAdapterResponse(  # type: ignore[call-arg]
             _message=message,
             rows_affected=num_rows,
@@ -653,6 +662,16 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
         query_job = client.query(query=sql, job_config=job_config, timeout=job_creation_timeout)
+
+        if (
+            query_job.location is not None
+            and query_job.job_id is not None
+            and query_job.project is not None
+        ):
+            logger.debug(
+                self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
+            )
+
         iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
 
         return query_job, iterator

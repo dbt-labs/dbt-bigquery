@@ -23,8 +23,9 @@ from dbt.adapters.base import (  # type: ignore
 
 from dbt.adapters.cache import _make_ref_key_dict  # type: ignore
 
+from dbt.adapters.bigquery.column import get_nested_column_data_types
 from dbt.adapters.bigquery.relation import BigQueryRelation
-from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset
+from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset, is_access_entry_in_dataset
 from dbt.adapters.bigquery import BigQueryColumn
 from dbt.adapters.bigquery import BigQueryConnectionManager
 from dbt.adapters.bigquery.python_submissions import (
@@ -293,6 +294,15 @@ class BigQueryAdapter(BaseAdapter):
             return False
         return True
 
+    @available.parse(lambda *a, **k: {})
+    @classmethod
+    def nest_column_data_types(
+        cls,
+        columns: Dict[str, Dict[str, Any]],
+        constraints: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Dict[str, str]]:
+        return get_nested_column_data_types(columns, constraints)
+
     def get_columns_in_relation(self, relation: BigQueryRelation) -> List[BigQueryColumn]:
         try:
             table = self.connections.get_bq_table(
@@ -526,7 +536,10 @@ class BigQueryAdapter(BaseAdapter):
         """
         _, iterator = self.connections.raw_execute(sql)
         columns = [self.Column.create_from_field(field) for field in iterator.schema]
-        return columns
+        flattened_columns = []
+        for column in columns:
+            flattened_columns += column.flatten()
+        return flattened_columns
 
     @available.parse(lambda *a, **k: False)
     def get_columns_in_select_sql(self, select_sql: str) -> List[BigQueryColumn]:
@@ -886,8 +899,12 @@ class BigQueryAdapter(BaseAdapter):
             dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
             dataset = client.get_dataset(dataset_ref)
             access_entry = AccessEntry(role, entity_type, entity)
-            dataset = add_access_entry_to_dataset(dataset, access_entry)
-            client.update_dataset(dataset, ["access_entries"])
+            # only perform update if access entry not in dataset
+            if is_access_entry_in_dataset(dataset, access_entry):
+                logger.warning(f"Access entry {access_entry} " f"already exists in dataset")
+            else:
+                dataset = add_access_entry_to_dataset(dataset, access_entry)
+                client.update_dataset(dataset, ["access_entries"])
 
     @available.parse_none
     def get_dataset_location(self, relation):
@@ -958,6 +975,31 @@ class BigQueryAdapter(BaseAdapter):
             "serverless": ServerlessDataProcHelper,
         }
 
+    @available
+    @classmethod
+    def render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]]) -> List:
+        rendered_constraints: Dict[str, str] = {}
+        for raw_column in raw_columns.values():
+            for con in raw_column.get("constraints", None):
+                constraint = cls._parse_column_constraint(con)
+                rendered_constraint = cls.process_parsed_constraint(
+                    constraint, cls.render_column_constraint
+                )
+
+                if rendered_constraint:
+                    column_name = raw_column["name"]
+                    if column_name not in rendered_constraints:
+                        rendered_constraints[column_name] = rendered_constraint
+                    else:
+                        rendered_constraints[column_name] += f" {rendered_constraint}"
+
+        nested_columns = cls.nest_column_data_types(raw_columns, rendered_constraints)
+        rendered_column_constraints = [
+            f"{cls.quote(column['name']) if column.get('quote') else column['name']} {column['data_type']}"
+            for column in nested_columns.values()
+        ]
+        return rendered_column_constraints
+
     @classmethod
     def render_column_constraint(cls, constraint: ColumnLevelConstraint) -> Optional[str]:
         c = super().render_column_constraint(constraint)  # type: ignore
@@ -978,3 +1020,7 @@ class BigQueryAdapter(BaseAdapter):
             return f"{c} not enforced" if c else None
 
         return c
+
+    def debug_query(self):
+        """Override for DebugTask method"""
+        self.execute("select 1 as id")

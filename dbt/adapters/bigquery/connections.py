@@ -158,6 +158,12 @@ class BigQueryCredentials(Credentials):
         "timeout_seconds": "job_execution_timeout_seconds",
     }
 
+    def __post_init__(self):
+        if self.keyfile_json and "private_key" in self.keyfile_json:
+            self.keyfile_json["private_key"] = self.keyfile_json["private_key"].replace(
+                "\\n", "\n"
+            )
+
     @property
     def type(self):
         return "bigquery"
@@ -321,8 +327,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON:
             details = profile_credentials.keyfile_json
-            private_key = details.get("private_key", "").replace("\\n", "\n")
-            details["private_key"] = private_key
             return creds.from_service_account_info(details, scopes=profile_credentials.scopes)
 
         elif method == BigQueryConnectionMethod.OAUTH_SECRETS:

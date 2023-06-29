@@ -534,9 +534,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         else:
             message = f"{code}"
 
-        if location is not None and job_id is not None and project_id is not None:
-            logger.debug(self._bq_job_link(location, project_id, job_id))
-
         response = BigQueryAdapterResponse(  # type: ignore[call-arg]
             _message=message,
             rows_affected=num_rows,
@@ -663,6 +660,16 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
         query_job = client.query(query=sql, job_config=job_config, timeout=job_creation_timeout)
+
+        if (
+            query_job.location is not None
+            and query_job.job_id is not None
+            and query_job.project is not None
+        ):
+            logger.debug(
+                self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
+            )
+
         iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
 
         return query_job, iterator

@@ -116,9 +116,7 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         )
 
     def _get_batch_id(self) -> str:
-        return self.parsed_model["config"].get(
-            "batch_id", self.credential.batch_id
-        )
+        return self.parsed_model["config"].get("batch_id", self.credential.batch_id)
 
     def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
         batch = self._configure_batch()

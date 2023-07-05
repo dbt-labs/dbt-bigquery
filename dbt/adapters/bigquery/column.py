@@ -222,24 +222,29 @@ def _update_nested_column_data_types(
             if column_rendered_constraint is None
             else f"{column_data_type} {column_rendered_constraint}"
         )
-        if root_column_name not in nested_column_data_types:
-            nested_column_data_types[root_column_name] = column_data_type_and_constraints
-        else:
-            # entry could already exist if this is a parent column -- preserve the parent data type under "_PARENT_DATA_TYPE_KEY"
-            existing_nested_column_data_type = nested_column_data_types[root_column_name]
+
+        if existing_nested_column_data_type := nested_column_data_types.get(root_column_name):
             assert isinstance(existing_nested_column_data_type, dict)  # keeping mypy happy
-            existing_nested_column_data_type[
-                _PARENT_DATA_TYPE_KEY
-            ] = column_data_type_and_constraints
+            # entry could already exist if this is a parent column -- preserve the parent data type under "_PARENT_DATA_TYPE_KEY"
+            existing_nested_column_data_type.update(
+                {_PARENT_DATA_TYPE_KEY: column_data_type_and_constraints}
+            )
+        else:
+            nested_column_data_types.update({root_column_name: column_data_type_and_constraints})
     else:
-        # Initialize nested dictionary
-        if root_column_name not in nested_column_data_types:
-            nested_column_data_types[root_column_name] = {}
-        elif not isinstance(nested_column_data_types[root_column_name], dict):
+        parent_data_type = nested_column_data_types.get(root_column_name)
+        if isinstance(parent_data_type, dict):
+            # nested dictionary already initialized
+            pass
+        elif parent_data_type is None:
+            # initialize nested dictionary
+            nested_column_data_types.update({root_column_name: {}})
+        else:
             # a parent specified its base type -- preserve its data_type and potential rendered constraints
             # this is used to specify a top-level 'struct' or 'array' field with its own description, constraints, etc
-            parent_data_type = nested_column_data_types[root_column_name]
-            nested_column_data_types[root_column_name] = {_PARENT_DATA_TYPE_KEY: parent_data_type}
+            nested_column_data_types.update(
+                {root_column_name: {_PARENT_DATA_TYPE_KEY: parent_data_type}}
+            )
 
         # Recursively process rest of remaining column name
         remaining_column_name = ".".join(column_name_parts[1:])
@@ -268,13 +273,9 @@ def _format_nested_data_type(unformatted_nested_data_type: Union[str, Dict[str, 
     if isinstance(unformatted_nested_data_type, str):
         return unformatted_nested_data_type
     else:
-        parent_data_type = unformatted_nested_data_type.pop(_PARENT_DATA_TYPE_KEY, None)
-        parent_constraints = None
-        if parent_data_type:
-            parent_data_type_flat = parent_data_type.split()
-            if len(parent_data_type_flat) > 1:
-                parent_data_type = parent_data_type_flat[0]
-                parent_constraints = " ".join(parent_data_type_flat[1:])
+        parent_data_type, *parent_constraints = unformatted_nested_data_type.pop(
+            _PARENT_DATA_TYPE_KEY, ""
+        ).split() or [None]
 
         formatted_nested_types = [
             f"{column_name} {_format_nested_data_type(column_type)}"
@@ -282,9 +283,12 @@ def _format_nested_data_type(unformatted_nested_data_type: Union[str, Dict[str, 
         ]
 
         formatted_nested_type = f"""struct<{", ".join(formatted_nested_types)}>"""
+
         if parent_data_type and parent_data_type.lower() == "array":
             formatted_nested_type = f"""array<{formatted_nested_type}>"""
+
         if parent_constraints:
+            parent_constraints = " ".join(parent_constraints)
             formatted_nested_type = f"""{formatted_nested_type} {parent_constraints}"""
 
         return formatted_nested_type

@@ -8,8 +8,8 @@ TEST_AUDIT_SCHEMA_SUFFIX = "dbt_test__aud"
 
 
 class TestBigQueryStoreTestFailures(StoreTestFailuresBase):
-    @pytest.fixture(scope="function")
-    def clean_up(self, project):
+    @pytest.fixture(autouse=True)
+    def teardown_method(self, project):
         yield
         relation = project.adapter.Relation.create(
             database=project.database, schema=f"{project.test_schema}_{TEST_AUDIT_SCHEMA_SUFFIX}"
@@ -17,6 +17,6 @@ class TestBigQueryStoreTestFailures(StoreTestFailuresBase):
 
         project.adapter.drop_schema(relation)
 
-    def test_store_and_assert(self, project, clean_up):
+    def test_store_and_assert(self, project):
         self.run_tests_store_one_failure(project)
         self.run_tests_store_failures_and_assert(project)

@@ -14,6 +14,12 @@ from dbt.adapters.bigquery.column import get_nested_column_data_types
             None,
             {"a": {"name": "a", "data_type": "string"}},
         ),
+        # Flat column - missing data_type
+        (
+            {"a": {"name": "a"}},
+            None,
+            {"a": {"name": "a", "data_type": None}},
+        ),
         # Flat column - with constraints
         (
             {"a": {"name": "a", "data_type": "string"}},
@@ -32,11 +38,23 @@ from dbt.adapters.bigquery.column import get_nested_column_data_types
             None,
             {"b": {"name": "b", "data_type": "struct<nested string>"}},
         ),
+        # Single nested column, 1 level - missing data_type
+        (
+            {"b.nested": {"name": "b.nested"}},
+            None,
+            {"b": {"name": "b", "data_type": "struct<nested>"}},
+        ),
         # Single nested column, 1 level - with constraints
         (
             {"b.nested": {"name": "b.nested", "data_type": "string"}},
             {"b.nested": "not null"},
             {"b": {"name": "b", "data_type": "struct<nested string not null>"}},
+        ),
+        # Single nested column, 1 level - with constraints, missing data_type (constraints not valid without data_type)
+        (
+            {"b.nested": {"name": "b.nested"}},
+            {"b.nested": "not null"},
+            {"b": {"name": "b", "data_type": "struct<nested>"}},
         ),
         # Single nested column, 1 level - with constraints + other keys
         (
@@ -148,6 +166,28 @@ from dbt.adapters.bigquery.column import get_nested_column_data_types
                 "b": {
                     "name": "b",
                     "data_type": "struct<user struct<name struct<first string, last string>, id int64, country string>>",
+                },
+            },
+        ),
+        # Nested columns, multiple levels - missing data_type
+        (
+            {
+                "b.user.name.first": {
+                    "name": "b.user.name.first",
+                    "data_type": "string",
+                },
+                "b.user.name.last": {
+                    "name": "b.user.name.last",
+                    "data_type": "string",
+                },
+                "b.user.id": {"name": "b.user.id", "data_type": "int64"},
+                "b.user.country": {"name": "b.user.country"},  # missing data_type
+            },
+            None,
+            {
+                "b": {
+                    "name": "b",
+                    "data_type": "struct<user struct<name struct<first string, last string>, id int64, country>>",
                 },
             },
         ),

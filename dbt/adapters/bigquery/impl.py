@@ -300,7 +300,7 @@ class BigQueryAdapter(BaseAdapter):
         cls,
         columns: Dict[str, Dict[str, Any]],
         constraints: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Dict[str, str]]:
+    ) -> Dict[str, Dict[str, Optional[str]]]:
         return get_nested_column_data_types(columns, constraints)
 
     def get_columns_in_relation(self, relation: BigQueryRelation) -> List[BigQueryColumn]:

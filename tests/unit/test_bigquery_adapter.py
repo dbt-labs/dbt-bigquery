@@ -1,4 +1,3 @@
-from unicodedata import name
 import agate
 import decimal
 import json
@@ -13,8 +12,6 @@ from unittest.mock import patch, MagicMock, Mock, create_autospec, ANY
 
 import dbt.dataclass_schema
 
-import dbt.flags as flags
-
 from dbt.adapters.bigquery import BigQueryCredentials
 from dbt.adapters.bigquery import BigQueryAdapter
 from dbt.adapters.bigquery import BigQueryRelation
@@ -27,7 +24,6 @@ import dbt.exceptions
 from dbt.logger import GLOBAL_LOGGER as logger  # noqa
 from dbt.context.providers import RuntimeConfigObject
 
-import google.cloud.bigquery
 from google.cloud.bigquery import AccessEntry
 
 from .utils import config_from_parts_or_dicts, inject_adapter, TestAdapterConversions
@@ -35,7 +31,7 @@ from .utils import config_from_parts_or_dicts, inject_adapter, TestAdapterConver
 
 def _bq_conn():
     conn = MagicMock()
-    conn.get.side_effect = lambda x: 'bigquery' if x == 'type' else None
+    conn.get.side_effect = lambda x: "bigquery" if x == "type" else None
     return conn
 
 
@@ -108,43 +104,40 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
                     "threads": 1,
                     "location": "Solar Station",
                 },
-                'dataproc-serverless-configured' : {
-                    'type': 'bigquery',
-                    'method': 'oauth',
-                    'schema': 'dummy_schema',
-                    'threads': 1,
-                    'gcs_bucket': 'dummy-bucket',
-                    'dataproc_region': 'europe-west1',
-                    'submission_method': 'serverless',
-                    'dataproc_batch': {
-                        'environment_config' : {
-                            'execution_config' : {
-                                'service_account': 'dbt@dummy-project.iam.gserviceaccount.com',
-                                'subnetwork_uri': 'dataproc',
-                                'network_tags': [ "foo", "bar" ]
+                "dataproc-serverless-configured": {
+                    "type": "bigquery",
+                    "method": "oauth",
+                    "schema": "dummy_schema",
+                    "threads": 1,
+                    "gcs_bucket": "dummy-bucket",
+                    "dataproc_region": "europe-west1",
+                    "submission_method": "serverless",
+                    "dataproc_batch": {
+                        "environment_config": {
+                            "execution_config": {
+                                "service_account": "dbt@dummy-project.iam.gserviceaccount.com",
+                                "subnetwork_uri": "dataproc",
+                                "network_tags": ["foo", "bar"],
                             }
                         },
-                        'labels': {
-                            'dbt': 'rocks',
-                            'number': '1'
-                        },
-                        'runtime_config': {
-                            'properties': {
-                                'spark.executor.instances': '4',
-                                'spark.driver.memory': '1g'
+                        "labels": {"dbt": "rocks", "number": "1"},
+                        "runtime_config": {
+                            "properties": {
+                                "spark.executor.instances": "4",
+                                "spark.driver.memory": "1g",
                             }
-                        }
-                    }
+                        },
+                    },
                 },
-                'dataproc-serverless-default' : {
-                    'type': 'bigquery',
-                    'method': 'oauth',
-                    'schema': 'dummy_schema',
-                    'threads': 1,
-                    'gcs_bucket': 'dummy-bucket',
-                    'dataproc_region': 'europe-west1',
-                    'submission_method': 'serverless'
-                }
+                "dataproc-serverless-default": {
+                    "type": "bigquery",
+                    "method": "oauth",
+                    "schema": "dummy_schema",
+                    "threads": 1,
+                    "gcs_bucket": "dummy-bucket",
+                    "dataproc_region": "europe-west1",
+                    "submission_method": "serverless",
+                },
             },
             "target": "oauth",
         }
@@ -166,7 +159,7 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
     def get_adapter(self, target) -> BigQueryAdapter:
         project = self.project_cfg.copy()
         profile = self.raw_profile.copy()
-        profile['target'] = target
+        profile["target"] = target
 
         config = config_from_parts_or_dicts(
             project=project,
@@ -176,81 +169,91 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
 
         adapter.connections.query_header = MacroQueryStringSetter(config, MagicMock(macros={}))
 
-        self.qh_patch = patch.object(adapter.connections.query_header, 'add')
+        self.qh_patch = patch.object(adapter.connections.query_header, "add")
         self.mock_query_header_add = self.qh_patch.start()
-        self.mock_query_header_add.side_effect = lambda q: '/* dbt */\n{}'.format(q)
+        self.mock_query_header_add.side_effect = lambda q: "/* dbt */\n{}".format(q)
 
         inject_adapter(adapter, BigQueryPlugin)
         return adapter
 
 
 class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
-    @patch('dbt.adapters.bigquery.connections.get_bigquery_defaults', return_value=('credentials', 'project_id'))
-    @patch('dbt.adapters.bigquery.BigQueryConnectionManager.open', return_value=_bq_conn())
-    def test_acquire_connection_oauth_no_project_validations(self, mock_open_connection, mock_get_bigquery_defaults):
-        adapter = self.get_adapter('oauth-no-project')
+    @patch(
+        "dbt.adapters.bigquery.connections.get_bigquery_defaults",
+        return_value=("credentials", "project_id"),
+    )
+    @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())
+    def test_acquire_connection_oauth_no_project_validations(
+        self, mock_open_connection, mock_get_bigquery_defaults
+    ):
+        adapter = self.get_adapter("oauth-no-project")
         mock_get_bigquery_defaults.assert_called_once()
-        try:
-            connection = adapter.acquire_connection('dummy')
-            self.assertEqual(connection.type, 'bigquery')
-
-        except dbt.exceptions.DbtValidationError as e:
-            self.fail('got DbtValidationError: {}'.format(str(e)))
-
-        except BaseException as e:
-            raise
-
-        mock_open_connection.assert_not_called()
-        connection.handle
-        mock_open_connection.assert_called_once()
-
-    @patch('dbt.adapters.bigquery.BigQueryConnectionManager.open', return_value=_bq_conn())
-    def test_acquire_connection_oauth_validations(self, mock_open_connection):
-        adapter = self.get_adapter('oauth')
-        try:
-            connection = adapter.acquire_connection('dummy')
-            self.assertEqual(connection.type, 'bigquery')
-
-        except dbt.exceptions.DbtValidationError as e:
-            self.fail('got DbtValidationError: {}'.format(str(e)))
-
-        except BaseException as e:
-            raise
-
-        mock_open_connection.assert_not_called()
-        connection.handle
-        mock_open_connection.assert_called_once()
-
-    @patch('dbt.adapters.bigquery.connections.get_bigquery_defaults', return_value=('credentials', 'project_id'))
-    @patch('dbt.adapters.bigquery.BigQueryConnectionManager.open', return_value=_bq_conn())
-    def test_acquire_connection_dataproc_serverless(self, mock_open_connection, mock_get_bigquery_defaults):
-        adapter = self.get_adapter('dataproc-serverless-configured')
-        mock_get_bigquery_defaults.assert_called_once()
-        try:
-            connection = adapter.acquire_connection('dummy')
-            self.assertEqual(connection.type, 'bigquery')
-
-        except dbt.exceptions.ValidationException as e:
-            self.fail('got ValidationException: {}'.format(str(e)))
-
-        except BaseException as e:
-            raise
-
-        mock_open_connection.assert_not_called()
-        connection.handle
-        mock_open_connection.assert_called_once()
-
-    @patch('dbt.adapters.bigquery.BigQueryConnectionManager.open', return_value=_bq_conn())
-    def test_acquire_connection_service_account_validations(self, mock_open_connection):
-        adapter = self.get_adapter('service_account')
         try:
             connection = adapter.acquire_connection("dummy")
             self.assertEqual(connection.type, "bigquery")
 
         except dbt.exceptions.DbtValidationError as e:
-            self.fail('got DbtValidationError: {}'.format(str(e)))
+            self.fail("got DbtValidationError: {}".format(str(e)))
 
-        except BaseException as e:
+        except BaseException:
+            raise
+
+        mock_open_connection.assert_not_called()
+        connection.handle
+        mock_open_connection.assert_called_once()
+
+    @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())
+    def test_acquire_connection_oauth_validations(self, mock_open_connection):
+        adapter = self.get_adapter("oauth")
+        try:
+            connection = adapter.acquire_connection("dummy")
+            self.assertEqual(connection.type, "bigquery")
+
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail("got DbtValidationError: {}".format(str(e)))
+
+        except BaseException:
+            raise
+
+        mock_open_connection.assert_not_called()
+        connection.handle
+        mock_open_connection.assert_called_once()
+
+    @patch(
+        "dbt.adapters.bigquery.connections.get_bigquery_defaults",
+        return_value=("credentials", "project_id"),
+    )
+    @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())
+    def test_acquire_connection_dataproc_serverless(
+        self, mock_open_connection, mock_get_bigquery_defaults
+    ):
+        adapter = self.get_adapter("dataproc-serverless-configured")
+        mock_get_bigquery_defaults.assert_called_once()
+        try:
+            connection = adapter.acquire_connection("dummy")
+            self.assertEqual(connection.type, "bigquery")
+
+        except dbt.exceptions.ValidationException as e:
+            self.fail("got ValidationException: {}".format(str(e)))
+
+        except BaseException:
+            raise
+
+        mock_open_connection.assert_not_called()
+        connection.handle
+        mock_open_connection.assert_called_once()
+
+    @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())
+    def test_acquire_connection_service_account_validations(self, mock_open_connection):
+        adapter = self.get_adapter("service_account")
+        try:
+            connection = adapter.acquire_connection("dummy")
+            self.assertEqual(connection.type, "bigquery")
+
+        except dbt.exceptions.DbtValidationError as e:
+            self.fail("got DbtValidationError: {}".format(str(e)))
+
+        except BaseException:
             raise
 
         mock_open_connection.assert_not_called()
@@ -265,9 +268,9 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             self.assertEqual(connection.type, "bigquery")
 
         except dbt.exceptions.DbtValidationError as e:
-            self.fail('got DbtValidationError: {}'.format(str(e)))
+            self.fail("got DbtValidationError: {}".format(str(e)))
 
-        except BaseException as e:
+        except BaseException:
             raise
 
         mock_open_connection.assert_not_called()
@@ -282,9 +285,9 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             self.assertEqual(connection.type, "bigquery")
 
         except dbt.exceptions.DbtValidationError as e:
-            self.fail('got DbtValidationError: {}'.format(str(e)))
+            self.fail("got DbtValidationError: {}".format(str(e)))
 
-        except BaseException as e:
+        except BaseException:
             raise
 
         mock_open_connection.assert_not_called()
@@ -301,9 +304,9 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             self.assertEqual(connection.type, "bigquery")
 
         except dbt.exceptions.DbtValidationError as e:
-            self.fail('got DbtValidationError: {}'.format(str(e)))
+            self.fail("got DbtValidationError: {}".format(str(e)))
 
-        except BaseException as e:
+        except BaseException:
             raise
 
         mock_open_connection.assert_not_called()
@@ -319,7 +322,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             self.assertEqual(connection.credentials.priority, "batch")
 
         except dbt.exceptions.DbtValidationError as e:
-            self.fail('got DbtValidationError: {}'.format(str(e)))
+            self.fail("got DbtValidationError: {}".format(str(e)))
 
         mock_open_connection.assert_not_called()
         connection.handle
@@ -334,7 +337,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             self.assertEqual(connection.credentials.maximum_bytes_billed, 0)
 
         except dbt.exceptions.DbtValidationError as e:
-            self.fail('got DbtValidationError: {}'.format(str(e)))
+            self.fail("got DbtValidationError: {}".format(str(e)))
 
         mock_open_connection.assert_not_called()
         connection.handle
@@ -395,6 +398,7 @@ class TestConnectionNamePassthrough(BaseTestBigQueryAdapter):
         self.relation_cls = self._relation_patch.start()
 
         self.mock_connection_manager = self.conn_manager_cls.return_value
+        self.mock_connection_manager.get_if_exists().name = "mock_conn_name"
         self.conn_manager_cls.TYPE = "bigquery"
         self.relation_cls.get_default_quote_policy.side_effect = (
             BigQueryRelation.get_default_quote_policy
@@ -489,7 +493,6 @@ class TestBigQueryInformationSchema(unittest.TestCase):
         pass
 
     def test_replace(self):
-
         kwargs = {
             "type": None,
             "path": {"database": "test-project", "schema": "test_schema", "identifier": "my_view"},
@@ -614,7 +617,6 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.assertTrue(_is_retryable(rate_limit_error))
 
     def test_drop_dataset(self):
-
         mock_table = Mock()
         mock_table.reference = "table1"
         self.mock_client.list_tables.return_value = [mock_table]
@@ -650,21 +652,21 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         )
         args, kwargs = self.mock_client.copy_table.call_args
         self.assertEqual(
-            kwargs['job_config'].write_disposition,
-            dbt.adapters.bigquery.impl.WRITE_APPEND)
+            kwargs["job_config"].write_disposition, dbt.adapters.bigquery.impl.WRITE_APPEND
+        )
 
     def test_copy_bq_table_truncates(self):
-        self._copy_table(
-            write_disposition=dbt.adapters.bigquery.impl.WRITE_TRUNCATE)
+        self._copy_table(write_disposition=dbt.adapters.bigquery.impl.WRITE_TRUNCATE)
         args, kwargs = self.mock_client.copy_table.call_args
         self.mock_client.copy_table.assert_called_once_with(
-            [self._table_ref('project', 'dataset', 'table1')],
-            self._table_ref('project', 'dataset', 'table2'),
-            job_config=ANY)
+            [self._table_ref("project", "dataset", "table1")],
+            self._table_ref("project", "dataset", "table2"),
+            job_config=ANY,
+        )
         args, kwargs = self.mock_client.copy_table.call_args
         self.assertEqual(
-            kwargs['job_config'].write_disposition,
-            dbt.adapters.bigquery.impl.WRITE_TRUNCATE)
+            kwargs["job_config"].write_disposition, dbt.adapters.bigquery.impl.WRITE_TRUNCATE
+        )
 
     def test_job_labels_valid_json(self):
         expected = {"key": "value"}
@@ -679,10 +681,10 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         return self.connections.table_ref(proj, ds, table)
 
     def _copy_table(self, write_disposition):
-        source = BigQueryRelation.create(
-            database='project', schema='dataset', identifier='table1')
+        source = BigQueryRelation.create(database="project", schema="dataset", identifier="table1")
         destination = BigQueryRelation.create(
-            database='project', schema='dataset', identifier='table2')
+            database="project", schema="dataset", identifier="table2"
+        )
         self.connections.copy_bq_table(source, destination, write_disposition)
 
 
@@ -750,7 +752,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "MONTH",
+                "granularity": "month",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },
@@ -763,7 +765,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "date",
-                "granularity": "YEAR",
+                "granularity": "year",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },
@@ -776,7 +778,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "timestamp",
-                "granularity": "HOUR",
+                "granularity": "hour",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },
@@ -785,10 +787,11 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         self.assertEqual(
             adapter.parse_partition_by(
                 {"field": "ts", "data_type": "timestamp", "granularity": "MONTH"}
-            ).to_dict(omit_none=True), {
+            ).to_dict(omit_none=True),
+            {
                 "field": "ts",
                 "data_type": "timestamp",
-                "granularity": "MONTH",
+                "granularity": "month",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },
@@ -801,7 +804,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "timestamp",
-                "granularity": "YEAR",
+                "granularity": "year",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },
@@ -814,7 +817,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "datetime",
-                "granularity": "HOUR",
+                "granularity": "hour",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },
@@ -827,7 +830,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "datetime",
-                "granularity": "MONTH",
+                "granularity": "month",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },
@@ -840,7 +843,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
             {
                 "field": "ts",
                 "data_type": "datetime",
-                "granularity": "YEAR",
+                "granularity": "year",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
             },
@@ -895,10 +898,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         self.assertEqual(expected, actual)
 
     def test_hours_to_expiration_temporary(self):
-        adapter = self.get_adapter('oauth')
-        mock_config = create_autospec(
-            RuntimeConfigObject)
-        config = {'hours_to_expiration': 4}
+        adapter = self.get_adapter("oauth")
+        mock_config = create_autospec(RuntimeConfigObject)
+        config = {"hours_to_expiration": 4}
         mock_config.get.side_effect = lambda name: config.get(name)
 
         expected = {
@@ -908,10 +910,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         self.assertEqual(expected, actual)
 
     def test_table_kms_key_name(self):
-        adapter = self.get_adapter('oauth')
-        mock_config = create_autospec(
-            RuntimeConfigObject)
-        config = {'kms_key_name': 'some_key'}
+        adapter = self.get_adapter("oauth")
+        mock_config = create_autospec(RuntimeConfigObject)
+        config = {"kms_key_name": "some_key"}
         mock_config.get.side_effect = lambda name: config.get(name)
 
         expected = {"kms_key_name": "'some_key'"}
@@ -919,10 +920,9 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         self.assertEqual(expected, actual)
 
     def test_view_kms_key_name(self):
-        adapter = self.get_adapter('oauth')
-        mock_config = create_autospec(
-            RuntimeConfigObject)
-        config = {'kms_key_name': 'some_key'}
+        adapter = self.get_adapter("oauth")
+        mock_config = create_autospec(RuntimeConfigObject)
+        config = {"kms_key_name": "some_key"}
         mock_config.get.side_effect = lambda name: config.get(name)
 
         expected = {}
@@ -1053,14 +1053,20 @@ class TestBigQueryGrantAccessTo(BaseTestBigQueryAdapter):
         a_different_entity = BigQueryRelation.from_dict(
             {
                 "type": None,
-                "path": {"database": "another-test-project",
-                 "schema": "test_schema_2", "identifier": "my_view"},
+                "path": {
+                    "database": "another-test-project",
+                    "schema": "test_schema_2",
+                    "identifier": "my_view",
+                },
                 "quote_policy": {"identifier": True},
             }
         )
         grant_target_dict = {"dataset": "someOtherDataset", "project": "someProject"}
         self.adapter.grant_access_to(
-            entity=a_different_entity, entity_type="view", role=None, grant_target_dict=grant_target_dict
+            entity=a_different_entity,
+            entity_type="view",
+            role=None,
+            grant_target_dict=grant_target_dict,
         )
         self.mock_client.update_dataset.assert_called_once()
 
@@ -1083,7 +1089,6 @@ def test_sanitize_label(input, output):
 )
 def test_sanitize_label_length(label_length):
     random_string = "".join(
-        random.choice(string.ascii_uppercase + string.digits)
-        for i in range(label_length)
+        random.choice(string.ascii_uppercase + string.digits) for i in range(label_length)
     )
     assert len(_sanitize_label(random_string)) <= _VALIDATE_LABEL_LENGTH_LIMIT

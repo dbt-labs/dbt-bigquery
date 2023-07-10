@@ -1,8 +1,0 @@
-kind: Fixes
-body: Fix time ingestion partitioning option regression when combined using `require_partition_filter`
-  option on incremental run
-time: 2023-02-02T01:03:32.577336+01:00
-custom:
-  Author: Kayrnt
-  Issue: "483"
-  PR: "485"

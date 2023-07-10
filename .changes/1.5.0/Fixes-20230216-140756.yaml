@@ -1,6 +1,0 @@
-kind: Fixes
-body: Allow policy_tags to be removed
-time: 2023-02-16T14:07:56.313767Z
-custom:
-  Author: garsir
-  Issue: "349"

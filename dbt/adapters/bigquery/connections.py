@@ -158,6 +158,12 @@ class BigQueryCredentials(Credentials):
         "timeout_seconds": "job_execution_timeout_seconds",
     }
 
+    def __post_init__(self):
+        if self.keyfile_json and "private_key" in self.keyfile_json:
+            self.keyfile_json["private_key"] = self.keyfile_json["private_key"].replace(
+                "\\n", "\n"
+            )
+
     @property
     def type(self):
         return "bigquery"

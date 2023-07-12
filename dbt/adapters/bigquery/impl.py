@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import threading
 from typing import Dict, List, Optional, Any, Set, Union, Type
 
+from dbt.contracts.connection import AdapterResponse
 from dbt.contracts.graph.nodes import ColumnLevelConstraint, ModelLevelConstraint, ConstraintType  # type: ignore
 from dbt.dataclass_schema import dbtClassMixin, ValidationError
 
@@ -1024,3 +1025,12 @@ class BigQueryAdapter(BaseAdapter):
     def debug_query(self):
         """Override for DebugTask method"""
         self.execute("select 1 as id")
+
+    def validate_sql(self, sql: str) -> AdapterResponse:
+        """Submit the given SQL to the engine for validation, but not execution.
+
+        This submits the query with the `dry_run` flag set True.
+
+        :param str sql: The sql to validate
+        """
+        return self.connections.dry_run(sql)

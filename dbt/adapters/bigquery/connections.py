@@ -158,6 +158,12 @@ class BigQueryCredentials(Credentials):
         "timeout_seconds": "job_execution_timeout_seconds",
     }
 
+    def __post_init__(self):
+        if self.keyfile_json and "private_key" in self.keyfile_json:
+            self.keyfile_json["private_key"] = self.keyfile_json["private_key"].replace(
+                "\\n", "\n"
+            )
+
     @property
     def type(self):
         return "bigquery"
@@ -422,7 +428,13 @@ class BigQueryConnectionManager(BaseConnectionManager):
         column_names = [field.name for field in resp.schema]
         return agate_helper.table_from_data_flat(resp, column_names)
 
-    def raw_execute(self, sql, use_legacy_sql=False, limit: Optional[int] = None):
+    def raw_execute(
+        self,
+        sql,
+        use_legacy_sql=False,
+        limit: Optional[int] = None,
+        dry_run: bool = False,
+    ):
         conn = self.get_thread_connection()
         client = conn.handle
 
@@ -440,7 +452,11 @@ class BigQueryConnectionManager(BaseConnectionManager):
         if active_user:
             labels["dbt_invocation_id"] = active_user.invocation_id
 
-        job_params = {"use_legacy_sql": use_legacy_sql, "labels": labels}
+        job_params = {
+            "use_legacy_sql": use_legacy_sql,
+            "labels": labels,
+            "dry_run": dry_run,
+        }
 
         priority = conn.credentials.priority
         if priority == Priority.Batch:
@@ -547,6 +563,37 @@ class BigQueryConnectionManager(BaseConnectionManager):
         )
 
         return response, table
+
+    def dry_run(self, sql: str) -> BigQueryAdapterResponse:
+        """Run the given sql statement with the `dry_run` job parameter set.
+
+        This will allow BigQuery to validate the SQL and immediately return job cost
+        estimates, which we capture in the BigQueryAdapterResponse. Invalid SQL
+        will result in an exception.
+        """
+        sql = self._add_query_comment(sql)
+        query_job, _ = self.raw_execute(sql, dry_run=True)
+
+        # TODO: Factor this repetitive block out into a factory method on
+        # BigQueryAdapterResponse
+        message = f"Ran dry run query for statement of type {query_job.statement_type}"
+        bytes_billed = query_job.total_bytes_billed
+        processed_bytes = self.format_bytes(query_job.total_bytes_processed)
+        location = query_job.location
+        project_id = query_job.project
+        job_id = query_job.job_id
+        slot_ms = query_job.slot_millis
+
+        return BigQueryAdapterResponse(
+            _message=message,
+            code="DRY RUN",
+            bytes_billed=bytes_billed,
+            bytes_processed=processed_bytes,
+            location=location,
+            project_id=project_id,
+            job_id=job_id,
+            slot_ms=slot_ms,
+        )
 
     @staticmethod
     def _bq_job_link(location, project_id, job_id) -> str:

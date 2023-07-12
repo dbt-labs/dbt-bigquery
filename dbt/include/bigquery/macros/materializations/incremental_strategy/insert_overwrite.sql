@@ -57,17 +57,19 @@
 
       {%- set source_sql -%}
         (
-          {%- if tmp_relation_exists -%}
+          {% if partition_by.time_ingestion_partitioning and tmp_relation_exists -%}
+          select
+            {{ partition_by.insertable_time_partitioning_field() }},
+            * from {{ tmp_relation }}
+          {% elif tmp_relation_exists -%}
             select
-            {% if partition_by.time_ingestion_partitioning -%}
-             {{ partition_by.insertable_time_partitioning_field() }},
-            {%- endif -%}
             * from {{ tmp_relation }}
           {%- elif partition_by.time_ingestion_partitioning -%}
             {{ wrap_with_time_ingestion_partitioning_sql(partition_by, sql, True) }}
           {%- else -%}
             {{sql}}
           {%- endif -%}
+
         )
       {%- endset -%}
 
@@ -82,7 +84,7 @@
          sql_header is included by the create_table_as macro.
       #}
       -- 1. run the merge statement
-      {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }}
+      {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }};
 
       {%- if tmp_relation_exists -%}
       -- 2. clean up the temp table

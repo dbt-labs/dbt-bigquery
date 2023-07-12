@@ -86,7 +86,7 @@
 
       {%- if tmp_relation_exists -%}
       -- 2. clean up the temp table
-      drop table if exists {{ tmp_relation }}
+      drop table if exists {{ tmp_relation }};
       {%- endif -%}
 
   {% endif %}

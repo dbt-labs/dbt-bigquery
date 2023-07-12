@@ -133,6 +133,7 @@ class BigQueryCredentials(Credentials):
     dataproc_region: Optional[str] = None
     dataproc_cluster_name: Optional[str] = None
     gcs_bucket: Optional[str] = None
+    batch_id: Optional[str] = None
 
     dataproc_batch: Optional[DataprocBatchConfig] = field(
         metadata={
@@ -156,6 +157,12 @@ class BigQueryCredentials(Credentials):
         "retries": "job_retries",
         "timeout_seconds": "job_execution_timeout_seconds",
     }
+
+    def __post_init__(self):
+        if self.keyfile_json and "private_key" in self.keyfile_json:
+            self.keyfile_json["private_key"] = self.keyfile_json["private_key"].replace(
+                "\\n", "\n"
+            )
 
     @property
     def type(self):
@@ -533,9 +540,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         else:
             message = f"{code}"
 
-        if location is not None and job_id is not None and project_id is not None:
-            logger.debug(self._bq_job_link(location, project_id, job_id))
-
         response = BigQueryAdapterResponse(  # type: ignore[call-arg]
             _message=message,
             rows_affected=num_rows,
@@ -662,6 +666,16 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
         query_job = client.query(query=sql, job_config=job_config, timeout=job_creation_timeout)
+
+        if (
+            query_job.location is not None
+            and query_job.job_id is not None
+            and query_job.project is not None
+        ):
+            logger.debug(
+                self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
+            )
+
         iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
 
         return query_job, iterator

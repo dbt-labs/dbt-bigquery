@@ -25,6 +25,7 @@ from tests.functional.adapter.incremental.incremental_strategy_fixtures import (
     overwrite_time_sql,
     overwrite_day_with_time_ingestion_sql,
     overwrite_day_with_time_partition_datetime_sql,
+    overwrite_static_day_sql,
 )
 
 
@@ -46,6 +47,7 @@ class TestBigQueryScripting(SeedConfigBase):
             "incremental_overwrite_time.sql": overwrite_time_sql,
             "incremental_overwrite_day_with_time_partition.sql": overwrite_day_with_time_ingestion_sql,
             "incremental_overwrite_day_with_time_partition_datetime.sql": overwrite_day_with_time_partition_datetime_sql,
+            "incremental_overwrite_static_day.sql": overwrite_static_day_sql,
         }
 
     @pytest.fixture(scope="class")
@@ -63,10 +65,10 @@ class TestBigQueryScripting(SeedConfigBase):
     def test__bigquery_assert_incremental_configurations_apply_the_right_strategy(self, project):
         run_dbt(["seed"])
         results = run_dbt()
-        assert len(results) == 10
+        assert len(results) == 11
 
         results = run_dbt()
-        assert len(results) == 10
+        assert len(results) == 11
         incremental_strategies = [
             ("incremental_merge_range", "merge_expected"),
             ("incremental_merge_time", "merge_expected"),
@@ -79,6 +81,7 @@ class TestBigQueryScripting(SeedConfigBase):
                 "incremental_overwrite_day_with_time_partition_datetime",
                 "incremental_overwrite_day_with_time_partition_expected",
             ),
+            ("incremental_overwrite_static_day", "incremental_overwrite_day_expected"),
         ]
         db_with_schema = f"{project.database}.{project.test_schema}"
         for incremental_strategy in incremental_strategies:

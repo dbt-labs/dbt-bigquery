@@ -33,7 +33,6 @@ def oauth_target():
         "dataproc_region": os.getenv("DATAPROC_REGION"),
         "dataproc_cluster_name": os.getenv("DATAPROC_CLUSTER_NAME"),
         "gcs_bucket": os.getenv("GCS_BUCKET"),
-        "batch_id": os.getenv("BATCH_ID"),
     }
 
 
@@ -54,5 +53,4 @@ def service_account_target():
             "DATAPROC_CLUSTER_NAME"
         ),  # only needed for cluster submission method
         "gcs_bucket": os.getenv("GCS_BUCKET"),
-        "batch_id": os.getenv("BATCH_ID"),
     }

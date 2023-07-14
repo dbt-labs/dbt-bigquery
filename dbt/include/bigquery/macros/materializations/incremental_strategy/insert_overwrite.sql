@@ -1,5 +1,5 @@
 {% macro bq_generate_incremental_insert_overwrite_build_sql(
-    tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, on_schema_change, copy_partitions
+    tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
 ) %}
     {% if partition_by is none %}
       {% set missing_partition_msg -%}
@@ -9,7 +9,7 @@
     {% endif %}
 
     {% set build_sql = bq_insert_overwrite_sql(
-        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, on_schema_change, copy_partitions
+        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
     ) %}
 
     {{ return(build_sql) }}
@@ -39,14 +39,14 @@
     tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
 ) %}
   {% if partitions is not none and partitions != [] %} {# static #}
-      {{ bq_static_insert_overwrite_sql(tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, copy_partitions) }}
+      {{ bq_static_insert_overwrite_sql(tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions) }}
   {% else %} {# dynamic #}
       {{ bq_dynamic_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, copy_partitions) }}
   {% endif %}
 {% endmacro %}
 
 {% macro bq_static_insert_overwrite_sql(
-    tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, copy_partitions
+    tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
 ) %}
 
       {% set predicate -%}
@@ -57,11 +57,19 @@
 
       {%- set source_sql -%}
         (
-          {%- if partition_by.time_ingestion_partitioning -%}
-          {{ wrap_with_time_ingestion_partitioning_sql(partition_by, sql, True) }}
+          {% if partition_by.time_ingestion_partitioning and tmp_relation_exists -%}
+          select
+            {{ partition_by.insertable_time_partitioning_field() }},
+            * from {{ tmp_relation }}
+          {% elif tmp_relation_exists -%}
+            select
+            * from {{ tmp_relation }}
+          {%- elif partition_by.time_ingestion_partitioning -%}
+            {{ wrap_with_time_ingestion_partitioning_sql(partition_by, sql, True) }}
           {%- else -%}
-          {{sql}}
+            {{sql}}
           {%- endif -%}
+
         )
       {%- endset -%}
 
@@ -69,13 +77,19 @@
           {% do bq_copy_partitions(tmp_relation, target_relation, partitions, partition_by) %}
       {% else %}
 
-      {#-- Because we're putting the model SQL _directly_ into the MERGE statement,
+      {#-- In case we're putting the model SQL _directly_ into the MERGE statement,
          we need to prepend the MERGE statement with the user-configured sql_header,
          which may be needed to resolve that model SQL (e.g. referencing a variable or UDF in the header)
-         in the "dynamic" case, we save the model SQL result as a temp table first, wherein the
+         in the "temporary table exists" case, we save the model SQL result as a temp table first, wherein the
          sql_header is included by the create_table_as macro.
       #}
-      {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header=true) }}
+      -- 1. run the merge statement
+      {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }};
+
+      {%- if tmp_relation_exists -%}
+      -- 2. clean up the temp table
+      drop table if exists {{ tmp_relation }};
+      {%- endif -%}
 
   {% endif %}
 {% endmacro %}

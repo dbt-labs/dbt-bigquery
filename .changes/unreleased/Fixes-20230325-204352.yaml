@@ -1,0 +1,6 @@
+kind: Fixes
+body: Use tmp table in static insert overwrite to avoid computing the SQL twice
+time: 2023-03-25T20:43:52.830135+01:00
+custom:
+  Author: Kayrnt
+  Issue: 427 556

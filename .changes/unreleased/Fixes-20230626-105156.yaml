@@ -1,6 +1,0 @@
-kind: Fixes
-body: remove call to dataset update if dataset has not changed
-time: 2023-06-26T10:51:56.698483-07:00
-custom:
-  Author: colin-rogers-dbt
-  Issue: "770"

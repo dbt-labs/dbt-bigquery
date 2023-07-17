@@ -1,6 +1,0 @@
-kind: Features
-body: Add validate_sql to BigQuery adapter and dry_run to BigQueryConnectionManager
-time: 2023-07-12T01:43:50.36167-04:00
-custom:
-  Author: tlento
-  Issue: "805"

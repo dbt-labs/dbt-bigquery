@@ -1,6 +1,0 @@
-kind: Fixes
-body: Enable single-line `private_key` for BigQuery Service Account JSON Authentication
-time: 2023-03-22T15:06:27.761416-06:00
-custom:
-  Author: dbeatty10
-  Issue: "7164"

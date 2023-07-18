@@ -1,8 +1,0 @@
-kind: Fixes
-body: Support all types of data_type using time ingestion partitioning as previously
-  `date` was failing
-time: 2023-02-02T01:09:12.013631+01:00
-custom:
-  Author: Kayrnt
-  Issue: "486"
-  PR: "496"

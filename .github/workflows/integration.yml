@@ -127,6 +127,11 @@ jobs:
       TOXENV: integration-${{ matrix.adapter }}
       PYTEST_ADDOPTS: "-v --color=yes -n4 --csv integration_results.csv"
       DBT_INVOCATION_ENV: github-actions
+      DD_CIVISIBILITY_AGENTLESS_ENABLED: true
+      DD_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+      DD_SITE: datadoghq.com
+      DD_ENV: ci
+      DD_SERVICE: ${{ github.event.repository.name }}
 
     steps:
       - name: Check out the repository
@@ -168,7 +173,7 @@ jobs:
           DATAPROC_REGION: us-central1
           DATAPROC_CLUSTER_NAME: dbt-test-1
           GCS_BUCKET: dbt-ci
-        run: tox
+        run: tox -- --ddtrace
 
       - uses: actions/upload-artifact@v3
         if: always()

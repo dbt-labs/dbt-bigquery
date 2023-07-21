@@ -128,11 +128,11 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
             batch_id=batch_id
         )
         # make the request
-        operation = self.job_client.create_batch(request=request)  # type: ignore
+        self.job_client.create_batch(request=request)
         # this takes quite a while, waiting on GCP response to resolve
         # (not a google-api-core issue, more likely a dataproc serverless issue)
 
-        state = "PENDING"
+        state = "State.PENDING"
         while state not in ["State.SUCCEEDED", "State.FAILED", "State.CANCELLED"]:
             response = self.job_client.get_batch(
                 request = dataproc_v1.GetBatchRequest(name = ''.join([parent, "/batches/", batch_id])),

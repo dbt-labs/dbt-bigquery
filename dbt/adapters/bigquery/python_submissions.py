@@ -7,12 +7,9 @@ from google.api_core import retry
 from google.api_core.client_options import ClientOptions
 from google.cloud import storage, dataproc_v1  # type: ignore
 from google.protobuf.json_format import ParseDict
-from dbt.events import AdapterLogger
-from datetime import datetime
 import time
 import uuid
 
-logger = AdapterLogger("BigQuery")
 OPERATION_RETRY_TIME = 10
 
 
@@ -119,7 +116,6 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         batch = self._configure_batch()
         parent = f"projects/{self.credential.execution_project}/locations/{self.credential.dataproc_region}"
         batch_id = uuid.uuid4().hex
-        print(batch_id)
 
         request = dataproc_v1.CreateBatchRequest(
             parent=parent,
@@ -131,27 +127,15 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         operation = self.job_client.create_batch(request=request)  # type: ignore
         # this takes quite a while, waiting on GCP response to resolve
         # (not a google-api-core issue, more likely a dataproc serverless issue)
-# #########################################################################################################
+
         state = "PENDING"
         while state not in ["State.SUCCEEDED", "State.FAILED", "State.CANCELLED"]:
-            get_batch_response = self.job_client.get_batch(
+            response = self.job_client.get_batch(
                 request = dataproc_v1.GetBatchRequest(name = ''.join([parent, "/batches/", batch_id])),
                 # retry=self.retry (This retry polls way too many times per second)
             )
-            print("Getting Batch =", datetime.now())
-            
             state = str(get_batch_response.state)
-            print(state)
             time.sleep(2)
-        print("Get Batch Completed =", datetime.now())
-# #########################################################################################################
-        
-        response = operation.result(retry=self.retry)
-        logger.info(response)
-        
-        print("Operation Ends with Create Batch =", datetime.now())
-
-
 
         return response
         # there might be useful results here that we can parse and return

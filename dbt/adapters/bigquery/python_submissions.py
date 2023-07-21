@@ -123,7 +123,6 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
             batch_id=batch_id
         )
         # make the request
-        print("Operation Starts with Create Batch =", datetime.now())
         operation = self.job_client.create_batch(request=request)  # type: ignore
         # this takes quite a while, waiting on GCP response to resolve
         # (not a google-api-core issue, more likely a dataproc serverless issue)

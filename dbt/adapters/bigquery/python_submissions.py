@@ -133,7 +133,7 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
                 request = dataproc_v1.GetBatchRequest(name = ''.join([parent, "/batches/", batch_id])),
                 # retry=self.retry (This retry polls way too many times per second)
             )
-            state = str(get_batch_response.state)
+            state = str(response.state)
             time.sleep(2)
 
         return response

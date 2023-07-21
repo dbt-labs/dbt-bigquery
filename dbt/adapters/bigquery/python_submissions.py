@@ -122,11 +122,7 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         parent = f"projects/{self.credential.execution_project}/locations/{self.credential.dataproc_region}"
         batch_id = uuid.uuid4().hex
 
-        request = dataproc_v1.CreateBatchRequest(
-            parent=parent,
-            batch=batch,
-            batch_id=batch_id
-        )
+        request = dataproc_v1.CreateBatchRequest(parent=parent, batch=batch, batch_id=batch_id)
         # make the request
         self.job_client.create_batch(request=request)
         # this takes quite a while, waiting on GCP response to resolve
@@ -135,7 +131,7 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         state = "State.PENDING"
         while state not in ["State.SUCCEEDED", "State.FAILED", "State.CANCELLED"]:
             response = self.job_client.get_batch(
-                request = dataproc_v1.GetBatchRequest(name = ''.join([parent, "/batches/", batch_id])),
+                request=dataproc_v1.GetBatchRequest(name="".join([parent, "/batches/", batch_id])),
                 # retry=self.retry (This retry polls way too many times per second)
             )
             state = str(response.state)

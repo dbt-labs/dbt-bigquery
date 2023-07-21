@@ -95,6 +95,7 @@ class TestAccessGrantFails:
             )
             yield relation
             project.adapter.drop_relation(relation)
+
     @pytest.fixture(scope="class")
     def models(self):
         return {

@@ -104,6 +104,7 @@ class ClusterDataprocHelper(BaseDataProcHelper):
                 "job": job,
             }
         )
+        # check if job failed
         response = operation.result(polling=self.result_polling_policy)
         if response.status.state == 6:
             raise ValueError(response.status.details)

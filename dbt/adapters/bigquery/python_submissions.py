@@ -9,6 +9,8 @@ from google.api_core import retry
 from google.api_core.client_options import ClientOptions
 from google.cloud import storage, dataproc_v1  # type: ignore
 from google.protobuf.json_format import ParseDict
+import time
+import uuid
 
 OPERATION_RETRY_TIME = 10
 
@@ -103,7 +105,6 @@ class ClusterDataprocHelper(BaseDataProcHelper):
             }
         )
         response = operation.result(polling=self.result_polling_policy)
-        # check if job failed
         if response.status.state == 6:
             raise ValueError(response.status.details)
         return response
@@ -118,16 +119,27 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
     def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
         batch = self._configure_batch()
         parent = f"projects/{self.credential.execution_project}/locations/{self.credential.dataproc_region}"
+        batch_id = uuid.uuid4().hex
 
         request = dataproc_v1.CreateBatchRequest(
             parent=parent,
             batch=batch,
+            batch_id=batch_id
         )
         # make the request
         operation = self.job_client.create_batch(request=request)  # type: ignore
         # this takes quite a while, waiting on GCP response to resolve
         # (not a google-api-core issue, more likely a dataproc serverless issue)
-        response = operation.result(polling=self.result_polling_policy)
+
+        state = "PENDING"
+        while state not in ["State.SUCCEEDED", "State.FAILED", "State.CANCELLED"]:
+            response = self.job_client.get_batch(
+                request = dataproc_v1.GetBatchRequest(name = ''.join([parent, "/batches/", batch_id])),
+                # retry=self.retry (This retry polls way too many times per second)
+            )
+            state = str(response.state)
+            time.sleep(2)
+
         return response
         # there might be useful results here that we can parse and return
         # Dataproc job output is saved to the Cloud Storage bucket

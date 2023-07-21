@@ -53,6 +53,14 @@ class TestAccessGrantSucceeds:
 
 
 class TestAccessGrantFails:
+    @pytest.fixture(scope="class", autouse=True)
+    def setup(self, project):
+        with project.adapter.connection_named("__test_grants"):
+            relation = project.adapter.Relation.create(
+                database=project.database, schema=f"{project.test_schema}_seeds"
+            )
+            yield relation
+            project.adapter.drop_relation(relation)
     @pytest.fixture(scope="class")
     def models(self):
         return {

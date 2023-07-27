@@ -399,7 +399,7 @@ class BigQueryAdapter(BaseAdapter):
         :param str sql: The sql to execute.
         :return: List[BigQueryColumn]
         """
-        _, iterator = self.connections.raw_execute(sql)
+        _, iterator = self.connections.execute(sql)
         columns = [self.Column.create_from_field(field) for field in iterator.schema]
         flattened_columns = []
         for column in columns:
@@ -411,7 +411,7 @@ class BigQueryAdapter(BaseAdapter):
         try:
             conn = self.connections.get_thread_connection()
             client = conn.handle
-            query_job, iterator = self.connections.raw_execute(select_sql)
+            query_job, iterator = self.connections.execute(select_sql)
             query_table = client.get_table(query_job.destination)
             return self._get_dbt_columns_from_bq_table(query_table)
 

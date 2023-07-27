@@ -97,11 +97,13 @@
 {% macro bq_dynamic_copy_partitions_insert_overwrite_sql(
   tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, copy_partitions
   ) %}
-  {# We run temp table creation in a separated script to move to partitions copy #}
-  {%- call statement('create_tmp_relation_for_copy', language='sql') -%}
-    {{ bq_create_table_as(partition_by, True, tmp_relation, sql, 'sql')
-  }}
-  {%- endcall %}
+  {%- if tmp_relation_exists is false -%}
+  {# We run temp table creation in a separated script to move to partitions copy if it doesn't already exist #}
+    {%- call statement('create_tmp_relation_for_copy', language='sql') -%}
+      {{ bq_create_table_as(partition_by, True, tmp_relation, sql, 'sql')
+    }}
+    {%- endcall %}
+  {%- endif -%}
   {%- set partitions_sql -%}
     select distinct {{ partition_by.render_wrapped() }}
     from {{ tmp_relation }}

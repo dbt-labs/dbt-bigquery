@@ -1,6 +1,0 @@
-kind: Fixes
-body: test model constraints with sql headers
-time: 2023-06-01T12:04:30.876751-04:00
-custom:
-  Author: michelleark
-  Issue: "7714"

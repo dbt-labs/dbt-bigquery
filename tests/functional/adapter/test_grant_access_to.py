@@ -5,45 +5,79 @@ import pytest
 from dbt.tests.util import run_dbt
 
 
-SELECT_1 = """
-{{ config(
-    materialized='view',
-    grant_access_to=[
-      {'project': 'dbt-test-env-alt', 'dataset': 'GrantAccessTest'},
-    ]
-) }}
-SELECT 1 as one
-"""
+def select_1(dataset: str, materialized: str):
+    config = f"""config(
+                materialized='{materialized}',
+                grant_access_to=[
+                  {{'project': 'dbt-test-env', 'dataset': '{dataset}'}},
+                ]
+            )"""
+    return (
+        "{{"
+        + config
+        + "}}"
+        + """
+           SELECT 1 as one"""
+    )
 
-SELECT_1_TABLE = """
-{{ config(
-    materialized='table',
-    grant_access_to=[
-      {'project': 'dbt-test-env-alt', 'dataset': 'GrantAccessTest'},
-    ]
-) }}
-SELECT 1 as one
-"""
+
 BAD_CONFIG_TABLE_NAME = "bad_view"
 BAD_CONFIG_TABLE = """
 {{ config(
     materialized='view',
     grant_access_to=[
-      {'project': 'dbt-test-env-alt', 'dataset': 'NonExistentDataset'},
+      {'project': 'dbt-test-env', 'dataset': 'NonExistentDataset'},
     ]
 ) }}
+
 SELECT 1 as one
 """
 
 BAD_CONFIG_CHILD_TABLE = "SELECT 1 as one FROM {{ref('" + BAD_CONFIG_TABLE_NAME + "')}}"
 
 
+def get_schema_name(base_schema_name: str) -> str:
+    return f"{base_schema_name}_grant_access"
+
+
 class TestAccessGrantSucceeds:
     @pytest.fixture(scope="class")
-    def models(self):
-        return {"select_1.sql": SELECT_1, "select_1_table.sql": SELECT_1_TABLE}
+    def setup_grant_schema(
+        self,
+        project,
+        unique_schema,
+    ):
+        with project.adapter.connection_named("__test_grants"):
+            relation = project.adapter.Relation.create(
+                database=project.database,
+                schema=get_schema_name(unique_schema),
+                identifier="grant_access",
+            )
+            project.adapter.create_schema(relation)
+            yield relation
 
-    def test_grant_access_succeeds(self, project):
+    @pytest.fixture(scope="class")
+    def teardown_grant_schema(
+        self,
+        project,
+        unique_schema,
+    ):
+        yield
+        with project.adapter.connection_named("__test_grants"):
+            relation = project.adapter.Relation.create(
+                database=project.database, schema=get_schema_name(unique_schema)
+            )
+            project.adapter.drop_schema(relation)
+
+    @pytest.fixture(scope="class")
+    def models(self, unique_schema):
+        dataset = get_schema_name(unique_schema)
+        return {
+            "select_1.sql": select_1(dataset=dataset, materialized="view"),
+            "select_1_table.sql": select_1(dataset=dataset, materialized="table"),
+        }
+
+    def test_grant_access_succeeds(self, project, setup_grant_schema, teardown_grant_schema):
         # Need to run twice to validate idempotency
         results = run_dbt(["run"])
         assert len(results) == 2

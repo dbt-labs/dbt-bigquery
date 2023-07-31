@@ -1,6 +1,0 @@
-kind: Features
-body: Move the BQ Job link after the job submission instead of job done
-time: 2023-05-05T18:44:27.939038+02:00
-custom:
-  Author: Kayrnt
-  Issue: "696"

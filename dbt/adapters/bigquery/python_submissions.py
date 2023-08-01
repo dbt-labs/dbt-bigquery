@@ -7,6 +7,7 @@ from google.api_core.client_options import ClientOptions
 from google.cloud import storage, dataproc_v1  # type: ignore
 from google.protobuf.json_format import ParseDict
 from datetime import datetime
+import random
 
 
 class BaseDataProcHelper(PythonJobHelper):
@@ -29,7 +30,11 @@ class BaseDataProcHelper(PythonJobHelper):
                 raise ValueError(
                     f"Need to supply {required_config} in profile to submit python job"
                 )
-        self.model_file_name = f"{schema}/{identifier}_{datetime.now().strftime('%Y%m%d%H%M%S')}.py"
+        
+        date_company_group = self.parsed_model["config"].get("date_company_group", "other")
+        random_num = str(random.randrange(1000, 9999))
+
+        self.model_file_name = f"{schema}/{date_company_group}/{identifier}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{random_num}.py"
         self.credential = credential
         self.GoogleCredentials = BigQueryConnectionManager.get_credentials(credential)
         self.storage_client = storage.Client(

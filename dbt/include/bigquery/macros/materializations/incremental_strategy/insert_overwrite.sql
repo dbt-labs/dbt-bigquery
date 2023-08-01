@@ -19,7 +19,9 @@
 {% macro bq_copy_partitions(tmp_relation, target_relation, partitions, partition_by) %}
 
   {% for partition in partitions %}
-    {% if partition_by.granularity == 'hour' %}
+    {% if partition_by.data_type == 'int64' %}
+      {% set partition = partition | as_text %}
+    {% elif partition_by.granularity == 'hour' %}
       {% set partition = partition.strftime("%Y%m%d%H") %}
     {% elif partition_by.granularity == 'day' %}
       {% set partition = partition.strftime("%Y%m%d") %}

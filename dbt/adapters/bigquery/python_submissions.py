@@ -6,6 +6,7 @@ from dbt.adapters.bigquery.connections import DataprocBatchConfig
 from google.api_core.client_options import ClientOptions
 from google.cloud import storage, dataproc_v1  # type: ignore
 from google.protobuf.json_format import ParseDict
+from datetime import datetime
 
 
 class BaseDataProcHelper(PythonJobHelper):
@@ -28,7 +29,7 @@ class BaseDataProcHelper(PythonJobHelper):
                 raise ValueError(
                     f"Need to supply {required_config} in profile to submit python job"
                 )
-        self.model_file_name = f"{schema}/{identifier}.py"
+        self.model_file_name = f"{schema}/{identifier}_{datetime.now().strftime('%Y%m%d%H%M%S')}.py"
         self.credential = credential
         self.GoogleCredentials = BigQueryConnectionManager.get_credentials(credential)
         self.storage_client = storage.Client(

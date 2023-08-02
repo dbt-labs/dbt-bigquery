@@ -50,6 +50,8 @@
 -- or find another way around
 {% macro py_write_table(compiled_code, target_relation) %}
 from pyspark.sql import SparkSession
+from datetime import datetime
+import random
 
 spark = SparkSession.builder.appName('smallTest').getOrCreate()
 
@@ -106,9 +108,13 @@ else:
   msg = f"{type(df)} is not a supported type for dbt Python materialization"
   raise Exception(msg)
 
+random_num = str(random.randrange(1000, 9999))
+suffix = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{random_num}"
+output_table = "{{target_relation}}"
+
 df.write \
   .mode("overwrite") \
   .format("bigquery") \
   .option("writeMethod", "direct").option("writeDisposition", 'WRITE_TRUNCATE') \
-  .save("{{target_relation}}")
+  .save(f"{output_table}_{suffix}")
 {% endmacro %}

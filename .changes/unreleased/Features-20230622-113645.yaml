@@ -1,6 +1,0 @@
-kind: Features
-body: add dbt-bigquery portion of dbt_clone fucntionality
-time: 2023-06-22T11:36:45.348416-05:00
-custom:
-  Author: McKnight-42, aranke
-  Issue: "7256"

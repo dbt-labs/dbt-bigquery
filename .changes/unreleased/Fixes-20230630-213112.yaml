@@ -1,7 +1,0 @@
-kind: Fixes
-body: 'Contracts: Handle struct column specified both at root and nested levels +
-  arrays of structs'
-time: 2023-06-30T21:31:12.63257-04:00
-custom:
-  Author: michelleark
-  Issue: 781 782

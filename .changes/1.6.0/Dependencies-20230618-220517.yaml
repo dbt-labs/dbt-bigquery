@@ -1,6 +1,0 @@
-kind: Dependencies
-body: Rm explicit agate pin, in favor of transitive dependency from dbt-core
-time: 2023-06-18T22:05:17.020743-04:00
-custom:
-  Author: jtcohen6
-  PR: "777"

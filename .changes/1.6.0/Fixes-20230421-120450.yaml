@@ -1,6 +1,0 @@
-kind: Fixes
-body: ' Fix issue of sporadic failure to apply grants during high transaction volumes'
-time: 2023-04-21T12:04:50.391534-04:00
-custom:
-  Author: mikealfare
-  Issue: "614"

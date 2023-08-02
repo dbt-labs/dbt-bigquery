@@ -110,10 +110,11 @@ else:
 
 random_num = str(random.randrange(1000, 9999))
 suffix = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{random_num}"
+output_table = "{{target_relation}}"
 
 df.write \
   .mode("overwrite") \
   .format("bigquery") \
   .option("writeMethod", "direct").option("writeDisposition", 'WRITE_TRUNCATE') \
-  .save(f"{{target_relation}}_{suffix}")
+  .save(f"{output_table}_{suffix}")
 {% endmacro %}

@@ -1,0 +1,6 @@
+kind: Fixes
+body: Fix contact validation failure on query data types change
+time: 2023-08-04T00:58:17.97704+03:00
+custom:
+  Author: dementiev27
+  Issue: "861"

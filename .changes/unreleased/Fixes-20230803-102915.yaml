@@ -1,0 +1,6 @@
+kind: Fixes
+body: Requiring Python >=3.8 enables walrus operator
+time: 2023-08-03T10:29:15.371798-06:00
+custom:
+  Author: cemsbr dbeatty10
+  Issue: "849"

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys
 
-# require python 3.7 or newer
+# require a supported version of Python
 if sys.version_info < (3, 8):
     print("Error: dbt does not support this version of Python.")
     print("Please upgrade to Python 3.8 or higher.")

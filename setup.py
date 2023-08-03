@@ -3,7 +3,7 @@ import os
 import sys
 import re
 
-# require python 3.7 or newer
+# require a supported version of Python
 if sys.version_info < (3, 8):
     print("Error: dbt does not support this version of Python.")
     print("Please upgrade to Python 3.8 or higher.")
@@ -86,5 +86,5 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
     ],
-    python_requires=">=3.7",
+    python_requires=">=3.8",
 )

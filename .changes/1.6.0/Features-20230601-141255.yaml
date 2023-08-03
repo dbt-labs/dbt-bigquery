@@ -1,6 +1,0 @@
-kind: Features
-body: Support model contracts + constraints on nested columns
-time: 2023-06-01T14:12:55.433346-04:00
-custom:
-  Author: MichelleArk
-  Issue: "673"

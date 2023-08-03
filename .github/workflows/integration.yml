@@ -33,6 +33,11 @@ on:
   pull_request_target:
   # manual trigger
   workflow_dispatch:
+    inputs:
+      dbt-core-branch:
+        description: "branch of dbt-core to use in dev-requirements.txt"
+        required: false
+        type: string
 
 # explicitly turn off permissions for `GITHUB_TOKEN`
 permissions: read-all
@@ -127,6 +132,11 @@ jobs:
       TOXENV: integration-${{ matrix.adapter }}
       PYTEST_ADDOPTS: "-v --color=yes -n4 --csv integration_results.csv"
       DBT_INVOCATION_ENV: github-actions
+      DD_CIVISIBILITY_AGENTLESS_ENABLED: true
+      DD_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+      DD_SITE: datadoghq.com
+      DD_ENV: ci
+      DD_SERVICE: ${{ github.event.repository.name }}
 
     steps:
       - name: Check out the repository
@@ -156,6 +166,12 @@ jobs:
           python -m pip --version
           tox --version
 
+      - name: Update dev_requirements.txt
+        if: inputs.dbt-core-branch != ''
+        run: |
+          pip install bumpversion
+          ./.github/scripts/update_dbt_core_branch.sh ${{ inputs.dbt-core-branch }}
+
       - name: Run tox (bigquery)
         if: matrix.adapter == 'bigquery'
         env:
@@ -168,7 +184,7 @@ jobs:
           DATAPROC_REGION: us-central1
           DATAPROC_CLUSTER_NAME: dbt-test-1
           GCS_BUCKET: dbt-ci
-        run: tox
+        run: tox -- --ddtrace
 
       - uses: actions/upload-artifact@v3
         if: always()

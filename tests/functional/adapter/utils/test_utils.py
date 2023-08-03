@@ -1,4 +1,7 @@
+import random
+
 import pytest
+from google.api_core.exceptions import NotFound
 
 from dbt.tests.adapter.utils.test_array_append import BaseArrayAppend
 from dbt.tests.adapter.utils.test_array_concat import BaseArrayConcat
@@ -24,6 +27,7 @@ from dbt.tests.adapter.utils.test_right import BaseRight
 from dbt.tests.adapter.utils.test_safe_cast import BaseSafeCast
 from dbt.tests.adapter.utils.test_split_part import BaseSplitPart
 from dbt.tests.adapter.utils.test_string_literal import BaseStringLiteral
+from dbt.tests.adapter.utils.test_validate_sql import BaseValidateSqlMethod
 from tests.functional.adapter.utils.fixture_array_append import (
     models__array_append_actual_sql,
     models__array_append_expected_sql,
@@ -167,3 +171,26 @@ class TestSplitPart(BaseSplitPart):
 
 class TestStringLiteral(BaseStringLiteral):
     pass
+
+
+class TestValidateSqlMethod(BaseValidateSqlMethod):
+    pass
+
+
+class TestDryRunMethod:
+    """Test connection manager dry run method operation."""
+
+    def test_dry_run_method(self, project) -> None:
+        """Test dry run method on a DDL statement.
+
+        This allows us to demonstrate that no SQL is executed.
+        """
+        with project.adapter.connection_named("_test"):
+            client = project.adapter.connections.get_thread_connection().handle
+            random_suffix = "".join(random.choices([str(i) for i in range(10)], k=10))
+            table_name = f"test_dry_run_{random_suffix}"
+            table_id = "{}.{}.{}".format(project.database, project.test_schema, table_name)
+            res = project.adapter.connections.dry_run(f"CREATE TABLE {table_id} (x INT64)")
+            assert res.code == "DRY RUN"
+            with pytest.raises(expected_exception=NotFound):
+                client.get_table(table_id)

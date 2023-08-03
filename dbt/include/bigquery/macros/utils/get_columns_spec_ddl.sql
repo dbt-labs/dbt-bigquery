@@ -5,6 +5,16 @@
 {%- endmacro -%}
 
 {% macro bigquery__get_empty_schema_sql(columns) %}
+    {%- set col_err = [] -%}
+    {% for col in columns.values() %}
+      {%- if col['data_type'] is not defined -%}
+        {{ col_err.append(col['name']) }}
+      {%- endif -%}
+    {%- endfor -%}
+    {%- if (col_err | length) > 0 -%}
+      {{ exceptions.column_type_missing(column_names=col_err) }}
+    {%- endif -%}
+
     {%- set columns = adapter.nest_column_data_types(columns) -%}
     {{ return(dbt.default__get_empty_schema_sql(columns)) }}
 {% endmacro %}

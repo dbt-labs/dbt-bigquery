@@ -5,6 +5,8 @@ from dbt.adapters.base.column import Column
 
 from google.cloud.bigquery import SchemaField
 
+_PARENT_DATA_TYPE_KEY = "__parent_data_type"
+
 Self = TypeVar("Self", bound="BigQueryColumn")
 
 
@@ -131,7 +133,7 @@ class BigQueryColumn(Column):
 def get_nested_column_data_types(
     columns: Dict[str, Dict[str, Any]],
     constraints: Optional[Dict[str, str]] = None,
-) -> Dict[str, Dict[str, str]]:
+) -> Dict[str, Dict[str, Optional[str]]]:
     """
     columns:
         * Dictionary where keys are of flat columns names and values are dictionary of column attributes
@@ -159,16 +161,16 @@ def get_nested_column_data_types(
     """
     constraints = constraints or {}
 
-    nested_column_data_types: Dict[str, Union[str, Dict]] = {}
+    nested_column_data_types: Dict[str, Optional[Union[str, Dict]]] = {}
     for column in columns.values():
         _update_nested_column_data_types(
             column["name"],
-            column["data_type"],
+            column.get("data_type"),
             constraints.get(column["name"]),
             nested_column_data_types,
         )
 
-    formatted_nested_column_data_types: Dict[str, Dict[str, str]] = {}
+    formatted_nested_column_data_types: Dict[str, Dict[str, Optional[str]]] = {}
     for column_name, unformatted_column_type in nested_column_data_types.items():
         formatted_nested_column_data_types[column_name] = {
             "name": column_name,
@@ -191,9 +193,9 @@ def get_nested_column_data_types(
 
 def _update_nested_column_data_types(
     column_name: str,
-    column_data_type: str,
+    column_data_type: Optional[str],
     column_rendered_constraint: Optional[str],
-    nested_column_data_types: Dict[str, Union[str, Dict]],
+    nested_column_data_types: Dict[str, Optional[Union[str, Dict]]],
 ) -> None:
     """
     Recursively update nested_column_data_types given a column_name, column_data_type, and optional column_rendered_constraint.
@@ -215,15 +217,38 @@ def _update_nested_column_data_types(
 
     if len(column_name_parts) == 1:
         # Base case: column is not nested - store its data_type concatenated with constraint if provided.
-        nested_column_data_types[root_column_name] = (
-            column_data_type
-            if column_rendered_constraint is None
-            else f"{column_data_type} {column_rendered_constraint}"
+        column_data_type_and_constraints = (
+            (
+                column_data_type
+                if column_rendered_constraint is None
+                else f"{column_data_type} {column_rendered_constraint}"
+            )
+            if column_data_type
+            else None
         )
+
+        if existing_nested_column_data_type := nested_column_data_types.get(root_column_name):
+            assert isinstance(existing_nested_column_data_type, dict)  # keeping mypy happy
+            # entry could already exist if this is a parent column -- preserve the parent data type under "_PARENT_DATA_TYPE_KEY"
+            existing_nested_column_data_type.update(
+                {_PARENT_DATA_TYPE_KEY: column_data_type_and_constraints}
+            )
+        else:
+            nested_column_data_types.update({root_column_name: column_data_type_and_constraints})
     else:
-        # Initialize nested dictionary
-        if root_column_name not in nested_column_data_types:
-            nested_column_data_types[root_column_name] = {}
+        parent_data_type = nested_column_data_types.get(root_column_name)
+        if isinstance(parent_data_type, dict):
+            # nested dictionary already initialized
+            pass
+        elif parent_data_type is None:
+            # initialize nested dictionary
+            nested_column_data_types.update({root_column_name: {}})
+        else:
+            # a parent specified its base type -- preserve its data_type and potential rendered constraints
+            # this is used to specify a top-level 'struct' or 'array' field with its own description, constraints, etc
+            nested_column_data_types.update(
+                {root_column_name: {_PARENT_DATA_TYPE_KEY: parent_data_type}}
+            )
 
         # Recursively process rest of remaining column name
         remaining_column_name = ".".join(column_name_parts[1:])
@@ -237,7 +262,9 @@ def _update_nested_column_data_types(
         )
 
 
-def _format_nested_data_type(unformatted_nested_data_type: Union[str, Dict[str, Any]]) -> str:
+def _format_nested_data_type(
+    unformatted_nested_data_type: Optional[Union[str, Dict[str, Any]]]
+) -> Optional[str]:
     """
     Recursively format a (STRUCT) data type given an arbitrarily nested data type structure.
 
@@ -249,11 +276,27 @@ def _format_nested_data_type(unformatted_nested_data_type: Union[str, Dict[str, 
     >>> BigQueryAdapter._format_nested_data_type({'c': 'string not_null', 'd': {'e': 'string'}})
     'struct<c string not_null, d struct<e string>>'
     """
-    if isinstance(unformatted_nested_data_type, str):
+    if unformatted_nested_data_type is None:
+        return None
+    elif isinstance(unformatted_nested_data_type, str):
         return unformatted_nested_data_type
     else:
+        parent_data_type, *parent_constraints = unformatted_nested_data_type.pop(
+            _PARENT_DATA_TYPE_KEY, ""
+        ).split() or [None]
+
         formatted_nested_types = [
-            f"{column_name} {_format_nested_data_type(column_type)}"
+            f"{column_name} {_format_nested_data_type(column_type) or ''}".strip()
             for column_name, column_type in unformatted_nested_data_type.items()
         ]
-        return f"""struct<{", ".join(formatted_nested_types)}>"""
+
+        formatted_nested_type = f"""struct<{", ".join(formatted_nested_types)}>"""
+
+        if parent_data_type and parent_data_type.lower() == "array":
+            formatted_nested_type = f"""array<{formatted_nested_type}>"""
+
+        if parent_constraints:
+            parent_constraints = " ".join(parent_constraints)
+            formatted_nested_type = f"""{formatted_nested_type} {parent_constraints}"""
+
+        return formatted_nested_type

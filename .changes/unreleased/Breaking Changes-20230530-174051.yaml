@@ -1,6 +1,0 @@
-kind: Breaking Changes
-body: Drop support for python 3.7
-time: 2023-05-30T17:40:51.510639-04:00
-custom:
-  Author: mikealfare
-  Issue: dbt-labs/dbt-core/7082

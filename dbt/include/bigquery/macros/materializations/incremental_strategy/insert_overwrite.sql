@@ -107,14 +107,26 @@
     {%- endcall %}
   {%- endif -%}
   {%- set partitions_sql -%}
-    select distinct {{ partition_by.render_wrapped() }}
-    from {{ tmp_relation }}
+   {{ bq_dynamic_copy_partitions_affected_partitions_sql(tmp_relation, partition_by) }}
   {%- endset -%}
   {%- set partitions = run_query(partitions_sql).columns[0].values() -%}
   {# We copy the partitions #}
   {%- do bq_copy_partitions(tmp_relation, target_relation, partitions, partition_by) -%}
   -- Clean up the temp table
   drop table if exists {{ tmp_relation }}
+{% endmacro %}
+
+{% macro distinct_partition_wrapper(field) %}
+  distinct {{ field }} AS partition_ids
+{% endmacro %}
+
+{% macro bq_dynamic_copy_partitions_affected_partitions_sql(tmp_relation, partition_by) %}
+{% if partition_by.partition_information == "information_schema" %}
+  {{ partition_from_information_schema_data_sql(tmp_relation, partition_by, distinct_partition_wrapper) }}
+{% else %}
+  select distinct {{ partition_by.render_wrapped() }}
+  from {{ tmp_relation }}
+{% endif %}
 {% endmacro %}
 
 {% macro bq_dynamic_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, copy_partitions) %}
@@ -149,10 +161,12 @@
 
       -- 2. define partitions to update
       set (dbt_partitions_for_replacement) = (
-          select as struct
-              -- IGNORE NULLS: this needs to be aligned to _dbt_max_partition, which ignores null
-              array_agg(distinct {{ partition_field }} IGNORE NULLS)
-          from {{ tmp_relation }}
+      {%- if partition_by.partition_information == "information_schema" -%}
+            {{ partition_from_information_schema_data_sql(tmp_relation, partition_by, array_distinct_partition_wrapper) }}
+          {%- else -%}
+            {# TODO fix datetime case to render_wrapped with timestamp #}
+            {{ partition_from_model_data_sql(tmp_relation, partition_by, array_distinct_partition_wrapper) }}
+          {%- endif -%}
       );
 
       -- 3. run the merge statement

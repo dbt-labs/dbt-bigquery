@@ -572,6 +572,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                 "granularity": "day",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
+                "partition_information": "model",
             },
         )
 
@@ -588,6 +589,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                 "granularity": "day",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
+                "partition_information": "model",
             },
         )
 
@@ -601,6 +603,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                 "granularity": "month",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
+                "partition_information": "model",
             },
         )
 
@@ -614,6 +617,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                 "granularity": "year",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
+                "partition_information": "model",
             },
         )
 
@@ -627,6 +631,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                 "granularity": "hour",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
+                "partition_information": "model",
             },
         )
 
@@ -640,6 +645,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                 "granularity": "month",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
+                "partition_information": "model",
             },
         )
 
@@ -653,6 +659,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                 "granularity": "year",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
+                "partition_information": "model",
             },
         )
 
@@ -666,6 +673,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                 "granularity": "hour",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
+                "partition_information": "model",
             },
         )
 
@@ -679,6 +687,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                 "granularity": "month",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
+                "partition_information": "model",
             },
         )
 
@@ -692,6 +701,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                 "granularity": "year",
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
+                "partition_information": "model",
             },
         )
 
@@ -705,6 +715,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                 "granularity": "day",
                 "time_ingestion_partitioning": True,
                 "copy_partitions": True,
+                "partition_information": "model",
             },
         )
 
@@ -728,6 +739,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
                 "range": {"start": 1, "end": 100, "interval": 20},
                 "time_ingestion_partitioning": False,
                 "copy_partitions": False,
+                "partition_information": "model",
             },
         )
 

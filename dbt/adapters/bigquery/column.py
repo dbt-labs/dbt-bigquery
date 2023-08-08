@@ -227,7 +227,8 @@ def _update_nested_column_data_types(
             else None
         )
 
-        if existing_nested_column_data_type := nested_column_data_types.get(root_column_name):
+        existing_nested_column_data_type = nested_column_data_types.get(root_column_name)
+        if existing_nested_column_data_type:
             assert isinstance(existing_nested_column_data_type, dict)  # keeping mypy happy
             # entry could already exist if this is a parent column -- preserve the parent data type under "_PARENT_DATA_TYPE_KEY"
             existing_nested_column_data_type.update(

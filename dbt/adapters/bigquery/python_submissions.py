@@ -115,6 +115,11 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
             client_options=self.client_options, credentials=self.GoogleCredentials
         )
 
+    def _get_container(self) -> str:
+        return self.parsed_model["config"].get(
+            "dataproc_container", self.credential.dataproc_container
+        )
+
     def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
         batch = self._configure_batch()
         parent = f"projects/{self.credential.execution_project}/locations/{self.credential.dataproc_region}"
@@ -152,6 +157,7 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
                     properties={
                         "spark.executor.instances": "2",
                     },
+                    container_image=self._get_container(),
                 )
             }
         )

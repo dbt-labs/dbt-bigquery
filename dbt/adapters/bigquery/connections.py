@@ -132,6 +132,7 @@ class BigQueryCredentials(Credentials):
 
     dataproc_region: Optional[str] = None
     dataproc_cluster_name: Optional[str] = None
+    dataproc_container: Optional[str] = None
     gcs_bucket: Optional[str] = None
 
     dataproc_batch: Optional[DataprocBatchConfig] = field(

@@ -32,6 +32,7 @@ class BaseDataProcHelper(PythonJobHelper):
                 )
         
         date_company_group = self.parsed_model["config"].get("date_company_group", "other")
+        self.labels = {"date_company_group": date_company_group}
         random_num = str(random.randrange(1000, 9999))
 
         self.model_file_name = f"{schema}/{date_company_group}/{identifier}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{random_num}.py"
@@ -89,6 +90,7 @@ class ClusterDataprocHelper(BaseDataProcHelper):
     def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
         job = {
             "placement": {"cluster_name": self._get_cluster_name()},
+            "labels": self.labels,
             "pyspark_job": {
                 "main_python_file_uri": self.gcs_location,
             },

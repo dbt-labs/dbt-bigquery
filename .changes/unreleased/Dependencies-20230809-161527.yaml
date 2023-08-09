@@ -1,0 +1,6 @@
+kind: Dependencies
+body: Loosen requirements to avoid version conflicts between google-cloud-<x> packages
+time: 2023-08-09T16:15:27.691942-04:00
+custom:
+  Author: mikealfare
+  PR: "871"

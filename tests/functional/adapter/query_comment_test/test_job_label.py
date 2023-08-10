@@ -49,5 +49,10 @@ class TestQueryCommentJobLabel:
         with project.adapter.connection_named("_test"):
             client: Client = project.adapter.connections.get_thread_connection().handle
             job = client.get_job(job_id=job_id)
+
+        # this is what should happen
         assert job.labels.get("system") == "my_system"
         assert job.labels.get("env_type") == "dev"
+
+        # this is what actually happens
+        assert job.labels.get("query_comment") == "___bq_labels_____"

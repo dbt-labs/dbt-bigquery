@@ -1,0 +1,6 @@
+kind: Fixes
+body: Fix issue where job labels are not persisted from query comments using a macro
+time: 2023-08-09T20:11:29.890178-04:00
+custom:
+  Author: mikealfare
+  Issue: "863"

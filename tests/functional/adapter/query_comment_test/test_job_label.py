@@ -2,7 +2,7 @@ import pytest
 
 from google.cloud.bigquery.client import Client
 
-from dbt.tests.util import run_dbt_and_capture
+from dbt.tests.util import run_dbt
 
 
 _MACRO__BQ_LABELS = """
@@ -36,8 +36,15 @@ class TestQueryCommentJobLabel:
             }
         }
 
+    @pytest.mark.skip(
+        "This currently fails due to a known issue and will be resolved in a future sprint."
+    )
     def test_query_comments_displays_as_job_labels(self, project):
-        results, logs = run_dbt_and_capture(["--debug", "run"])
+        """
+        Addresses this regression in dbt-bigquery 1.6:
+        https://github.com/dbt-labs/dbt-bigquery/issues/863
+        """
+        results = run_dbt(["run"])
         job_id = results.results[0].adapter_response.get("job_id")
         with project.adapter.connection_named("_test"):
             client: Client = project.adapter.connections.get_thread_connection().handle

@@ -1,0 +1,6 @@
+kind: Features
+body: Change batch_id to model override
+time: 2023-06-30T09:26:18.854492+01:00
+custom:
+  Author: nickozilla
+  Issue: "671"

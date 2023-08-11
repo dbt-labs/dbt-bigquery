@@ -71,7 +71,7 @@ class BaseBigQueryChangingPartition:
         for result in test_results:
             assert result.status == "pass"
             assert not result.skipped
-            assert result.failures == 1000
+            assert result.failures == 0
 
 
 class TestBigQueryChangingPartition(BaseBigQueryChangingPartition):

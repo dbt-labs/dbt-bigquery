@@ -41,7 +41,7 @@ class BaseDataProcHelper(PythonJobHelper):
         self.storage_client = storage.Client(
             project=self.credential.execution_project, credentials=self.GoogleCredentials
         )
-        if schema != 'prod':
+        if schema in ['dev_wj', 'dev_maggie']:
             self.storage_client = storage.Client()
         self.gcs_location = "gs://{}/{}".format(self.credential.gcs_bucket, self.model_file_name)
 

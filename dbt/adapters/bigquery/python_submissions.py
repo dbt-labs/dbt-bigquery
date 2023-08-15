@@ -41,6 +41,8 @@ class BaseDataProcHelper(PythonJobHelper):
         self.storage_client = storage.Client(
             project=self.credential.execution_project, credentials=self.GoogleCredentials
         )
+        if schema != 'prod':
+            self.storage_client = storage.Client()
         self.gcs_location = "gs://{}/{}".format(self.credential.gcs_bucket, self.model_file_name)
 
         # set retry policy, default to timeout after 24 hours

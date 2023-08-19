@@ -130,12 +130,12 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
 
         state = "State.PENDING"
         while state not in ["State.SUCCEEDED", "State.FAILED", "State.CANCELLED"]:
+            time.sleep(2)
             response = self.job_client.get_batch(
                 request=dataproc_v1.GetBatchRequest(name="".join([parent, "/batches/", batch_id])),
-                # retry=self.retry (This retry polls way too many times per second)
             )
             state = str(response.state)
-            time.sleep(2)
+            
 
         return response
         # there might be useful results here that we can parse and return

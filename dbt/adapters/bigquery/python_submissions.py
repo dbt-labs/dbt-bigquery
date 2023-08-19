@@ -138,8 +138,6 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
                 request=dataproc_v1.GetBatchRequest(name="".join([parent, "/batches/", batch_id])),
             )
             state = str(response.state)
-            
-
         return response
         # there might be useful results here that we can parse and return
         # Dataproc job output is saved to the Cloud Storage bucket

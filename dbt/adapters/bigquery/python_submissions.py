@@ -117,6 +117,9 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
             client_options=self.client_options, credentials=self.GoogleCredentials
         )
 
+    def _get_batch_id(self) -> str:
+        return self.parsed_model["config"].get("batch_id")
+
     def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
         batch = self._configure_batch()
         parent = f"projects/{self.credential.execution_project}/locations/{self.credential.dataproc_region}"

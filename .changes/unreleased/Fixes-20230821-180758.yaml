@@ -1,6 +1,0 @@
-kind: Fixes
-body: changes expected value types to AnyInteger to take into account changes in core
-time: 2023-08-21T18:07:58.746741-05:00
-custom:
-  Author: McKnight-42
-  Issue: "889"

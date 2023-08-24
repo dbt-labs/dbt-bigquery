@@ -337,7 +337,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
     @classmethod
     def get_credentials(cls, profile_credentials):
         if profile_credentials.impersonate_service_account:
-            print(".........." + profile_credentials.impersonate_service_account)
+            logger.warning("ttt.........." + profile_credentials.impersonate_service_account)
             return cls.get_impersonated_credentials(profile_credentials)
         else:
             return cls.get_google_credentials(profile_credentials)

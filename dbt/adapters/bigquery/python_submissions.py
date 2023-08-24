@@ -32,12 +32,13 @@ class BaseDataProcHelper(PythonJobHelper):
                 )
         
         date_company_group = self.parsed_model["config"].get("date_company_group", "other")
-        self.labels = {"model": identifier, "partition": date_company_group}
+        self.labels = {"ttmodel": identifier, "partition": date_company_group}
         random_num = str(random.randrange(1000, 9999))
 
         self.model_file_name = f"{schema}/{date_company_group}/{identifier}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{random_num}.py"
         self.credential = credential
         self.GoogleCredentials = BigQueryConnectionManager.get_credentials(credential)
+        raise Exception("fkkkk")
         self.storage_client = storage.Client(
             project=self.credential.execution_project, credentials=self.GoogleCredentials
         )

@@ -61,7 +61,8 @@ class BaseDataProcHelper(PythonJobHelper):
 
     def submit(self, compiled_code: str) -> dataproc_v1.types.jobs.Job:
         # upload python file to GCS
-        self._upload_to_gcs(self.model_file_name, compiled_code)
+        
+        # self._upload_to_gcs(self.model_file_name, compiled_code)
         # submit dataproc job
         return self._submit_dataproc_job()
 

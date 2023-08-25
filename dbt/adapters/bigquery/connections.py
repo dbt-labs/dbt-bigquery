@@ -145,6 +145,8 @@ class BigQueryCredentials(Credentials):
         "https://www.googleapis.com/auth/bigquery",
         "https://www.googleapis.com/auth/cloud-platform",
         "https://www.googleapis.com/auth/drive",
+        "https://www.googleapis.com/auth/devstorage.full_control",
+        "https://www.googleapis.com/auth/compute"
     )
 
     _ALIASES = {

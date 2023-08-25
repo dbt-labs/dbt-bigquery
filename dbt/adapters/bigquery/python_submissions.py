@@ -38,14 +38,10 @@ class BaseDataProcHelper(PythonJobHelper):
 
         self.model_file_name = f"{schema}/{date_company_group}/{identifier}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{random_num}.py"
         self.credential = credential
-        print(f"ccc..............{credential.keyfile_json}")
-        print(f"ccc..............{credential.impersonate_service_account}")
-        print(f"ccc..............{credential.refresh_token}")
-        print(f"ccc..............{credential.client_id}")
-        print(f"ccc..............{credential.client_secret}")
-        print(f"ccc..............{credential.token_uri}")
 
         self.GoogleCredentials = BigQueryConnectionManager.get_credentials(credential)
+        print(f"ccc..............{self.GoogleCredentials}")
+
         self.storage_client = storage.Client(
             project=self.credential.execution_project, credentials=self.GoogleCredentials
         )

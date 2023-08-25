@@ -2,6 +2,7 @@ from typing import Dict, Union
 
 from dbt.adapters.base import PythonJobHelper
 from dbt.adapters.bigquery import BigQueryConnectionManager, BigQueryCredentials
+from dbt.events import AdapterLogger
 from dbt.adapters.bigquery.connections import DataprocBatchConfig
 from google.api_core.client_options import ClientOptions
 from google.cloud import storage, dataproc_v1  # type: ignore
@@ -17,6 +18,9 @@ class BaseDataProcHelper(PythonJobHelper):
         Args:
             credential (_type_): _description_
         """
+
+        logger = AdapterLogger("BigQuery")
+        
         # validate all additional stuff for python is set
         schema = parsed_model["schema"]
         identifier = parsed_model["alias"]
@@ -37,6 +41,11 @@ class BaseDataProcHelper(PythonJobHelper):
 
         self.model_file_name = f"{schema}/{date_company_group}/{identifier}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{random_num}.py"
         self.credential = credential
+        print(f"ccc..............{credential.token}")
+        logger.error(f"cccccc..............{credential.token}")
+        print(f"ccc..............{credential.keyfile}")
+        logger.error(f"cccccc..............{credential.keyfile}")
+
         self.GoogleCredentials = BigQueryConnectionManager.get_credentials(credential)
         self.storage_client = storage.Client(
             project=self.credential.execution_project, credentials=self.GoogleCredentials
@@ -61,7 +70,7 @@ class BaseDataProcHelper(PythonJobHelper):
 
     def submit(self, compiled_code: str) -> dataproc_v1.types.jobs.Job:
         # upload python file to GCS
-        
+
         # self._upload_to_gcs(self.model_file_name, compiled_code)
         # submit dataproc job
         return self._submit_dataproc_job()

@@ -2,6 +2,8 @@ import json
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from time import time, sleep
+
 from mashumaro.helper import pass_through
 
 from functools import lru_cache
@@ -706,7 +708,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
         query_job = client.query(query=sql, job_config=job_config, timeout=job_creation_timeout)
-
+        start_time = time()
+        running_time = 0
         if (
             query_job.location is not None
             and query_job.job_id is not None
@@ -716,9 +719,16 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
             )
 
-        iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
+        while running_time < job_execution_timeout:
+            if query_job.state == "DONE":
+                iterator = query_job.result(max_results=limit)
+                return query_job, iterator
+            else:
+                sleep(0.5)
+                running_time = time() - start_time
+        query_job.cancel()
+        raise DbtDatabaseError(f"Query exceeded configured timeout of {job_execution_timeout}s")
 
-        return query_job, iterator
 
     def _retry_and_handle(self, msg, conn, fn):
         """retry a function call within the context of exception_handler."""

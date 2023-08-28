@@ -634,7 +634,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
 
     @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")
     def test_query_and_results(self, mock_bq):
-        mock_bq.QueryJobConfig = Mock(return_value=Mock(state="DONE"))
+        self.mock_client.query = Mock(return_value=Mock(state="DONE"))
         self.connections._query_and_results(
             self.mock_client,
             "sql",

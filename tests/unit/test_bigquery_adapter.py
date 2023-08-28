@@ -12,10 +12,12 @@ from unittest.mock import patch, MagicMock, Mock, create_autospec, ANY
 
 import dbt.dataclass_schema
 
+from dbt.adapters.bigquery import PartitionConfig
 from dbt.adapters.bigquery import BigQueryCredentials
 from dbt.adapters.bigquery import BigQueryAdapter
 from dbt.adapters.bigquery import BigQueryRelation
 from dbt.adapters.bigquery import Plugin as BigQueryPlugin
+from google.cloud.bigquery.table import Table
 from dbt.adapters.bigquery.connections import BigQueryConnectionManager
 from dbt.adapters.bigquery.connections import _sanitize_label, _VALIDATE_LABEL_LENGTH_LIMIT
 from dbt.adapters.base.query_headers import MacroQueryStringSetter
@@ -376,7 +378,10 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         mock_client.assert_not_called()
         connection.handle
         mock_client.assert_called_once_with(
-            "dbt-unit-000000", creds, location="Luna Station", client_info=HasUserAgent()
+            "dbt-unit-000000",
+            creds,
+            location="Luna Station",
+            client_info=HasUserAgent(),
         )
 
 
@@ -1022,6 +1027,30 @@ class TestBigQueryAdapterConversions(TestAdapterConversions):
         expected = ["time", "time", "time"]
         for col_idx, expect in enumerate(expected):
             assert BigQueryAdapter.convert_time_type(agate_table, col_idx) == expect
+
+    # The casing in this case can't be enforced on the API side,
+    # so we have to validate that we have a case-insensitive comparison
+    def test_partitions_match(self):
+        table = Table.from_api_repr(
+            {
+                "tableReference": {
+                    "projectId": "test-project",
+                    "datasetId": "test_dataset",
+                    "tableId": "test_table",
+                },
+                "timePartitioning": {"type": "DAY", "field": "ts"},
+            }
+        )
+        partition_config = PartitionConfig.parse(
+            {
+                "field": "TS",
+                "data_type": "date",
+                "granularity": "day",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False,
+            }
+        )
+        assert BigQueryAdapter._partitions_match(table, partition_config) is True
 
 
 class TestBigQueryGrantAccessTo(BaseTestBigQueryAdapter):

@@ -1,13 +1,12 @@
 import pytest
 
-from dbt.exceptions import DbtDatabaseError
 from dbt.tests.util import run_dbt
 
-_DEFAULT_TIMEOUT = 300
+_REASONABLE_TIMEOUT = 300
 _SHORT_TIMEOUT = 1
 
-_MODEL_SQL = """
-    {{ config(job_execution_timeout_seconds=0.5, materialized='table') }}
+_LONG_RUNNING_MODEL_SQL = """
+    {{ config(materialized='table') }}
     with array_1 as (
     select generated_ids from UNNEST(GENERATE_ARRAY(1, 200000)) AS generated_ids
     ),
@@ -22,21 +21,36 @@ _MODEL_SQL = """
     LEFT JOIN array_1 as jnd3 on jnd3.generated_ids >= jnd2.generated_ids
 """
 
+_SHORT_RUNNING_QUERY = """
+    SELECT 1 as id
+    """
 
-class BaseJobTimeout:
+
+class TestSuccessfulJobRun:
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "model.sql": _MODEL_SQL,
+            "model.sql": _SHORT_RUNNING_QUERY,
         }
 
+    @pytest.fixture(scope="class")
+    def profiles_config_update(self, dbt_profile_target):
+        outputs = {"default": dbt_profile_target}
+        outputs["default"]["job_execution_timeout_seconds"] = _REASONABLE_TIMEOUT
+        return {"test": {"outputs": outputs, "target": "default"}}
 
-class TestSuccessfulJobRun(BaseJobTimeout):
-    def test_bigquery_default_job_run(self, project):
-        run_dbt()
+    def test_bigquery_job_run_succeeds_within_timeout(self, project):
+        result = run_dbt()
+        assert len(result) == 1
 
 
-class TestJobTimeout(BaseJobTimeout):
+class TestJobTimeout:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "model.sql": _LONG_RUNNING_MODEL_SQL,
+        }
+
     @pytest.fixture(scope="class")
     def profiles_config_update(self, dbt_profile_target):
         outputs = {"default": dbt_profile_target}
@@ -44,6 +58,5 @@ class TestJobTimeout(BaseJobTimeout):
         return {"test": {"outputs": outputs, "target": "default"}}
 
     def test_job_timeout(self, project):
-        with pytest.raises(DbtDatabaseError) as exc:
-            run_dbt(["run"], expect_pass=False)  # project setup will fail
-        assert f"Query exceeded configured timeout of {_SHORT_TIMEOUT}s" in str(exc.value)
+        result = run_dbt(["run"], expect_pass=False)  # project setup will fail
+        assert f"Query exceeded configured timeout of {_SHORT_TIMEOUT}s" in result[0].message

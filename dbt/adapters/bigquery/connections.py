@@ -705,7 +705,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
         query_job = client.query(query=sql, job_config=job_config, timeout=job_creation_timeout)
-        loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
         future_iterator = asyncio.wait_for(
             loop.run_in_executor(None, query_job.result), timeout=job_execution_timeout
         )

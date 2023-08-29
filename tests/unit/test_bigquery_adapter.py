@@ -1,3 +1,5 @@
+import time
+
 import agate
 import decimal
 import json
@@ -650,6 +652,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
 
     @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")
     def test_query_and_results_timeout(self, mock_bq):
+        self.mock_client.query = Mock(return_value=Mock(result=lambda: time.sleep(4)))
         with pytest.raises(dbt.exceptions.DbtDatabaseError) as exc:
             self.connections._query_and_results(
                 self.mock_client,

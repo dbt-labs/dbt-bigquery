@@ -714,6 +714,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
             )
 
+        # only use async logic if user specifies a timeout
         if job_execution_timeout:
             loop = asyncio.new_event_loop()
             future_iterator = asyncio.wait_for(

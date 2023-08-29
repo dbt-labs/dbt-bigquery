@@ -1,8 +1,8 @@
+import asyncio
 import json
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from time import time, sleep
 
 from mashumaro.helper import pass_through
 
@@ -705,8 +705,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
         query_job = client.query(query=sql, job_config=job_config, timeout=job_creation_timeout)
-        start_time = query_job.started.timestamp()
-        running_time = 0.0
+
         if (
             query_job.location is not None
             and query_job.job_id is not None
@@ -717,19 +716,21 @@ class BigQueryConnectionManager(BaseConnectionManager):
             )
 
         if job_execution_timeout:
-            while running_time < job_execution_timeout:
-                if not query_job.running():
-                    iterator = query_job.result(max_results=limit)
-                    break
-                else:
-                    sleep(0.15)  # 150ms
-                    running_time = time() - start_time
 
-            if running_time >= job_execution_timeout:
-                query_job.cancel()
-                raise DbtDatabaseError(
-                    f"Query exceeded configured timeout of {job_execution_timeout}s"
-                )
+            async def get_results(running_job):
+                return running_job.result()
+
+            async def await_results(running_job, timeout):
+                try:
+                    return await asyncio.wait_for(get_results(running_job), timeout=timeout)
+                except asyncio.TimeoutError:
+                    running_job.cancel()
+                    raise DbtDatabaseError(
+                        f"Query exceeded configured timeout of {job_execution_timeout}s"
+                    )
+
+            iterator = asyncio.run(await_results(query_job, job_execution_timeout))
+
         else:
             iterator = query_job.result(max_results=limit)
         return query_job, iterator

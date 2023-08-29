@@ -4,19 +4,22 @@ from dbt.exceptions import DbtDatabaseError
 from dbt.tests.util import run_dbt
 
 _DEFAULT_TIMEOUT = 300
-_SHORT_TIMEOUT = 60
+_SHORT_TIMEOUT = 1
 
 _MODEL_SQL = """
     {{ config(job_execution_timeout_seconds=0.5, materialized='table') }}
     with array_1 as (
-    SELECT GENERATE_ARRAY(1, 10000000) AS generated_ids
+    select generated_ids from UNNEST(GENERATE_ARRAY(1, 200000)) AS generated_ids
+    ),
+    array_2 as (
+    select generated_ids from UNNEST(GENERATE_ARRAY(2, 200000)) AS generated_ids
     )
 
     SELECT array_1.generated_ids
     FROM array_1
     LEFT JOIN array_1 as jnd on 1=1
-    LEFT JOIN array_1 as jnd2 on 1=1
-    LEFT JOIN array_1 as jnd3 on 1=1
+    LEFT JOIN array_2 as jnd2 on 1=1
+    LEFT JOIN array_1 as jnd3 on jnd3.generated_ids >= jnd2.generated_ids
 """
 
 

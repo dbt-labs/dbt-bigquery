@@ -705,7 +705,10 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
         query_job = client.query(query=sql, job_config=job_config, timeout=job_creation_timeout)
-
+        loop = asyncio.get_event_loop()
+        future_iterator = asyncio.wait_for(
+            loop.run_in_executor(None, query_job.result), timeout=job_execution_timeout
+        )
         if (
             query_job.location is not None
             and query_job.job_id is not None
@@ -716,21 +719,13 @@ class BigQueryConnectionManager(BaseConnectionManager):
             )
 
         if job_execution_timeout:
-
-            async def get_results(running_job):
-                return running_job.result()
-
-            async def await_results(running_job, timeout):
-                try:
-                    return await asyncio.wait_for(get_results(running_job), timeout=timeout)
-                except asyncio.TimeoutError:
-                    running_job.cancel()
-                    raise DbtDatabaseError(
-                        f"Query exceeded configured timeout of {job_execution_timeout}s"
-                    )
-
-            iterator = asyncio.run(await_results(query_job, job_execution_timeout))
-
+            try:
+                iterator = loop.run_until_complete(future_iterator)
+            except asyncio.TimeoutError:
+                query_job.cancel()
+                raise DbtDatabaseError(
+                    f"Query exceeded configured timeout of {job_execution_timeout}s"
+                )
         else:
             iterator = query_job.result(max_results=limit)
         return query_job, iterator

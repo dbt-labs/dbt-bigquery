@@ -45,5 +45,5 @@ class TestJobTimeout(BaseJobTimeout):
 
     def test_job_timeout(self, project):
         with pytest.raises(DbtDatabaseError) as exc:
-            run_dbt()  # project setup will fail
+            run_dbt(["run"], expect_pass=False)  # project setup will fail
         assert "Query exceeded configured timeout" in str(exc.value)

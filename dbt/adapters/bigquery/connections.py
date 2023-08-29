@@ -726,6 +726,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 raise DbtDatabaseError(
                     f"Query exceeded configured timeout of {job_execution_timeout}s"
                 )
+            finally:
+                loop.close()
         else:
             iterator = query_job.result(max_results=limit)
         return query_job, iterator

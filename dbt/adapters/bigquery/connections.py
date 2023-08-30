@@ -104,10 +104,12 @@ class DataprocBatchConfig(ExtensibleDbtClassMixin):
 
 @dataclass
 class BigQueryCredentials(Credentials):
-    method: BigQueryConnectionMethod
+    method: BigQueryConnectionMethod = BigQueryConnectionMethod.SERVICE_ACCOUNT
+
     # BigQuery allows an empty database / project, where it defers to the
     # environment for the project
-    database: Optional[str]  # type: ignore
+    database: Optional[str] = None  # type: ignore
+    schema: Optional[str] = None  # type: ignore
     execution_project: Optional[str] = None
     location: Optional[str] = None
     priority: Optional[Priority] = None

@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import json
 import re
 from contextlib import contextmanager
@@ -718,7 +719,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
         if job_execution_timeout:
             loop = asyncio.new_event_loop()
             future_iterator = asyncio.wait_for(
-                loop.run_in_executor(None, query_job.result), timeout=job_execution_timeout
+                loop.run_in_executor(None, functools.partial(query_job.result, max_results=limit)),
+                timeout=job_execution_timeout,
             )
 
             try:

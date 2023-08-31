@@ -10,6 +10,6 @@
     )
 {% endmacro %}
 
-{% macro bigquery__get_materialized_view_configuration_changes() %}
+{% macro bigquery__get_materialized_view_configuration_changes(existing_relation, new_config) %}
     {{- return(None) -}}
 {% endmacro %}

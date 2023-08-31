@@ -167,6 +167,9 @@ class BigQueryCredentials(Credentials):
         if not self.method:
             raise DbtRuntimeError("Must specify authentication method")
 
+        if not self.schema:
+            raise DbtRuntimeError("Must specify schema")
+
     @property
     def type(self):
         return "bigquery"

@@ -1,48 +1,3 @@
-
-{% macro partition_by(partition_config) -%}
-    {%- if partition_config is none -%}
-      {% do return('') %}
-    {%- elif partition_config.time_ingestion_partitioning -%}
-        partition by {{ partition_config.render_wrapped() }}
-    {%- elif partition_config.data_type | lower in ('date','timestamp','datetime') -%}
-        partition by {{ partition_config.render() }}
-    {%- elif partition_config.data_type | lower in ('int64') -%}
-        {%- set range = partition_config.range -%}
-        partition by range_bucket(
-            {{ partition_config.field }},
-            generate_array({{ range.start}}, {{ range.end }}, {{ range.interval }})
-        )
-    {%- endif -%}
-{%- endmacro -%}
-
-{% macro cluster_by(raw_cluster_by) %}
-  {%- if raw_cluster_by is not none -%}
-  cluster by {% if raw_cluster_by is string -%}
-    {% set raw_cluster_by = [raw_cluster_by] %}
-  {%- endif -%}
-  {%- for cluster in raw_cluster_by -%}
-    {{ cluster }}
-    {%- if not loop.last -%}, {% endif -%}
-  {%- endfor -%}
-
-  {% endif %}
-
-{%- endmacro -%}
-
-{% macro bigquery_options(opts) %}
-  {% set options -%}
-    OPTIONS({% for opt_key, opt_val in opts.items() %}
-      {{ opt_key }}={{ opt_val }}{{ "," if not loop.last }}
-    {% endfor %})
-  {%- endset %}
-  {%- do return(options) -%}
-{%- endmacro -%}
-
-{% macro bigquery_table_options(config, node, temporary) %}
-  {% set opts = adapter.get_table_options(config, node, temporary) %}
-  {%- do return(bigquery_options(opts)) -%}
-{%- endmacro -%}
-
 {% macro bigquery__create_table_as(temporary, relation, compiled_code, language='sql') -%}
   {%- if language == 'sql' -%}
     {%- set raw_partition_by = config.get('partition_by', none) -%}
@@ -102,11 +57,6 @@
 
 {%- endmacro -%}
 
-{% macro bigquery_view_options(config, node) %}
-  {% set opts = adapter.get_view_options(config, node) %}
-  {%- do return(bigquery_options(opts)) -%}
-{%- endmacro -%}
-
 {% macro bigquery__create_view_as(relation, sql) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
 
@@ -124,12 +74,6 @@
 
 {% macro bigquery__drop_schema(relation) -%}
   {{ adapter.drop_schema(relation) }}
-{% endmacro %}
-
-{% macro bigquery__drop_relation(relation) -%}
-  {% call statement('drop_relation') -%}
-    drop {{ relation.type }} if exists {{ relation }}
-  {%- endcall %}
 {% endmacro %}
 
 {% macro bigquery__get_columns_in_relation(relation) -%}
@@ -160,10 +104,6 @@
 
 {% macro bigquery__alter_column_comment(relation, column_dict) -%}
   {% do adapter.update_columns(relation, column_dict) %}
-{% endmacro %}
-
-{% macro bigquery__rename_relation(from_relation, to_relation) -%}
-  {% do adapter.rename_relation(from_relation, to_relation) %}
 {% endmacro %}
 
 {% macro bigquery__alter_relation_add_columns(relation, add_columns) %}

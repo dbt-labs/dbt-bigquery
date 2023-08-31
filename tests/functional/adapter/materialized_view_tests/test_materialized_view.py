@@ -1,64 +1,65 @@
-from typing import List
-from dbt.contracts.relation import RelationType
-from dbt.tests.adapter.materialized_view.base import (
-    assert_model_exists_and_is_correct_type,
-    run_model,
-    # get_row_count,
-    # insert_record,
-)
-from tests.functional.adapter.materialized_view_tests.fixtures import (
-    BigQueryBasicBase,
-)
+from typing import Optional, Tuple
+
+import pytest
+
+from dbt.adapters.base.relation import BaseRelation
+from dbt.tests.util import get_connection, run_dbt_and_capture
+from dbt.tests.adapter.materialized_view.basic import MaterializedViewBasic
+
+from dbt.tests.adapter.materialized_view.files import MY_TABLE, MY_VIEW
 
 
-RecordSet = List[tuple]
+MY_MATERIALIZED_VIEW = """
+{{ config(
+    materialized='materialized_view'
+) }}
+select * from {{ ref('my_seed') }}
+"""
 
 
-class TestBasic(BigQueryBasicBase):
-    def test_relation_is_materialized_view_on_initial_creation(self, project):
-        assert_model_exists_and_is_correct_type(
-            project, "base_materialized_view", RelationType.MaterializedView
-        )
-        assert_model_exists_and_is_correct_type(project, "base_table", RelationType.Table)
+class TestBigqueryMaterializedViewsBasic(MaterializedViewBasic):
+    @pytest.fixture(scope="class", autouse=True)
+    def models(self):
+        yield {
+            "my_table.sql": MY_TABLE,
+            "my_view.sql": MY_VIEW,
+            "my_materialized_view.sql": MY_MATERIALIZED_VIEW,
+        }
 
-    def test_relation_is_materialized_view_when_rerun(self, project):
-        run_model("base_materialized_view")
-        assert_model_exists_and_is_correct_type(
-            project, "base_materialized_view", RelationType.MaterializedView
-        )
+    @staticmethod
+    def insert_record(project, table: BaseRelation, record: Tuple[int, int]):
+        my_id, value = record
+        project.run_sql(f"insert into {table} (id, value) values ({my_id}, {value})")
 
-    # def test_relation_is_materialized_view_on_full_refresh(self, project):
-    #     run_model("base_materialized_view", full_refresh=True)
-    #     assert_model_exists_and_is_correct_type(
-    #         project, "base_materialized_view", RelationType.MaterializedView
-    #     )
+    @staticmethod
+    def refresh_materialized_view(project, materialized_view: BaseRelation):
+        sql = f"call bq.refresh_materialized_view({materialized_view})"
+        project.run_sql(sql)
 
-    # def test_relation_is_materialized_view_on_update(self, project):
-    #     run_model("base_materialized_view", run_args=["--vars", "quoting: {identifier: True}"])
-    #     assert_model_exists_and_is_correct_type(
-    #         project, "base_materialized_view", RelationType.MaterializedView
-    #     )
+    @staticmethod
+    def query_row_count(project, relation: BaseRelation) -> int:
+        sql = f"select count(*) from {relation}"
+        return project.run_sql(sql, fetch="one")[0]
 
-    # def test_updated_base_table_data_only_shows_in_materialized_view_after_rerun(self, project):
-    #     # poll database
-    #     table_start = get_row_count(project, "base_table")
-    #     view_start = get_row_count(project, "base_materialized_view")
+    # look into syntax
+    @staticmethod
+    def query_relation_type(project, relation: BaseRelation) -> Optional[str]:
+        with get_connection(project.adapter) as conn:
+            table = conn.handle.get_table(
+                project.adapter.connections.get_bq_table(
+                    relation.database, relation.schema, relation.table
+                )
+            )
+        return table.table_type
 
-    #     # insert new record in table
-    #     new_record = (2,)
-    #     insert_record(project, new_record, "base_table", ["base_column"])
+    def test_materialized_view_create_idempotent(self, project, my_materialized_view):
+        # setup creates it once; verify it's there and run once
+        assert self.query_relation_type(project, my_materialized_view) == "materialized_view"
+        run_dbt_and_capture(["run", "--models", my_materialized_view.identifier])
+        assert self.query_relation_type(project, my_materialized_view) == "materialized_view"
 
-    #     # poll database
-    #     table_mid = get_row_count(project, "base_table")
-    #     view_mid = get_row_count(project, "base_materialized_view")
+    def test_table_replaces_materialized_view(self, project, my_materialized_view):
+        super().test_table_replaces_materialized_view(project, my_materialized_view)
 
-    #     # refresh the materialized view
-    #     run_model("base_materialized_view")
-
-    #     # poll database
-    #     table_end = get_row_count(project, "base_table")
-    #     view_end = get_row_count(project, "base_materialized_view")
-
-    #     # new records were inserted in the table but didn't show up in the view until it was refreshed
-    #     assert table_start < table_mid == table_end
-    #     assert view_start == view_mid < view_end
+    def test_view_replaces_materialized_view(self, project, my_materialized_view):
+        super().test_view_replaces_materialized_view(project, my_materialized_view)

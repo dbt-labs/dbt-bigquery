@@ -2,15 +2,14 @@
     relation,
     configuration_changes,
     sql,
-    existing_relation,
-    intermediate_relation
+    existing_relation
 ) %}
-    get_replace_materialized_view_as_sql(
+    bigquery__get_replace_materialized_view_as_sql(
         relation,
-        sql,
-        existing_relation,
-        intermediate_relation,
-        backup_relation,
-        temp_relation
+        sql
     )
+{% endmacro %}
+
+{% macro bigquery__get_materialized_view_configuration_changes() %}
+    {{- return(None) -}}
 {% endmacro %}

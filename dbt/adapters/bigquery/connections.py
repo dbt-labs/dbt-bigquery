@@ -107,10 +107,12 @@ class DataprocBatchConfig(ExtensibleDbtClassMixin):
 
 @dataclass
 class BigQueryCredentials(Credentials):
-    method: BigQueryConnectionMethod
+    method: BigQueryConnectionMethod = None  # type: ignore
+
     # BigQuery allows an empty database / project, where it defers to the
     # environment for the project
-    database: Optional[str]  # type: ignore
+    database: Optional[str] = None  # type: ignore
+    schema: Optional[str] = None  # type: ignore
     execution_project: Optional[str] = None
     location: Optional[str] = None
     priority: Optional[Priority] = None
@@ -165,6 +167,11 @@ class BigQueryCredentials(Credentials):
             self.keyfile_json["private_key"] = self.keyfile_json["private_key"].replace(
                 "\\n", "\n"
             )
+        if not self.method:
+            raise DbtRuntimeError("Must specify authentication method")
+
+        if not self.schema:
+            raise DbtRuntimeError("Must specify schema")
 
     @property
     def type(self):

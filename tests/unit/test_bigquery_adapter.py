@@ -655,7 +655,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.mock_client.query = Mock(
             return_value=Mock(result=lambda *args, **kwargs: time.sleep(4))
         )
-        with pytest.raises(dbt.exceptions.DbtDatabaseError) as exc:
+        with pytest.raises(dbt.exceptions.DbtRuntimeError) as exc:
             self.connections._query_and_results(
                 self.mock_client,
                 "sql",

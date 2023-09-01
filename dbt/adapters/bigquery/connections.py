@@ -734,7 +734,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 iterator = loop.run_until_complete(future_iterator)
             except asyncio.TimeoutError:
                 query_job.cancel()
-                raise DbtDatabaseError(
+                raise DbtRuntimeError(
                     f"Query exceeded configured timeout of {job_execution_timeout}s"
                 )
             finally:

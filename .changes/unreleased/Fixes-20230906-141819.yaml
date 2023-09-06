@@ -1,0 +1,6 @@
+kind: Fixes
+body: 'Fix bigquery copy materialization #910'
+time: 2023-09-06T14:18:19.445262+02:00
+custom:
+  Author: m-sche
+  Issue: '#820'

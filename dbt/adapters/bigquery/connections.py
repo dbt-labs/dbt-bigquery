@@ -83,6 +83,7 @@ class BigQueryConnectionMethod(StrEnum):
     OAUTH = "oauth"
     SERVICE_ACCOUNT = "service-account"
     SERVICE_ACCOUNT_JSON = "service-account-json"
+    SERVICE_ACCOUNT_JSON_STRING = "service-account-json-string"
     OAUTH_SECRETS = "oauth-secrets"
 
 
@@ -124,6 +125,7 @@ class BigQueryCredentials(Credentials):
     # Keyfile json creds
     keyfile: Optional[str] = None
     keyfile_json: Optional[Dict[str, Any]] = None
+    keyfile_json_string: Optional[str] = None
 
     # oauth-secrets
     token: Optional[str] = None
@@ -160,6 +162,9 @@ class BigQueryCredentials(Credentials):
     }
 
     def __post_init__(self):
+        if self.keyfile_json_string:
+            self.keyfile_json = json.loads(self.keyfile_json_string)
+            self.method = BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON
         if self.keyfile_json and "private_key" in self.keyfile_json:
             self.keyfile_json["private_key"] = self.keyfile_json["private_key"].replace(
                 "\\n", "\n"

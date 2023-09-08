@@ -28,7 +28,7 @@ from dbt.context.providers import RuntimeConfigObject
 
 from google.cloud.bigquery import AccessEntry
 
-from .utils import config_from_parts_or_dicts, inject_adapter, TestAdapterConversions
+from .utils import config_from_parts_or_dicts, inject_adapter, TestAdapterConversions, mock_connection
 
 
 def _bq_conn():
@@ -347,23 +347,27 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
 
     def test_cancel_open_connections_empty(self):
         adapter = self.get_adapter("oauth")
-        self.assertEqual(adapter.cancel_open_connections(), None)
+        self.assertEqual(len(list(adapter.cancel_open_connections())), 0)
 
     def test_cancel_open_connections_master(self):
         adapter = self.get_adapter("oauth")
-        adapter.connections.thread_connections[0] = object()
-        self.assertEqual(adapter.cancel_open_connections(), None)
+        key = adapter.connections.get_thread_identifier()
+        adapter.connections.thread_connections[key] = mock_connection("master")
+        self.assertEqual(len(list(adapter.cancel_open_connections())), 0)
 
     def test_cancel_open_connections_single(self):
         adapter = self.get_adapter("oauth")
+        master = mock_connection("master")
+        model = mock_connection("model")
+        key = adapter.connections.get_thread_identifier()
+
         adapter.connections.thread_connections.update(
             {
-                0: object(),
-                1: object(),
+                key: master,
+                1: model
             }
         )
-        # actually does nothing
-        self.assertEqual(adapter.cancel_open_connections(), None)
+        self.assertEqual(len(list(adapter.cancel_open_connections())), 1)
 
     @patch("dbt.adapters.bigquery.impl.google.auth.default")
     @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")
@@ -638,13 +642,14 @@ class TestBigQueryConnectionManager(unittest.TestCase):
             self.mock_client,
             "sql",
             {"job_param_1": "blah"},
+            job_id=1,
             job_creation_timeout=15,
             job_execution_timeout=100,
         )
 
         mock_bq.QueryJobConfig.assert_called_once()
         self.mock_client.query.assert_called_once_with(
-            query="sql", job_config=mock_bq.QueryJobConfig(), timeout=15
+            query="sql", job_config=mock_bq.QueryJobConfig(), job_id=1, timeout=15
         )
 
     def test_copy_bq_table_appends(self):

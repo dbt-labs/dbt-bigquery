@@ -82,19 +82,23 @@ with data as (
         select 1 as id,
         cast('2020-01-01 01:00:00' as datetime) as date_hour,
         1 as field_1,
-        2 as field_2 union all
+        2 as field_2,
+        STRUCT(1 as `group`) union all
         select 2 as id,
         cast('2020-01-01 01:00:00' as datetime) as date_hour,
         1 as field_1,
-        2 as field_2 union all
+        2 as field_2,
+        STRUCT(1 as `group`) union all
         select 3 as id,
         cast('2020-01-01 01:00:00' as datetime) as date_hour,
         1 as field_1,
-        2 as field_2 union all
+        2 as field_2,
+        STRUCT(2 as `group`) union all
         select 4 as id,
         cast('2020-01-01 01:00:00' as datetime) as date_hour,
         1 as field_1,
-        2 as field_2
+        2 as field_2,
+        STRUCT(2 as `group`)
 
     {% else %}
 

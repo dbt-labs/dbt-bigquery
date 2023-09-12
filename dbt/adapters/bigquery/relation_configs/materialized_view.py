@@ -1,12 +1,16 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
-from dbt.adapters.relation_configs.config_base import RelationConfigBase
+
+import agate
+from dbt.adapters.relation_configs.config_base import RelationResults
 from dbt.adapters.relation_configs.config_validation import RelationConfigValidationMixin
 from dbt.contracts.graph.nodes import ModelNode
+from dbt.contracts.relation import ComponentName
+from dbt.adapters.bigquery.relation_configs.base import BigQueryReleationConfigBase
 
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
-class BigQueryMaterializedViewConfig(RelationConfigBase, RelationConfigValidationMixin):
+class BigQueryMaterializedViewConfig(BigQueryReleationConfigBase, RelationConfigValidationMixin):
     """
     This config follow the specs found here:
     https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#create_materialized_view_statement
@@ -43,10 +47,11 @@ class BigQueryMaterializedViewConfig(RelationConfigBase, RelationConfigValidatio
     database_name: str
     cluster_by: Optional[Union[List[str], str]] = None
     partition_by: Optional[Dict[str, Any]] = None
-    enable_refresh: bool = True
-    refresh_interval_minutes: float = 30
+    partition_expiration_date: Optional[int] = None
+    enable_refresh: Optional[bool] = True
+    refresh_interval_minutes: Optional[int] = 30
     hours_to_expiration: Optional[int] = None
-    max_staleness: Optional[int] = None
+    max_staleness: Optional[str] = None
     allow_non_incremental_definition: Optional[bool] = None
     kms_key_name: Optional[str] = None
     friendly_name: Optional[str] = None
@@ -54,11 +59,107 @@ class BigQueryMaterializedViewConfig(RelationConfigBase, RelationConfigValidatio
     labels: Optional[Dict[str, str]] = None
 
     @classmethod
+    def from_dict(cls, config_dict) -> "BigQueryMaterializedViewConfig":
+        kwargs_dict = {
+            "materialized_view_name": cls._render_part(
+                ComponentName.Identifier, config_dict.get("materialized_view_name")
+            ),
+            "schema_name": cls._render_part(ComponentName.Schema, config_dict.get("schema_name")),
+            "database_name": cls._render_part(
+                ComponentName.Database, config_dict.get("database_name")
+            ),
+            "cluster_by": config_dict.get("cluster_by"),
+            "partition_by": config_dict.get("partition_by"),
+            "enable_refresh": config_dict.get("enabled_refresh"),
+            "refresh_interval_minutes": config_dict.get("refresh_interval_minutes"),
+            "hours_to_expiration": config_dict.get("hours_to_expiration"),
+            "max_staleness": config_dict.get("max_staleness"),
+            "allow_non_incremental_definition": config_dict.get(
+                "allow_non_incremental_definition"
+            ),
+            "kms_key_name": config_dict.get("kms_key_name"),
+            "friendly_name": config_dict.get("friendly_name"),
+            "description": config_dict.get("description"),
+            "labels": config_dict.get("labels"),
+        }
+
+        materialized_view: "BigQueryMaterializedViewConfig" = super().from_dict(kwargs_dict)  # type: ignore
+        return materialized_view
+
+    @classmethod
     def parse_model_node(cls, model_node: ModelNode) -> dict:
         config_dict = {
             "materialized_view_name": model_node.identifier,
             "schema_name": model_node.schema,
             "database_name": model_node.database,
+            "cluster_by": model_node.config.extra.get("cluster_by"),
+            "partition_by": model_node.config.extra.get("partition_by"),
+            "partition_expiration_date": model_node.config.extra.get("partition_expiration_date"),
+            "refresh_interval_minutes": model_node.config.extra.get("refresh_interval_minutes"),
+            "hours_to_expiration": model_node.config.extra.get("hours_to_expiration"),
+            "max_staleness": model_node.config.extra.get("max_staleness"),
+            "allow_non_incremental_definition": model_node.config.extra.get(
+                "allow_non_incremental_definition"
+            ),
+            "kms_key_name": model_node.config.extra.get("kms_key_name"),
+            "friendly_name": model_node.config.extra.get("friendly_name"),
+            "description": model_node.config.extra.get("description"),
+            "labels": model_node.config.extra.get("labels"),
+        }
+
+        autorefresh_value = model_node.config.extra.get("enabled_refresh")
+        if autorefresh_value is not None:
+            if isinstance(autorefresh_value, bool):
+                config_dict["enable_refresh"] = autorefresh_value
+            elif isinstance(autorefresh_value, str):
+                lower_autorefresh_value = autorefresh_value.lower()
+                if lower_autorefresh_value == "true":
+                    config_dict["enable_refresh"] = True
+                elif lower_autorefresh_value == "false":
+                    config_dict["enable_refresh"] = False
+                else:
+                    raise ValueError(
+                        "Invalide enable_refresh representation. Please used excepted value ex.(True, 'true', 'True')"
+                    )
+            else:
+                raise TypeError("Invalid autorefresh value: expecting boolean or str.")
+
+        return config_dict
+
+    @classmethod
+    def parse_relation_results(cls, relation_results: RelationResults) -> dict:
+        materialized_view: agate.Row = cls._get_first_row(
+            relation_results.get("materialized_view")  # type: ignore[arg-type]
+        )
+
+        config_dict = {
+            "materialized_view_name": materialized_view.get("materialized_view_name"),
+            "schema_name": materialized_view.get("schema"),
+            "database_name": materialized_view.get("database"),
+            "cluster_by": materialized_view.get("cluster_by"),
+            "partition_by": materialized_view.get("partition_by"),
+            "enable_refresh": materialized_view.get("enabled_refresh"),
+            "refresh_interval_minutes": materialized_view.get("refresh_interval_minutes"),
+            "hours_to_expiration": materialized_view.get("hours_to_expiration"),
+            "max_staleness": materialized_view.get("max_staleness"),
+            "allow_non_incremental_definition": materialized_view.get(
+                "allow_non_incremental_definition"
+            ),
+            "kms_key_name": materialized_view.get("kms_key_name"),
+            "friendly_name": materialized_view.get("friendly_name"),
+            "description": materialized_view.get("description"),
+            "labels": materialized_view.get("labels"),
         }
 
         return config_dict
+
+
+@dataclass
+class BigQueryMaterializedViewConfigChangeset:
+    @property
+    def requires_full_refresh(self) -> bool:
+        return True
+
+    @property
+    def has_changes(self) -> bool:
+        return True

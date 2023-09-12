@@ -4,6 +4,7 @@ from typing import Optional
 from itertools import chain, islice
 
 from dbt.adapters.base.relation import BaseRelation, ComponentName, InformationSchema
+from dbt.adapters.bigquery.relation_configs import BigQueryIncludePolicy, BigQueryQuotePolicy
 from dbt.exceptions import CompilationError
 from dbt.utils import filter_null_values
 from typing import TypeVar
@@ -16,6 +17,8 @@ Self = TypeVar("Self", bound="BigQueryRelation")
 class BigQueryRelation(BaseRelation):
     quote_character: str = "`"
     location: Optional[str] = None
+    include_policy = BigQueryIncludePolicy  # type: ignore
+    quote_policy = BigQueryQuotePolicy  # type: ignore
 
     def matches(
         self,

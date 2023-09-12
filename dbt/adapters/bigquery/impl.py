@@ -190,6 +190,9 @@ class BigqueryConfig(AdapterConfig):
     require_partition_filter: Optional[bool] = None
     partition_expiration_days: Optional[int] = None
     merge_update_columns: Optional[str] = None
+    enable_refresh: Optional[bool] = True
+    refresh_interval_minutes: Optional[int] = 30
+    max_staleness: Optional[str] = None
 
 
 class BigQueryAdapter(BaseAdapter):

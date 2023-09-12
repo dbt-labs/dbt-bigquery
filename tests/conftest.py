@@ -12,7 +12,7 @@ def pytest_addoption(parser):
     parser.addoption("--profile", action="store", default="oauth", type=str)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="class")
 def dbt_profile_target(request):
     profile_type = request.config.getoption("--profile")
     if profile_type == "oauth":

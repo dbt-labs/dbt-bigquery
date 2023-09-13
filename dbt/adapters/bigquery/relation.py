@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from itertools import chain, islice
@@ -17,8 +17,8 @@ Self = TypeVar("Self", bound="BigQueryRelation")
 class BigQueryRelation(BaseRelation):
     quote_character: str = "`"
     location: Optional[str] = None
-    include_policy = BigQueryIncludePolicy  # type: ignore
-    quote_policy = BigQueryQuotePolicy  # type: ignore
+    include_policy = BigQueryIncludePolicy = field(default_factory=lambda: BigQueryIncludePolicy())
+    quote_policy = BigQueryQuotePolicy = field(default_factory=lambda: BigQueryQuotePolicy())
 
     def matches(
         self,

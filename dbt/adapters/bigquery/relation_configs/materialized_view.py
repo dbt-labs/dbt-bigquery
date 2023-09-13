@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
 import agate
+from dbt.exceptions import DbtRuntimeError
 from dbt.adapters.relation_configs.config_base import RelationResults
 from dbt.adapters.relation_configs.config_validation import RelationConfigValidationMixin
 from dbt.contracts.graph.nodes import ModelNode
@@ -70,7 +71,7 @@ class BigQueryMaterializedViewConfig(BigQueryReleationConfigBase, RelationConfig
             ),
             "cluster_by": config_dict.get("cluster_by"),
             "partition_by": config_dict.get("partition_by"),
-            "enable_refresh": config_dict.get("enabled_refresh"),
+            "enable_refresh": config_dict.get("enable_refresh"),
             "refresh_interval_minutes": config_dict.get("refresh_interval_minutes"),
             "hours_to_expiration": config_dict.get("hours_to_expiration"),
             "max_staleness": config_dict.get("max_staleness"),
@@ -107,7 +108,7 @@ class BigQueryMaterializedViewConfig(BigQueryReleationConfigBase, RelationConfig
             "labels": model_node.config.extra.get("labels"),
         }
 
-        autorefresh_value = model_node.config.extra.get("enabled_refresh")
+        autorefresh_value = model_node.config.extra.get("enable_refresh")
         if autorefresh_value is not None:
             if isinstance(autorefresh_value, bool):
                 config_dict["enable_refresh"] = autorefresh_value
@@ -128,9 +129,11 @@ class BigQueryMaterializedViewConfig(BigQueryReleationConfigBase, RelationConfig
 
     @classmethod
     def parse_relation_results(cls, relation_results: RelationResults) -> dict:
-        materialized_view: agate.Row = cls._get_first_row(
-            relation_results.get("materialized_view")  # type: ignore[arg-type]
-        )
+        materialized_view_config = relation_results.get("materialized_view")
+        if isinstance(materialized_view_config, agate.Table):
+            materialized_view = cls._get_first_row(materialized_view_config)
+        else:
+            raise DbtRuntimeError("Unsupported type returned ex. None")
 
         config_dict = {
             "materialized_view_name": materialized_view.get("materialized_view_name"),

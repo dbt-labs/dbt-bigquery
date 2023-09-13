@@ -199,6 +199,7 @@ class BigQueryAdapter(BaseAdapter):
     RELATION_TYPES = {
         "TABLE": RelationType.Table,
         "VIEW": RelationType.View,
+        "MATERIALIZED_VIEW": RelationType.MaterializedView,
         "EXTERNAL": RelationType.External,
     }
 

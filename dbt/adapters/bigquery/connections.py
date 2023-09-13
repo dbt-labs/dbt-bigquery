@@ -1,7 +1,10 @@
+import asyncio
+import functools
 import json
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+
 from mashumaro.helper import pass_through
 
 from functools import lru_cache
@@ -104,10 +107,12 @@ class DataprocBatchConfig(ExtensibleDbtClassMixin):
 
 @dataclass
 class BigQueryCredentials(Credentials):
-    method: BigQueryConnectionMethod
+    method: BigQueryConnectionMethod = None  # type: ignore
+
     # BigQuery allows an empty database / project, where it defers to the
     # environment for the project
-    database: Optional[str]  # type: ignore
+    database: Optional[str] = None  # type: ignore
+    schema: Optional[str] = None  # type: ignore
     execution_project: Optional[str] = None
     location: Optional[str] = None
     priority: Optional[Priority] = None
@@ -162,6 +167,11 @@ class BigQueryCredentials(Credentials):
             self.keyfile_json["private_key"] = self.keyfile_json["private_key"].replace(
                 "\\n", "\n"
             )
+        if not self.method:
+            raise DbtRuntimeError("Must specify authentication method")
+
+        if not self.schema:
+            raise DbtRuntimeError("Must specify schema")
 
     @property
     def type(self):
@@ -186,12 +196,9 @@ class BigQueryCredentials(Credentials):
             "job_creation_timeout_seconds",
             "job_execution_timeout_seconds",
             "keyfile",
-            "keyfile_json",
             "timeout_seconds",
-            "token",
             "refresh_token",
             "client_id",
-            "client_secret",
             "token_uri",
             "dataproc_region",
             "dataproc_cluster_name",
@@ -705,7 +712,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
         query_job = client.query(query=sql, job_config=job_config, timeout=job_creation_timeout)
-
         if (
             query_job.location is not None
             and query_job.job_id is not None
@@ -715,8 +721,25 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
             )
 
-        iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
+        # only use async logic if user specifies a timeout
+        if job_execution_timeout:
+            loop = asyncio.new_event_loop()
+            future_iterator = asyncio.wait_for(
+                loop.run_in_executor(None, functools.partial(query_job.result, max_results=limit)),
+                timeout=job_execution_timeout,
+            )
 
+            try:
+                iterator = loop.run_until_complete(future_iterator)
+            except asyncio.TimeoutError:
+                query_job.cancel()
+                raise DbtRuntimeError(
+                    f"Query exceeded configured timeout of {job_execution_timeout}s"
+                )
+            finally:
+                loop.close()
+        else:
+            iterator = query_job.result(max_results=limit)
         return query_job, iterator
 
     def _retry_and_handle(self, msg, conn, fn):

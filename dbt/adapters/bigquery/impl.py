@@ -190,12 +190,16 @@ class BigqueryConfig(AdapterConfig):
     require_partition_filter: Optional[bool] = None
     partition_expiration_days: Optional[int] = None
     merge_update_columns: Optional[str] = None
+    enable_refresh: Optional[bool] = None
+    refresh_interval_minutes: Optional[int] = None
+    max_staleness: Optional[str] = None
 
 
 class BigQueryAdapter(BaseAdapter):
     RELATION_TYPES = {
         "TABLE": RelationType.Table,
         "VIEW": RelationType.View,
+        "MATERIALIZED_VIEW": RelationType.MaterializedView,
         "EXTERNAL": RelationType.External,
     }
 
@@ -620,12 +624,13 @@ class BigQueryAdapter(BaseAdapter):
             table_field = (
                 table.time_partitioning.field.lower() if table.time_partitioning.field else None
             )
+
             table_granularity = table.partitioning_type
             conf_table_field = conf_partition.field
             return (
-                table_field == conf_table_field
+                table_field == conf_table_field.lower()
                 or (conf_partition.time_ingestion_partitioning and table_field is not None)
-            ) and table_granularity == conf_partition.granularity
+            ) and table_granularity.lower() == conf_partition.granularity.lower()
         elif conf_partition and table.range_partitioning is not None:
             dest_part = table.range_partitioning
             conf_part = conf_partition.range or {}

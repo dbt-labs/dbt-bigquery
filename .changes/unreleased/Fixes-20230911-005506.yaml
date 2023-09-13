@@ -1,0 +1,7 @@
+kind: Fixes
+body: Quote column names in struct data types to fix time ingestion partitioning table
+  creation
+time: 2023-09-11T00:55:06.904238+02:00
+custom:
+  Author: Kayrnt
+  Issue: "913"

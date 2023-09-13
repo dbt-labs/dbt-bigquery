@@ -1,3 +1,5 @@
+import time
+
 import agate
 import decimal
 import json
@@ -12,10 +14,12 @@ from unittest.mock import patch, MagicMock, Mock, create_autospec, ANY
 
 import dbt.dataclass_schema
 
+from dbt.adapters.bigquery import PartitionConfig
 from dbt.adapters.bigquery import BigQueryCredentials
 from dbt.adapters.bigquery import BigQueryAdapter
 from dbt.adapters.bigquery import BigQueryRelation
 from dbt.adapters.bigquery import Plugin as BigQueryPlugin
+from google.cloud.bigquery.table import Table
 from dbt.adapters.bigquery.connections import BigQueryConnectionManager
 from dbt.adapters.bigquery.connections import _sanitize_label, _VALIDATE_LABEL_LENGTH_LIMIT
 from dbt.adapters.base.query_headers import MacroQueryStringSetter
@@ -376,7 +380,10 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         mock_client.assert_not_called()
         connection.handle
         mock_client.assert_called_once_with(
-            "dbt-unit-000000", creds, location="Luna Station", client_info=HasUserAgent()
+            "dbt-unit-000000",
+            creds,
+            location="Luna Station",
+            client_info=HasUserAgent(),
         )
 
 
@@ -629,18 +636,39 @@ class TestBigQueryConnectionManager(unittest.TestCase):
 
     @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")
     def test_query_and_results(self, mock_bq):
+        self.mock_client.query = Mock(return_value=Mock(state="DONE"))
         self.connections._query_and_results(
             self.mock_client,
             "sql",
             {"job_param_1": "blah"},
             job_creation_timeout=15,
-            job_execution_timeout=100,
+            job_execution_timeout=3,
         )
 
         mock_bq.QueryJobConfig.assert_called_once()
         self.mock_client.query.assert_called_once_with(
             query="sql", job_config=mock_bq.QueryJobConfig(), timeout=15
         )
+
+    @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")
+    def test_query_and_results_timeout(self, mock_bq):
+        self.mock_client.query = Mock(
+            return_value=Mock(result=lambda *args, **kwargs: time.sleep(4))
+        )
+        with pytest.raises(dbt.exceptions.DbtRuntimeError) as exc:
+            self.connections._query_and_results(
+                self.mock_client,
+                "sql",
+                {"job_param_1": "blah"},
+                job_creation_timeout=15,
+                job_execution_timeout=1,
+            )
+
+        mock_bq.QueryJobConfig.assert_called_once()
+        self.mock_client.query.assert_called_once_with(
+            query="sql", job_config=mock_bq.QueryJobConfig(), timeout=15
+        )
+        assert "Query exceeded configured timeout of 1s" in str(exc.value)
 
     def test_copy_bq_table_appends(self):
         self._copy_table(write_disposition=dbt.adapters.bigquery.impl.WRITE_APPEND)
@@ -1022,6 +1050,30 @@ class TestBigQueryAdapterConversions(TestAdapterConversions):
         expected = ["time", "time", "time"]
         for col_idx, expect in enumerate(expected):
             assert BigQueryAdapter.convert_time_type(agate_table, col_idx) == expect
+
+    # The casing in this case can't be enforced on the API side,
+    # so we have to validate that we have a case-insensitive comparison
+    def test_partitions_match(self):
+        table = Table.from_api_repr(
+            {
+                "tableReference": {
+                    "projectId": "test-project",
+                    "datasetId": "test_dataset",
+                    "tableId": "test_table",
+                },
+                "timePartitioning": {"type": "DAY", "field": "ts"},
+            }
+        )
+        partition_config = PartitionConfig.parse(
+            {
+                "field": "TS",
+                "data_type": "date",
+                "granularity": "day",
+                "time_ingestion_partitioning": False,
+                "copy_partitions": False,
+            }
+        )
+        assert BigQueryAdapter._partitions_match(table, partition_config) is True
 
 
 class TestBigQueryGrantAccessTo(BaseTestBigQueryAdapter):

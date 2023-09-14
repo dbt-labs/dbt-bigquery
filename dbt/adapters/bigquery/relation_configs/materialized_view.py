@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import agate
 from dbt.exceptions import DbtRuntimeError
+from dbt.adapters.relation_configs.config_change import RelationConfigChange
 from dbt.adapters.relation_configs.config_base import RelationResults
 from dbt.adapters.relation_configs.config_validation import RelationConfigValidationMixin
 from dbt.contracts.graph.nodes import ModelNode
@@ -146,12 +147,55 @@ class BigQueryMaterializedViewConfig(BigQueryReleationConfigBase, RelationConfig
         return config_dict
 
 
-@dataclass
-class BigQueryMaterializedViewConfigChangeset:
+@dataclass(frozen=True, eq=True, unsafe_hash=True)
+class BigQueryAutoRefreshConfigChange(RelationConfigChange):
+    context: Optional[bool] = None
+
+    @property
+    def requires_full_refresh(self) -> bool:
+        return False
+
+
+@dataclass(frozen=True, eq=True, unsafe_hash=True)
+class BigQueryPartitionConfigChange(RelationConfigChange):
+    context: Optional[bool] = None
+
     @property
     def requires_full_refresh(self) -> bool:
         return True
 
+
+@dataclass(frozen=True, eq=True, unsafe_hash=True)
+class BigQueryClusterConfigChange(RelationConfigChange):
+    context: Optional[bool] = None
+
+    @property
+    def requires_full_refresh(self) -> bool:
+        return True
+
+
+@dataclass
+class BigQueryMaterializedViewConfigChangeset:
+    partition_by: Optional[BigQueryPartitionConfigChange] = None
+    cluster_by: Optional[BigQueryClusterConfigChange] = None
+    auto_refresh: Optional[BigQueryAutoRefreshConfigChange] = None
+
+    @property
+    def requires_full_refresh(self) -> bool:
+        return any(
+            {
+                self.auto_refresh.requires_full_refresh if self.auto_refresh else False,
+                self.partition_by.requires_full_refresh if self.partition_by else False,
+                self.cluster_by.requires_full_refresh if self.cluster_by else False,
+            }
+        )
+
     @property
     def has_changes(self) -> bool:
-        return True
+        return any(
+            {
+                self.partition_by if self.partition_by else False,
+                self.cluster_by if self.cluster_by else False,
+                self.auto_refresh if self.auto_refresh else False,
+            }
+        )

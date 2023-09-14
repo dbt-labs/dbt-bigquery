@@ -33,7 +33,6 @@ class BigQueryMaterializedViewConfig(BigQueryReleationConfigBase, RelationConfig
     - max_staleness: if the last refresh is within max_staleness interval,
       BigQuery returns data directly from the materialized view without reading base table.
       Otherwise it reads from the base to return results withing the staleness interval.
-    - allow_non_incremental_definition:
     - kms_key_name: user defined Cloud KMS encryption key.
     - friendly_name: A descriptive name for this table.
     - description: A user-friendly description of this table.
@@ -53,7 +52,6 @@ class BigQueryMaterializedViewConfig(BigQueryReleationConfigBase, RelationConfig
     refresh_interval_minutes: Optional[int] = 30
     hours_to_expiration: Optional[int] = None
     max_staleness: Optional[str] = None
-    allow_non_incremental_definition: Optional[bool] = None
     kms_key_name: Optional[str] = None
     friendly_name: Optional[str] = None
     description: Optional[str] = None
@@ -75,9 +73,6 @@ class BigQueryMaterializedViewConfig(BigQueryReleationConfigBase, RelationConfig
             "refresh_interval_minutes": config_dict.get("refresh_interval_minutes"),
             "hours_to_expiration": config_dict.get("hours_to_expiration"),
             "max_staleness": config_dict.get("max_staleness"),
-            "allow_non_incremental_definition": config_dict.get(
-                "allow_non_incremental_definition"
-            ),
             "kms_key_name": config_dict.get("kms_key_name"),
             "friendly_name": config_dict.get("friendly_name"),
             "description": config_dict.get("description"),
@@ -99,9 +94,6 @@ class BigQueryMaterializedViewConfig(BigQueryReleationConfigBase, RelationConfig
             "refresh_interval_minutes": model_node.config.extra.get("refresh_interval_minutes"),
             "hours_to_expiration": model_node.config.extra.get("hours_to_expiration"),
             "max_staleness": model_node.config.extra.get("max_staleness"),
-            "allow_non_incremental_definition": model_node.config.extra.get(
-                "allow_non_incremental_definition"
-            ),
             "kms_key_name": model_node.config.extra.get("kms_key_name"),
             "friendly_name": model_node.config.extra.get("friendly_name"),
             "description": model_node.config.extra.get("description"),
@@ -145,9 +137,6 @@ class BigQueryMaterializedViewConfig(BigQueryReleationConfigBase, RelationConfig
             "refresh_interval_minutes": materialized_view.get("refresh_interval_minutes"),
             "hours_to_expiration": materialized_view.get("hours_to_expiration"),
             "max_staleness": materialized_view.get("max_staleness"),
-            "allow_non_incremental_definition": materialized_view.get(
-                "allow_non_incremental_definition"
-            ),
             "kms_key_name": materialized_view.get("kms_key_name"),
             "friendly_name": materialized_view.get("friendly_name"),
             "description": materialized_view.get("description"),

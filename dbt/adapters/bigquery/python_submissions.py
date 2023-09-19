@@ -1,17 +1,20 @@
-from datetime import datetime
 from typing import Dict, Union
 
 from dbt.adapters.base import PythonJobHelper
 from google.api_core.future.polling import POLLING_PREDICATE
 
 from dbt.adapters.bigquery import BigQueryConnectionManager, BigQueryCredentials
-from dbt.adapters.bigquery.connections import DataprocBatchConfig
 from google.api_core import retry
 from google.api_core.client_options import ClientOptions
 from google.cloud import storage, dataproc_v1  # type: ignore
-from google.protobuf.json_format import ParseDict
 from google.cloud.dataproc_v1.types.batches import Batch
-import time
+
+from dbt.adapters.bigquery.datproc.batch import (
+    create_batch_request,
+    poll_batch_job,
+    DEFAULT_JAR_FILE_URI,
+    update_batch_from_config,
+)
 
 OPERATION_RETRY_TIME = 10
 
@@ -122,33 +125,21 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         return self.parsed_model["config"].get("batch_id")
 
     def _submit_dataproc_job(self) -> Batch:
-        batch = self._configure_batch()
-        parent = f"projects/{self.credential.execution_project}/locations/{self.credential.dataproc_region}"
         batch_id = self._get_batch_id()
-        request = dataproc_v1.CreateBatchRequest(parent=parent, batch=batch, batch_id=batch_id)  # type: ignore
+        request = create_batch_request(
+            batch=self._configure_batch(),
+            batch_id=batch_id,
+            region=self.credential.dataproc_region,
+            project=self.credential.execution_project,
+        )  # type: ignore
         # make the request
         self.job_client.create_batch(request=request)  # type: ignore
-        # using the creat_batch `.result()` method takes quite a while as it waits for all
-        # resources to tear down before returning, so we do the polling ourselves. This is a bit hacky but it works.
-        state = Batch.State.PENDING
-        response = None
-        run_time = 0
-        while state in [Batch.State.PENDING, Batch.State.RUNNING] and run_time < self.timeout:
-            time.sleep(1)
-            response = self.job_client.get_batch(  # type: ignore
-                request=dataproc_v1.GetBatchRequest(name="".join([parent, "/batches/", batch_id])),  # type: ignore
-            )
-            run_time = datetime.now().timestamp() - response.create_time.timestamp()  # type: ignore
-            state = response.state
-        if not response:
-            raise ValueError("No response from Dataproc")
-        if run_time >= self.timeout:
-            raise ValueError(
-                f"Operation did not complete within the designated timeout of {self.timeout} seconds."
-            )
-        if state != Batch.State.SUCCEEDED:
-            raise ValueError(response.state_message)
-        return response
+        return poll_batch_job(
+            parent=request.parent,
+            batch_id=batch_id,
+            job_client=self.job_client,
+            timeout=self.timeout,
+        )
         # there might be useful results here that we can parse and return
         # Dataproc job output is saved to the Cloud Storage bucket
         # allocated to the job. Use regex to obtain the bucket and blob info.
@@ -179,27 +170,11 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         batch.pyspark_batch.main_python_file_uri = self.gcs_location
         jar_file_uri = self.parsed_model["config"].get(
             "jar_file_uri",
-            "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-0.21.1.jar",
+            DEFAULT_JAR_FILE_URI,
         )
         batch.pyspark_batch.jar_file_uris = [jar_file_uri]
 
         # Apply configuration from dataproc_batch key, possibly overriding defaults.
         if self.credential.dataproc_batch:
-            self._update_batch_from_config(self.credential.dataproc_batch, batch)
+            batch = update_batch_from_config(self.credential.dataproc_batch, batch)
         return batch
-
-    @classmethod
-    def _update_batch_from_config(
-        cls, config_dict: Union[Dict, DataprocBatchConfig], target: dataproc_v1.Batch
-    ):
-        try:
-            # updates in place
-            ParseDict(config_dict, target._pb)
-        except Exception as e:
-            docurl = (
-                "https://cloud.google.com/dataproc-serverless/docs/reference/rpc/google.cloud.dataproc.v1"
-                "#google.cloud.dataproc.v1.Batch"
-            )
-            raise ValueError(
-                f"Unable to parse dataproc_batch as valid batch specification. See {docurl}. {str(e)}"
-            ) from e

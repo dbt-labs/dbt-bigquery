@@ -35,11 +35,11 @@ from dbt.adapters.bigquery.python_submissions import (
 )
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse
 from dbt.contracts.graph.manifest import Manifest
-from dbt.events import (
+from dbt.common.events import (
     AdapterLogger,
 )
-from dbt.events.functions import fire_event
-from dbt.events.types import SchemaCreation, SchemaDrop
+from dbt.common.events.functions import fire_event
+from dbt.common.events.types import SchemaCreation, SchemaDrop
 from dbt.utils import filter_null_values
 
 import google.auth

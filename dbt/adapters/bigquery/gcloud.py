@@ -1,4 +1,4 @@
-from dbt.common.events import AdapterLogger
+from dbt.events import AdapterLogger
 import dbt.exceptions
 from dbt.clients.system import run_cmd
 

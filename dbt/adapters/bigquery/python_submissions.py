@@ -9,7 +9,7 @@ from google.api_core.client_options import ClientOptions
 from google.cloud import storage, dataproc_v1  # type: ignore
 from google.cloud.dataproc_v1.types.batches import Batch
 
-from dbt.adapters.bigquery.datproc.batch import (
+from dbt.adapters.bigquery.dataproc.batch import (
     create_batch_request,
     poll_batch_job,
     DEFAULT_JAR_FILE_URI,

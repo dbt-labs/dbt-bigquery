@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, FrozenSet, Optional, Union
 
 import agate
 from dbt.exceptions import DbtRuntimeError
@@ -46,8 +46,8 @@ class BigQueryMaterializedViewConfig(BigQueryReleationConfigBase, RelationConfig
     materialized_view_name: str
     schema_name: str
     database_name: str
-    cluster_by: Optional[Union[List[str], str]] = None
-    partition_by: Optional[Dict[str, Any]] = None
+    cluster_by: Optional[Union[FrozenSet[List[str]], str]] = None
+    partition_by: Optional[FrozenSet[Dict[str, Any]]] = None
     partition_expiration_date: Optional[int] = None
     enable_refresh: Optional[bool] = True
     refresh_interval_minutes: Optional[int] = 30
@@ -70,6 +70,7 @@ class BigQueryMaterializedViewConfig(BigQueryReleationConfigBase, RelationConfig
             ),
             "cluster_by": config_dict.get("cluster_by"),
             "partition_by": config_dict.get("partition_by"),
+            "partition_expiration_date": config_dict.get("partition_expiration_date"),
             "enable_refresh": config_dict.get("enable_refresh"),
             "refresh_interval_minutes": config_dict.get("refresh_interval_minutes"),
             "hours_to_expiration": config_dict.get("hours_to_expiration"),
@@ -134,6 +135,7 @@ class BigQueryMaterializedViewConfig(BigQueryReleationConfigBase, RelationConfig
             "database_name": materialized_view.get("database"),
             "cluster_by": materialized_view.get("cluster_by"),
             "partition_by": materialized_view.get("partition_by"),
+            "partition_expiration_date": materialized_view.get("partition_expiration_date"),
             "enable_refresh": materialized_view.get("enabled_refresh"),
             "refresh_interval_minutes": materialized_view.get("refresh_interval_minutes"),
             "hours_to_expiration": materialized_view.get("hours_to_expiration"),
@@ -158,7 +160,7 @@ class BigQueryAutoRefreshConfigChange(RelationConfigChange):
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
 class BigQueryPartitionConfigChange(RelationConfigChange):
-    context: Optional[bool] = None
+    context: Optional[FrozenSet[Dict[str, Any]]] = None
 
     @property
     def requires_full_refresh(self) -> bool:
@@ -167,7 +169,7 @@ class BigQueryPartitionConfigChange(RelationConfigChange):
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
 class BigQueryClusterConfigChange(RelationConfigChange):
-    context: Optional[bool] = None
+    context: Optional[Union[FrozenSet[List[str]], str]] = None
 
     @property
     def requires_full_refresh(self) -> bool:
@@ -177,6 +179,7 @@ class BigQueryClusterConfigChange(RelationConfigChange):
 @dataclass
 class BigQueryMaterializedViewConfigChangeset:
     partition_by: Optional[BigQueryPartitionConfigChange] = None
+    partition_expiration_days: Optional[BigQueryPartitionConfigChange] = None
     cluster_by: Optional[BigQueryClusterConfigChange] = None
     auto_refresh: Optional[BigQueryAutoRefreshConfigChange] = None
 

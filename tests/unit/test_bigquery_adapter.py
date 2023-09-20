@@ -13,7 +13,6 @@ from requests.exceptions import ConnectionError
 from unittest.mock import patch, MagicMock, Mock, create_autospec, ANY
 
 import dbt.dataclass_schema
-
 from dbt.adapters.bigquery import PartitionConfig
 from dbt.adapters.bigquery import BigQueryCredentials
 from dbt.adapters.bigquery import BigQueryAdapter

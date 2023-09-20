@@ -2,9 +2,18 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from itertools import chain, islice
-
+from dbt.context.providers import RuntimeConfigObject
 from dbt.adapters.base.relation import BaseRelation, ComponentName, InformationSchema
-from dbt.adapters.bigquery.relation_configs import BigQueryIncludePolicy, BigQueryQuotePolicy
+from dbt.adapters.relation_configs import RelationResults, RelationConfigChangeAction
+from dbt.adapters.bigquery.relation_configs import (
+    BigQueryIncludePolicy,
+    BigQueryQuotePolicy,
+    BigQueryMaterializedViewConfig,
+    BigQueryMaterializedViewConfigChangeset,
+    BigQueryAutoRefreshConfigChange,
+    BigQueryClusterConfigChange,
+    BigQueryPartitionConfigChange,
+)
 from dbt.contracts.relation import RelationType
 from dbt.exceptions import CompilationError
 from dbt.utils import filter_null_values
@@ -55,6 +64,42 @@ class BigQueryRelation(BaseRelation):
     @property
     def dataset(self):
         return self.schema
+
+    @classmethod
+    def materialized_view_config_changeset(
+        cls, relaation_results: RelationResults, runtime_config: RuntimeConfigObject
+    ) -> Optional[BigQueryMaterializedViewConfigChangeset]:
+        config_change_collection = BigQueryMaterializedViewConfigChangeset()
+        existing_materialized_view = BigQueryMaterializedViewConfig.from_relation_results(
+            relaation_results
+        )
+        new_materialized_view = BigQueryMaterializedViewConfig.from_model_node(
+            runtime_config.model
+        )
+        assert isinstance(existing_materialized_view, BigQueryMaterializedViewConfig)
+        assert isinstance(new_materialized_view, BigQueryMaterializedViewConfig)
+
+        if new_materialized_view.enable_refresh != existing_materialized_view.enable_refresh:
+            config_change_collection.auto_refresh = BigQueryAutoRefreshConfigChange(
+                action=RelationConfigChangeAction.alter,
+                context=new_materialized_view.enable_refresh,
+            )
+
+        if new_materialized_view.cluster_by != existing_materialized_view.cluster_by:
+            config_change_collection.cluster_by = BigQueryClusterConfigChange(
+                action=RelationConfigChangeAction.alter,
+                context=new_materialized_view.cluster_by,
+            )
+
+        if new_materialized_view.partition_by != existing_materialized_view.partition_by:
+            config_change_collection.partition_by = BigQueryPartitionConfigChange(
+                action=RelationConfigChangeAction.alter,
+                context=new_materialized_view.partition_by,
+            )
+
+        if config_change_collection:
+            return config_change_collection
+        return None
 
     def information_schema(self, identifier: Optional[str] = None) -> "BigQueryInformationSchema":
         return BigQueryInformationSchema.from_relation(self, identifier)

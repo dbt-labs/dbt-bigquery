@@ -9,6 +9,7 @@ from dbt.adapters.relation_configs.config_validation import RelationConfigValida
 from dbt.contracts.graph.nodes import ModelNode
 from dbt.contracts.relation import ComponentName
 from dbt.adapters.bigquery.relation_configs.base import BigQueryReleationConfigBase
+from dbt.adapters.bigquery.utility import bool_setting
 
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
@@ -102,22 +103,9 @@ class BigQueryMaterializedViewConfig(BigQueryReleationConfigBase, RelationConfig
             "labels": model_node.config.extra.get("labels"),
         }
 
-        autorefresh_value = model_node.config.extra.get("enable_refresh")
-        if autorefresh_value is not None:
-            if isinstance(autorefresh_value, bool):
-                config_dict["enable_refresh"] = autorefresh_value
-            elif isinstance(autorefresh_value, str):
-                lower_autorefresh_value = autorefresh_value.lower()
-                if lower_autorefresh_value == "true":
-                    config_dict["enable_refresh"] = True
-                elif lower_autorefresh_value == "false":
-                    config_dict["enable_refresh"] = False
-                else:
-                    raise ValueError(
-                        "Invalide enable_refresh representation. Please used excepted value ex.(True, 'true', 'True')"
-                    )
-            else:
-                raise TypeError("Invalid autorefresh value: expecting boolean or str.")
+        raw_autorefresh_value = model_node.config.extra.get("enable_refresh")
+        auto_refresh_value = bool_setting(raw_autorefresh_value)
+        config_dict["enable_refresh"] = auto_refresh_value
 
         return config_dict
 

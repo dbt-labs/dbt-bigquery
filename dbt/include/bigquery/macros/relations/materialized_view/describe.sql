@@ -1,5 +1,23 @@
 {% macro bigquery__describe_materialized_view(relation) %}
     {%- set _materialized_view_sql -%}
+        -- checks each column to see if its a cluster_by field then adds it to a new list
+        with ClusteringColumns as (
+            select
+                table_name,
+                ARRAY_AGG(
+                case
+                    when clustering_ordinal_position is not null then column_name
+                    else null
+                end
+                ignore nulls
+                ) as clustering_fields
+            from
+                `{{ relation.database }}.{{ relation.schema }}.INFORMATION_SCHEMA.COLUMNS`
+            where
+                table_name = '{{ relation.name }}'
+            GROUP BY
+                table_name
+)
         select
             mv.table_name as materialized_view,
             c.column_name,

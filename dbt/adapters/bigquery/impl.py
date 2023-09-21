@@ -205,7 +205,7 @@ class BigQueryAdapter(BaseAdapter):
 
     Relation = BigQueryRelation
     Column = BigQueryColumn
-    ConnectionManager = BigQueryConnectionManager
+    ConnectionManager: BigQueryConnectionManager = BigQueryConnectionManager  # type: ignore[assignment]
 
     AdapterSpecificConfigs = BigqueryConfig
 
@@ -267,18 +267,7 @@ class BigQueryAdapter(BaseAdapter):
 
     @available
     def list_schemas(self, database: str) -> List[str]:
-        # the database string we get here is potentially quoted. Strip that off
-        # for the API call.
-        database = database.strip("`")
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-
-        def query_schemas():
-            # this is similar to how we have to deal with listing tables
-            all_datasets = client.list_datasets(project=database, max_results=10000)
-            return [ds.dataset_id for ds in all_datasets]
-
-        return self.connections._retry_and_handle(msg="list dataset", conn=conn, fn=query_schemas)
+        return self.connections.list_dataset(database)
 
     @available.parse(lambda *a, **k: False)
     def check_schema_exists(self, database: str, schema: str) -> bool:

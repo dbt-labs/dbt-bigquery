@@ -1,0 +1,6 @@
+kind: Features
+body: Support persisting test results as a view
+time: 2023-09-21T17:51:06.389529-04:00
+custom:
+  Author: mikealfare
+  Issue: "6914"

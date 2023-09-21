@@ -9,6 +9,7 @@ dev: ## Installs adapter in develop mode along with development dependencies
 dev-uninstall: ## Uninstalls all packages while maintaining the virtual environment
                ## Useful when updating versions, or if you accidentally installed into the system interpreter
 	pip freeze | grep -v "^-e" | cut -d "@" -f1 | xargs pip uninstall -y
+	pip uninstall -y dbt-bigquery
 
 .PHONY: ubuntu-py311
 ubuntu-py311: ## Builds and runs an Ubuntu Python 3.11 development container

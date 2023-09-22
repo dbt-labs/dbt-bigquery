@@ -205,7 +205,7 @@ class BigQueryAdapter(BaseAdapter):
 
     Relation = BigQueryRelation
     Column = BigQueryColumn
-    ConnectionManager: BigQueryConnectionManager = BigQueryConnectionManager  # type: ignore[assignment]
+    ConnectionManager = BigQueryConnectionManager
 
     AdapterSpecificConfigs = BigqueryConfig
 

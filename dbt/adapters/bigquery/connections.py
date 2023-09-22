@@ -700,6 +700,20 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         self._retry_and_handle(msg="create dataset", conn=conn, fn=fn)
 
+    def list_dataset(self, database: str):
+        # the database string we get here is potentially quoted. Strip that off
+        # for the API call.
+        database = database.strip("`")
+        conn = self.get_thread_connection()
+        client = conn.handle
+
+        def query_schemas():
+            # this is similar to how we have to deal with listing tables
+            all_datasets = client.list_datasets(project=database, max_results=10000)
+            return [ds.dataset_id for ds in all_datasets]
+
+        return self._retry_and_handle(msg="list dataset", conn=conn, fn=query_schemas)
+
     def _query_and_results(
         self,
         client,

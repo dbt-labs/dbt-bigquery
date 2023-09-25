@@ -5,6 +5,7 @@ import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
+from dbt.events.contextvars import get_node_info
 from mashumaro.helper import pass_through
 
 from functools import lru_cache
@@ -444,7 +445,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
         conn = self.get_thread_connection()
         client = conn.handle
 
-        fire_event(SQLQuery(conn_name=conn.name, sql=sql))
+        fire_event(SQLQuery(conn_name=conn.name, sql=sql, node_info=get_node_info()))
+
         if (
             hasattr(self.profile, "query_comment")
             and self.profile.query_comment
@@ -699,6 +701,20 @@ class BigQueryConnectionManager(BaseConnectionManager):
             return client.create_dataset(dataset_ref, exists_ok=True)
 
         self._retry_and_handle(msg="create dataset", conn=conn, fn=fn)
+
+    def list_dataset(self, database: str):
+        # the database string we get here is potentially quoted. Strip that off
+        # for the API call.
+        database = database.strip("`")
+        conn = self.get_thread_connection()
+        client = conn.handle
+
+        def query_schemas():
+            # this is similar to how we have to deal with listing tables
+            all_datasets = client.list_datasets(project=database, max_results=10000)
+            return [ds.dataset_id for ds in all_datasets]
+
+        return self._retry_and_handle(msg="list dataset", conn=conn, fn=query_schemas)
 
     def _query_and_results(
         self,

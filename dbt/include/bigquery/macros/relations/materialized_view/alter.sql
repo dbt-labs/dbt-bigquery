@@ -14,7 +14,7 @@
 
         alter materialized view {{ relation }}
             set options (
-                {% if auto_refresh %}enable_refresh = {{ auto_refresh.context }}{% endif %}
+                {% if auto_refresh %} enable_refresh = {{ auto_refresh.context }}{% endif %}
             )
 
     {%- endif %}

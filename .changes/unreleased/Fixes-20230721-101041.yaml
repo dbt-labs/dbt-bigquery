@@ -1,0 +1,6 @@
+kind: Fixes
+body: Serverless Spark to Poll with .GetBatch() instead of using operation.result()
+time: 2023-07-21T10:10:41.64843-07:00
+custom:
+  Author: wazi55
+  Issue: "734"

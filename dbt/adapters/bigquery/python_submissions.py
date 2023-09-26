@@ -129,15 +129,15 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         request = create_batch_request(
             batch=self._configure_batch(),
             batch_id=batch_id,
-            region=self.credential.dataproc_region,
-            project=self.credential.execution_project,
+            region=self.credential.dataproc_region,  # type: ignore
+            project=self.credential.execution_project,  # type: ignore
         )  # type: ignore
         # make the request
         self.job_client.create_batch(request=request)  # type: ignore
         return poll_batch_job(
             parent=request.parent,
             batch_id=batch_id,
-            job_client=self.job_client,
+            job_client=self.job_client,  # type: ignore
             timeout=self.timeout,
         )
         # there might be useful results here that we can parse and return

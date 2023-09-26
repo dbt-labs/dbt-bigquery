@@ -16,15 +16,19 @@ _BATCH_RUNNING_STATES = [Batch.State.PENDING, Batch.State.RUNNING]
 DEFAULT_JAR_FILE_URI = "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-0.21.1.jar"
 
 
-def create_batch_request(batch: Batch, batch_id, project, region) -> CreateBatchRequest:
+def create_batch_request(
+    batch: Batch, batch_id: str, project: str, region: str
+) -> CreateBatchRequest:
     return CreateBatchRequest(
         parent=f"projects/{project}/locations/{region}",  # type: ignore
-        batch_id=batch_id,
+        batch_id=batch_id,  # type: ignore
         batch=batch,  # type: ignore
     )
 
 
-def poll_batch_job(parent, batch_id, job_client: BatchControllerClient, timeout: int) -> Batch:
+def poll_batch_job(
+    parent: str, batch_id: str, job_client: BatchControllerClient, timeout: int
+) -> Batch:
     batch_name = "".join([parent, "/batches/", batch_id])
     state = Batch.State.PENDING
     response = None
@@ -38,13 +42,13 @@ def poll_batch_job(parent, batch_id, job_client: BatchControllerClient, timeout:
         state = response.state
     if not response:
         raise ValueError("No response from Dataproc")
-    if run_time >= timeout:
-        raise ValueError(
-            f"Operation did not complete within the designated timeout of {timeout} seconds."
-        )
     if state != Batch.State.SUCCEEDED:
-        raise ValueError(response.state_message)
-    breakpoint()
+        if run_time >= timeout:
+            raise ValueError(
+                f"Operation did not complete within the designated timeout of {timeout} seconds."
+            )
+        else:
+            raise ValueError(response.state_message)
     return response
 
 

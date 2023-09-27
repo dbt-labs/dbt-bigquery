@@ -79,22 +79,22 @@ class BigQueryRelation(BaseRelation):
         assert isinstance(existing_materialized_view, BigQueryMaterializedViewConfig)
         assert isinstance(new_materialized_view, BigQueryMaterializedViewConfig)
 
-        if new_materialized_view.enable_refresh != existing_materialized_view.enable_refresh:
+        if new_materialized_view.auto_refresh != existing_materialized_view.auto_refresh:
             config_change_collection.auto_refresh = BigQueryAutoRefreshConfigChange(
                 action=RelationConfigChangeAction.alter,
-                context=new_materialized_view.enable_refresh,
+                context=new_materialized_view.auto_refresh,
             )
 
-        if new_materialized_view.cluster_by != existing_materialized_view.cluster_by:
-            config_change_collection.cluster_by = BigQueryClusterConfigChange(
+        if new_materialized_view.cluster != existing_materialized_view.cluster:
+            config_change_collection.cluster = BigQueryClusterConfigChange(
                 action=RelationConfigChangeAction.alter,
-                context=new_materialized_view.cluster_by,
+                context=new_materialized_view.cluster,
             )
 
-        if new_materialized_view.partition_by != existing_materialized_view.partition_by:
-            config_change_collection.partition_by = BigQueryPartitionConfigChange(
+        if new_materialized_view.partition != existing_materialized_view.partition:
+            config_change_collection.partition = BigQueryPartitionConfigChange(
                 action=RelationConfigChangeAction.alter,
-                context=new_materialized_view.partition_by,
+                context=new_materialized_view.partition,
             )
 
         if config_change_collection:

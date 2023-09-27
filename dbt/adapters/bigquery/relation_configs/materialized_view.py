@@ -7,7 +7,7 @@ from dbt.adapters.relation_configs.config_base import RelationResults
 from dbt.adapters.relation_configs.config_validation import RelationConfigValidationMixin
 from dbt.contracts.graph.nodes import ModelNode
 from dbt.contracts.relation import ComponentName
-from dbt.adapters.bigquery.relation_configs.base import BigQueryReleationConfigBase
+from dbt.adapters.bigquery.relation_configs._base import BigQueryRelationConfigBase
 from dbt.adapters.bigquery.relation_configs.auto_refresh import (
     BigQueryAutoRefreshConfig,
     BigQueryAutoRefreshConfigChange,
@@ -23,7 +23,7 @@ from dbt.adapters.bigquery.relation_configs.cluster import (
 
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
-class BigQueryMaterializedViewConfig(BigQueryReleationConfigBase, RelationConfigValidationMixin):
+class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase, RelationConfigValidationMixin):
     """
     This config follow the specs found here:
     https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#create_materialized_view_statement

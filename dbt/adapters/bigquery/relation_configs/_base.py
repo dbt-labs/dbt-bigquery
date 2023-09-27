@@ -13,7 +13,7 @@ from dbt.contracts.relation import ComponentName
 
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
-class BigQueryReleationConfigBase(RelationConfigBase):
+class BigQueryRelationConfigBase(RelationConfigBase):
     @classmethod
     def include_policy(cls) -> Policy:
         return BigQueryIncludePolicy()

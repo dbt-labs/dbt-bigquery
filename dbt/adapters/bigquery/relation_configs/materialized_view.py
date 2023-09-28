@@ -49,6 +49,7 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
     hours_to_expiration: Optional[int] = None
     kms_key_name: Optional[str] = None
     labels: Optional[Dict[str, str]] = None
+    description: Optional[str] = None
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "BigQueryMaterializedViewConfig":
@@ -70,6 +71,8 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
             kwargs_dict.update({"kms_key_name": config_dict.get("kms_key_name")})
         if "labels" in config_dict:
             kwargs_dict.update({"labels": config_dict.get("labels")})
+        if "description" in config_dict:
+            kwargs_dict.update({"description": config_dict.get("description")})
 
         if partition := config_dict.get("partition"):
             kwargs_dict.update({"partition": BigQueryPartitionConfig.from_dict(partition)})
@@ -92,6 +95,7 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
             "hours_to_expiration": model_node.config.extra.get("hours_to_expiration"),
             "kms_key_name": model_node.config.extra.get("kms_key_name"),
             "labels": model_node.config.extra.get("labels"),
+            "description": model_node.config.extra.get("description"),
         }
 
         if "partition_by" in model_node.config:
@@ -122,6 +126,7 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
             "hours_to_expiration": materialized_view.get("hours_to_expiration"),
             "kms_key_name": materialized_view.get("kms_key_name"),
             "labels": materialized_view.get("labels"),
+            "description": materialized_view.get("description"),
         }
 
         if materialized_view.get("partition_field"):

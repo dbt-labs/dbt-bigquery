@@ -1,27 +1,26 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import agate
-from dbt.adapters.relation_configs import (
-    RelationConfigChange,
-    RelationConfigValidationMixin,
-)
-from dbt.adapters.bigquery.relation_configs.base import BigQueryReleationConfigBase
+from dbt.adapters.relation_configs import RelationConfigChange, RelationResults
 from dbt.contracts.graph.nodes import ModelNode
+
+from dbt.adapters.bigquery.relation_configs._base import BigQueryRelationConfigBase
 from dbt.adapters.bigquery.utility import bool_setting
 
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
-class BigQueryAutoRefreshConfig(BigQueryReleationConfigBase, RelationConfigValidationMixin):
+class BigQueryAutoRefreshConfig(BigQueryRelationConfigBase):
     """
-    This config dictionary is comprised of three table options all centered around auto_refresh
-    - enable_refresh: Enables autoamtic refresh of materialized view when base table is
-      updated.
-    - refresh_interval_minutes: frequency at which a materialized view will be refeshed.
-        - Note: (default is 30 minutes)
-    - max_staleness: if the last refresh is within max_staleness interval,
-      BigQuery returns data directly from the materialized view without reading base table.
-      Otherwise it reads from the base to return results withing the staleness interval.
+    This config manages materialized view options supporting automatic refresh. See the following for more information:
+    - https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#materialized_view_option_list
+    - https://cloud.google.com/bigquery/docs/materialized-views-create#manage_staleness_and_refresh_frequency
+
+    - enable_refresh: enables automatic refresh based on `refresh_interval_minutes`
+    - refresh_interval_minutes: frequency at which a materialized view will be refreshed
+    - max_staleness: if the last refresh is within the max_staleness interval,
+       BigQuery returns data directly from the materialized view (faster/cheaper) without reading the base table,
+       otherwise it reads from the base table (slower/more expensive) to meet the staleness requirement
     """
 
     enable_refresh: Optional[bool] = True
@@ -29,23 +28,28 @@ class BigQueryAutoRefreshConfig(BigQueryReleationConfigBase, RelationConfigValid
     max_staleness: Optional[str] = None
 
     @classmethod
-    def from_dict(cls, config_dict) -> "BigQueryAutoRefreshConfig":
-        kwargs_dict = {
-            "enable_refresh": config_dict.get("enabled_refresh"),
-            "refresh_interval_minutes": config_dict.get("refresh_interval_minutes"),
-            "max_staleness": config_dict.get("max_staleness"),
-        }
+    def from_dict(cls, config_dict: Dict[str, Any]) -> "BigQueryAutoRefreshConfig":
+        kwargs_dict = {}
+
+        # optional
+        if "enable_refresh" in config_dict:  # boolean
+            kwargs_dict.update({"enable_refresh": config_dict.get("enable_refresh")})
+        if refresh_interval_minutes := config_dict.get("refresh_interval_minutes"):
+            kwargs_dict.update({"refresh_interval_minutes": refresh_interval_minutes})
+        if max_staleness := config_dict.get("max_staleness"):
+            kwargs_dict.update({"max_staleness": max_staleness})
+
         auto_refresh: "BigQueryAutoRefreshConfig" = super().from_dict(kwargs_dict)  # type: ignore
         return auto_refresh
 
     @classmethod
-    def parse_model_node(cls, model_node: ModelNode) -> dict:
+    def parse_model_node(cls, model_node: ModelNode) -> Dict[str, Any]:
         config_dict = {}
-        raw_autorefresh_value = model_node.config.extra.get("enable_refresh")
 
-        if raw_autorefresh_value:
-            auto_refresh_value = bool_setting(raw_autorefresh_value)
-            config_dict.update({"enable_refersh": auto_refresh_value})
+        # check for the key since this is a boolean
+        if "enable_refresh" in model_node.config.extra:
+            enable_refresh = model_node.config.extra.get("enable_refresh")
+            config_dict.update({"enable_refresh": bool_setting(enable_refresh)})
 
         if refresh_interval_minutes := model_node.config.extra.get("refresh_interval_minutes"):
             config_dict.update({"refresh_interval_minutes": refresh_interval_minutes})
@@ -56,17 +60,14 @@ class BigQueryAutoRefreshConfig(BigQueryReleationConfigBase, RelationConfigValid
         return config_dict
 
     @classmethod
-    def parse_relation_results(cls, relation_results_entry: agate.Row) -> dict:
-        config_dict = {}
-        if enable_refresh := relation_results_entry.get("enable_refresh"):
-            auto_refresh_value = bool_setting(enable_refresh)
-            config_dict.update({"enable_refresh": auto_refresh_value})
+    def parse_relation_results(cls, relation_results: RelationResults) -> Dict[str, Any]:
+        relation_results_entry: agate.Row = cls._get_first_row(relation_results.get("relation"))  # type: ignore
 
-        if refresh_interval_minutes := relation_results_entry.get("refresh_interval_minutes"):
-            config_dict.update({"refresh_interval_minutes": refresh_interval_minutes})
-
-        if max_staleness := relation_results_entry.get("max_staleness"):
-            config_dict.update({"max_staleness": max_staleness})
+        config_dict = {
+            "enable_refresh": bool_setting(relation_results_entry.get("enable_refresh")),
+            "refresh_interval_minutes": relation_results_entry.get("refresh_interval_minutes"),
+            "max_staleness": relation_results_entry.get("max_staleness"),
+        }
 
         return config_dict
 

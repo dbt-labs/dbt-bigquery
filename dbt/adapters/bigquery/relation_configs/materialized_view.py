@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 import agate
@@ -13,7 +14,7 @@ from dbt.adapters.bigquery.relation_configs.auto_refresh import (
     BigQueryAutoRefreshConfigChange,
 )
 from dbt.adapters.bigquery.relation_configs.partition import (
-    BigQueryPartitionConfig,
+    PartitionConfig,
     BigQueryPartitionConfigChange,
 )
 from dbt.adapters.bigquery.relation_configs.cluster import (
@@ -44,10 +45,10 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
     materialized_view_name: str
     schema_name: str
     database_name: str
-    partition: Optional[BigQueryPartitionConfig] = None
+    partition: Optional[PartitionConfig] = None
     cluster: Optional[BigQueryClusterConfig] = None
     auto_refresh: Optional[BigQueryAutoRefreshConfig] = None
-    hours_to_expiration: Optional[int] = None
+    expiration_timestamp: Optional[datetime] = None
     kms_key_name: Optional[str] = None
     labels: Optional[Dict[str, str]] = None
     description: Optional[str] = None
@@ -66,17 +67,19 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
         }
 
         # optional
-        if "hours_to_expiration" in config_dict:
-            kwargs_dict.update({"hours_to_expiration": config_dict.get("hours_to_expiration")})
-        if "kms_key_name" in config_dict:
-            kwargs_dict.update({"kms_key_name": config_dict.get("kms_key_name")})
-        if "labels" in config_dict:
-            kwargs_dict.update({"labels": config_dict.get("labels")})
-        if "description" in config_dict:
-            kwargs_dict.update({"description": config_dict.get("description")})
+        optional_attributes = [
+            "expiration_timestamp",
+            "kms_key_name",
+            "labels",
+            "description",
+        ]
+        optional_attributes_set_by_user = {
+            k: v for k, v in config_dict.items() if k in optional_attributes
+        }
+        kwargs_dict.update(optional_attributes_set_by_user)
 
         if partition := config_dict.get("partition"):
-            kwargs_dict.update({"partition": BigQueryPartitionConfig.from_dict(partition)})
+            kwargs_dict.update({"partition": PartitionConfig.parse(partition)})
 
         if cluster := config_dict.get("cluster"):
             kwargs_dict.update({"cluster": BigQueryClusterConfig.from_dict(cluster)})
@@ -88,19 +91,38 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
         return materialized_view
 
     @classmethod
+    def from_model_node(cls, model_node: ModelNode) -> "BigQueryMaterializedViewConfig":
+        materialized_view = super().from_model_node(model_node)
+        if isinstance(materialized_view, BigQueryMaterializedViewConfig):
+            return materialized_view
+        else:
+            raise DbtRuntimeError(
+                f"An unexpected error occurred in BigQueryMaterializedViewConfig.from_model_node:\n"
+                f"    Expected: BigQueryMaterializedViewConfig\n"
+                f"    Actual: {materialized_view}"
+            )
+
+    @classmethod
     def parse_model_node(cls, model_node: ModelNode) -> Dict[str, Any]:
         config_dict = {
             "materialized_view_name": model_node.identifier,
             "schema_name": model_node.schema,
             "database_name": model_node.database,
-            "hours_to_expiration": model_node.config.extra.get("hours_to_expiration"),
             "kms_key_name": model_node.config.extra.get("kms_key_name"),
             "labels": model_node.config.extra.get("labels"),
-            "description": model_node.config.extra.get("description"),
         }
 
+        if description := model_node.config.extra.get("description"):
+            if model_node.config.persist_docs:
+                config_dict.update({"description": description})
+
+        if hours_to_expiration := model_node.config.extra.get("hours_to_expiration"):
+            config_dict.update(
+                {"expiration_timestamp": datetime.now() + timedelta(hours=hours_to_expiration)}
+            )
+
         if "partition_by" in model_node.config:
-            config_dict.update({"partition": BigQueryPartitionConfig.parse_model_node(model_node)})
+            config_dict.update({"partition": PartitionConfig.parse_model_node(model_node)})
 
         if "cluster_by" in model_node.config:
             config_dict.update({"cluster": BigQueryClusterConfig.parse_model_node(model_node)})
@@ -124,7 +146,7 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
             "materialized_view_name": materialized_view.get("materialized_view_name"),
             "schema_name": materialized_view.get("schema"),
             "database_name": materialized_view.get("database"),
-            "hours_to_expiration": materialized_view.get("hours_to_expiration"),
+            "expiration_timestamp": materialized_view.get("expiration_timestamp"),
             "kms_key_name": materialized_view.get("kms_key_name"),
             "labels": materialized_view.get("labels"),
             "description": materialized_view.get("description"),
@@ -132,7 +154,7 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
 
         if materialized_view.get("partition_field"):
             config_dict.update(
-                {"partition": BigQueryPartitionConfig.parse_relation_results(materialized_view)}
+                {"partition": PartitionConfig.parse_relation_results(materialized_view)}
             )
 
         if materialized_view.get("cluster_by"):

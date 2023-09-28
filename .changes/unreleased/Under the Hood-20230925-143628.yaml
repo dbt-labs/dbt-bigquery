@@ -1,6 +1,0 @@
-kind: Under the Hood
-body: Add tests for inlined limit + sql-header in dbt show query
-time: 2023-09-25T14:36:28.335466+01:00
-custom:
-  Author: michelleark
-  Issue: "940"

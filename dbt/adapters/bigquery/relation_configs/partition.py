@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 
 import agate
 
-from dbt.adapters.relation_configs import RelationConfigChange, RelationResults
+from dbt.adapters.relation_configs import RelationConfigChange
 from dbt.contracts.graph.nodes import ModelNode
 from dbt.dataclass_schema import StrEnum
 
@@ -80,13 +80,11 @@ class BigQueryPartitionConfig(BigQueryRelationConfigBase):
         return config_dict
 
     @classmethod
-    def parse_relation_results(cls, relation_results: RelationResults) -> Dict[str, Any]:
-        relation_results_entry: agate.Row = cls._get_first_row(relation_results["relation"])  # type: ignore
-
+    def parse_relation_results(cls, relation_results_entry: agate.Row) -> Dict[str, Any]:  # type: ignore
         config_dict = {
-            "field": relation_results_entry.get("field"),
-            "data_type": relation_results_entry.get("data_type"),
-            "granularity": relation_results_entry.get("granularity"),
+            "field": relation_results_entry.get("partition_field"),
+            "data_type": relation_results_entry.get("partition_data_type"),
+            "granularity": relation_results_entry.get("partition_granularity"),
         }
 
         # combine range fields into dictionary, like the model config

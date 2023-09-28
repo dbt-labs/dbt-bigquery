@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, FrozenSet
 
 import agate
-from dbt.adapters.relation_configs import RelationConfigChange, RelationResults
+from dbt.adapters.relation_configs import RelationConfigChange
 from dbt.contracts.graph.nodes import ModelNode
 
 from dbt.adapters.bigquery.relation_configs._base import BigQueryRelationConfigBase
@@ -40,12 +40,9 @@ class BigQueryClusterConfig(BigQueryRelationConfigBase):
         return config_dict
 
     @classmethod
-    def parse_relation_results(cls, relation_results: RelationResults) -> Dict[str, Any]:
-        relation_results_entry: agate.Row = cls._get_first_row(relation_results["relation"])  # type: ignore
-
+    def parse_relation_results(cls, relation_results_entry: agate.Row) -> Dict[str, Any]:  # type: ignore
         field_list = relation_results_entry.get("cluster_by", "")
         config_dict = {"fields": frozenset(field_list.split(","))}
-
         return config_dict
 
 

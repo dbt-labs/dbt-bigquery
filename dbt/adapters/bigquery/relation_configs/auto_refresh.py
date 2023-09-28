@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 import agate
-from dbt.adapters.relation_configs import RelationConfigChange, RelationResults
+from dbt.adapters.relation_configs import RelationConfigChange
 from dbt.contracts.graph.nodes import ModelNode
 
 from dbt.adapters.bigquery.relation_configs._base import BigQueryRelationConfigBase
@@ -60,15 +60,12 @@ class BigQueryAutoRefreshConfig(BigQueryRelationConfigBase):
         return config_dict
 
     @classmethod
-    def parse_relation_results(cls, relation_results: RelationResults) -> Dict[str, Any]:
-        relation_results_entry: agate.Row = cls._get_first_row(relation_results.get("relation"))  # type: ignore
-
+    def parse_relation_results(cls, relation_results_entry: agate.Row) -> Dict[str, Any]:  # type: ignore
         config_dict = {
             "enable_refresh": bool_setting(relation_results_entry.get("enable_refresh")),
             "refresh_interval_minutes": relation_results_entry.get("refresh_interval_minutes"),
             "max_staleness": relation_results_entry.get("max_staleness"),
         }
-
         return config_dict
 
 

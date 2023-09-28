@@ -38,6 +38,7 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
     - hours_to_expiration: The time when table expires
     - kms_key_name: user defined Cloud KMS encryption key
     - labels: used to organized and group objects
+    - description: user description for materialized view
     """
 
     materialized_view_name: str

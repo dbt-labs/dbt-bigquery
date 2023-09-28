@@ -141,7 +141,9 @@ class BigQueryAdapter(BaseAdapter):
         conn = self.connections.get_thread_connection()
 
         table_ref = self.get_table_ref_from_relation(relation)
-        conn.handle.delete_table(table_ref)
+
+        # mimic "drop if exists" functionality that's ubiquitous in most sql implementations
+        conn.handle.delete_table(table_ref, not_found_ok=True)
 
     def truncate_relation(self, relation: BigQueryRelation) -> None:
         raise dbt.exceptions.NotImplementedError("`truncate` is not implemented for this adapter!")

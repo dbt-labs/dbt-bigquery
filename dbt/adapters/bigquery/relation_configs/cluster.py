@@ -39,7 +39,7 @@ class BigQueryClusterConfig(BigQueryReleationConfigBase, RelationConfigValidatio
     def parse_relation_results(cls, relation_results_entry: agate.Row) -> dict:
         config_dict = {}
 
-        if cluster_by := relation_results_entry.config.extra.get("cluster_by"):
+        if cluster_by := relation_results_entry.get("cluster_by"):
             config_dict.update({"cluster_by": cluster_by})
 
         return config_dict

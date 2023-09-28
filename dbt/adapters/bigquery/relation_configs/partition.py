@@ -48,12 +48,10 @@ class BigQueryPartitionConfig(BigQueryReleationConfigBase, RelationConfigValidat
     def parse_relation_results(cls, relation_results_entry: agate.Row) -> dict:
         config_dict = {}
 
-        if partition_by := relation_results_entry.config.extra.get("partition_by"):
+        if partition_by := relation_results_entry.get("partition_by"):
             config_dict.update({"partition_by": partition_by})
 
-        if partition_expiration_days := relation_results_entry.config.extra.get(
-            "partition_expiration_days"
-        ):
+        if partition_expiration_days := relation_results_entry.get("partition_expiration_days"):
             config_dict.update({"partition_expiration_days": partition_expiration_days})
 
         return config_dict

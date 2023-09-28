@@ -1,97 +1,128 @@
-from collections import namedtuple
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import agate
-
-from dbt.adapters.relation_configs import RelationConfigChange
 from dbt.contracts.graph.nodes import ModelNode
-from dbt.dataclass_schema import StrEnum
-
-from dbt.adapters.bigquery.relation_configs._base import BigQueryRelationConfigBase
-
-
-class PartitionDataType(StrEnum):
-    TIMESTAMP = "timestamp"
-    DATE = "date"
-    DATETIME = "datetime"
-    INT64 = "int64"
+from dbt.dataclass_schema import dbtClassMixin, ValidationError
+import dbt.exceptions
+from dbt.adapters.relation_configs import RelationConfigChange
 
 
-class PartitionGranularity(StrEnum):
-    HOUR = "hour"
-    DAY = "day"
-    MONTH = "month"
-    YEAR = "year"
-
-
-PartitionRange = namedtuple("PartitionRange", ["start", "end", "interval"])
-
-
-@dataclass(frozen=True, eq=True, unsafe_hash=True)
-class BigQueryPartitionConfig(BigQueryRelationConfigBase):
-    """
-    This config manages table options supporting partitioning. See the following for more information:
-        - https://docs.getdbt.com/reference/resource-configs/bigquery-configs#using-table-partitioning-and-clustering
-        - https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#partition_expression
-
-    - field: field to partition on
-        - Note: Must be partitioned in the same way as base table
-    - data_type: data type of `field`
-    - granularity: size of the buckets for non-int64 `data_type`
-    - range: size of the buckets for int64 `data_type`
-    - time_ingestion_partitioning: supports partitioning by row creation time
-    """
-
+@dataclass
+class PartitionConfig(dbtClassMixin):
     field: str
-    data_type: PartitionDataType
-    granularity: Optional[PartitionGranularity] = None
-    range: Optional[PartitionRange] = None
-    time_ingestion_partitioning: Optional[bool] = False
+    data_type: str = "date"
+    granularity: str = "day"
+    range: Optional[Dict[str, Any]] = None
+    time_ingestion_partitioning: bool = False
+    copy_partitions: bool = False
+
+    PARTITION_DATE = "_PARTITIONDATE"
+    PARTITION_TIME = "_PARTITIONTIME"
+
+    def data_type_for_partition(self):
+        """Return the data type of partitions for replacement.
+        When time_ingestion_partitioning is enabled, the data type supported are date & timestamp.
+        """
+        if not self.time_ingestion_partitioning:
+            return self.data_type
+
+        return "date" if self.data_type == "date" else "timestamp"
+
+    def reject_partition_field_column(self, columns: List[Any]) -> List[str]:
+        return [c for c in columns if not c.name.upper() == self.field.upper()]
+
+    def data_type_should_be_truncated(self):
+        """Return true if the data type should be truncated instead of cast to the data type."""
+        return not (
+            self.data_type == "int64" or (self.data_type == "date" and self.granularity == "day")
+        )
+
+    def time_partitioning_field(self) -> str:
+        """Return the time partitioning field name based on the data type.
+        The default is _PARTITIONTIME, but for date it is _PARTITIONDATE
+        else it will fail statements for type mismatch."""
+        if self.data_type == "date":
+            return self.PARTITION_DATE
+        else:
+            return self.PARTITION_TIME
+
+    def insertable_time_partitioning_field(self) -> str:
+        """Return the insertable time partitioning field name based on the data type.
+        Practically, only _PARTITIONTIME works so far.
+        The function is meant to keep the call sites consistent as it might evolve."""
+        return self.PARTITION_TIME
+
+    def render(self, alias: Optional[str] = None):
+        column: str = (
+            self.field if not self.time_ingestion_partitioning else self.time_partitioning_field()
+        )
+        if alias:
+            column = f"{alias}.{column}"
+
+        if self.data_type_should_be_truncated():
+            return f"{self.data_type}_trunc({column}, {self.granularity})"
+        else:
+            return column
+
+    def render_wrapped(self, alias: Optional[str] = None):
+        """Wrap the partitioning column when time involved to ensure it is properly cast to matching time."""
+        # if data type is going to be truncated, no need to wrap
+        if (
+            self.data_type in ("date", "timestamp", "datetime")
+            and not self.data_type_should_be_truncated()
+            and not (
+                self.time_ingestion_partitioning and self.data_type == "date"
+            )  # _PARTITIONDATE is already a date
+        ):
+            return f"{self.data_type}({self.render(alias)})"
+        else:
+            return self.render(alias)
 
     @classmethod
-    def from_dict(cls, config_dict: Dict[str, Any]) -> "BigQueryPartitionConfig":
-        # required
-        kwargs_dict = {
-            "field": config_dict.get("field"),
-            "data_type": config_dict.get("data_type"),
-        }
-
-        # optional
-        if granularity := config_dict.get("granularity"):
-            config_dict.update({"granularity": granularity})
-        if partition_range := config_dict.get("range"):
-            config_dict.update({"range": PartitionRange(**partition_range)})
-
-        partition: "BigQueryPartitionConfig" = super().from_dict(kwargs_dict)  # type: ignore
-        return partition
+    def parse(cls, raw_partition_by) -> Optional["PartitionConfig"]:
+        if raw_partition_by is None:
+            return None
+        try:
+            cls.validate(raw_partition_by)
+            return cls.from_dict(
+                {
+                    key: (value.lower() if isinstance(value, str) else value)
+                    for key, value in raw_partition_by.items()
+                }
+            )
+        except ValidationError as exc:
+            raise dbt.exceptions.DbtValidationError("Could not parse partition config") from exc
+        except TypeError:
+            raise dbt.exceptions.CompilationError(
+                f"Invalid partition_by config:\n"
+                f"  Got: {raw_partition_by}\n"
+                f'  Expected a dictionary with "field" and "data_type" keys'
+            )
 
     @classmethod
     def parse_model_node(cls, model_node: ModelNode) -> Dict[str, Any]:
-        partition_by = model_node.config.extra.get("partition_by", {})
-
-        config_dict = {
-            "field": partition_by.get("field"),
-            "data_type": partition_by.get("data_type"),
-            "granularity": partition_by.get("granularity"),
-            "range": partition_by.get("range", {}),
-        }
-
-        return config_dict
+        """
+        Parse model node into a raw config for `PartitionConfig.parse`
+        """
+        return model_node.config.extra.get("partition_by")
 
     @classmethod
-    def parse_relation_results(cls, relation_results_entry: agate.Row) -> Dict[str, Any]:  # type: ignore
+    def parse_relation_results(cls, describe_relation_results: agate.Row) -> Dict[str, Any]:
+        """
+        Parse the results of a describe query into a raw config for `PartitionConfig.parse`
+        """
         config_dict = {
-            "field": relation_results_entry.get("partition_field"),
-            "data_type": relation_results_entry.get("partition_data_type"),
-            "granularity": relation_results_entry.get("partition_granularity"),
+            "field": describe_relation_results.get("partition_field"),
+            "data_type": describe_relation_results.get("partition_data_type"),
+            "granularity": describe_relation_results.get("partition_granularity"),
         }
 
         # combine range fields into dictionary, like the model config
         range_dict = {
-            "start": relation_results_entry.get("partition_start"),
-            "end": relation_results_entry.get("partition_end"),
-            "interval": relation_results_entry.get("partition_interval"),
+            "start": describe_relation_results.get("partition_start"),
+            "end": describe_relation_results.get("partition_end"),
+            "interval": describe_relation_results.get("partition_interval"),
         }
         config_dict.update({"range": range_dict})
 
@@ -100,7 +131,7 @@ class BigQueryPartitionConfig(BigQueryRelationConfigBase):
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
 class BigQueryPartitionConfigChange(RelationConfigChange):
-    context: BigQueryPartitionConfig
+    context: PartitionConfig
 
     @property
     def requires_full_refresh(self) -> bool:

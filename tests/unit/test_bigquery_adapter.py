@@ -8,9 +8,8 @@ import unittest
 from unittest.mock import patch, MagicMock, create_autospec
 
 import dbt.dataclass_schema
-from dbt.adapters.bigquery import PartitionConfig
-from dbt.adapters.bigquery import BigQueryAdapter
-from dbt.adapters.bigquery import BigQueryRelation
+from dbt.adapters.bigquery.relation_configs import PartitionConfig
+from dbt.adapters.bigquery import BigQueryAdapter, BigQueryRelation
 from dbt.adapters.bigquery import Plugin as BigQueryPlugin
 from google.cloud.bigquery.table import Table
 from dbt.adapters.bigquery.connections import _sanitize_label, _VALIDATE_LABEL_LENGTH_LIMIT

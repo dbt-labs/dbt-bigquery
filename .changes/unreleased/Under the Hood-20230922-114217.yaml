@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: update SQLQuery to include node_info
+time: 2023-09-22T11:42:17.770033-07:00
+custom:
+  Author: colin-rogers-dbt
+  Issue: "936"

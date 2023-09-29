@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from dbt.adapters.bigquery.python_submissions import ServerlessDataProcHelper
+from dbt.adapters.bigquery.dataproc.batch import update_batch_from_config
 from google.cloud import dataproc_v1
 
 from .test_bigquery_adapter import BaseTestBigQueryAdapter
@@ -39,7 +39,7 @@ class TestConfigureDataprocBatch(BaseTestBigQueryAdapter):
 
         batch = dataproc_v1.Batch()
 
-        ServerlessDataProcHelper._update_batch_from_config(raw_batch_config, batch)
+        batch = update_batch_from_config(raw_batch_config, batch)
 
         def to_str_values(d):
             """google's protobuf types expose maps as dict[str, str]"""

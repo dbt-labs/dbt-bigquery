@@ -217,6 +217,10 @@ class BigQueryAdapter(BaseAdapter):
         ConstraintType.foreign_key: ConstraintSupport.ENFORCED,
     }
 
+    def __init__(self, config) -> None:
+        super().__init__(config)
+        self.connections: BigQueryConnectionManager = self.connections
+
     ###
     # Implementations of abstract methods
     ###
@@ -267,18 +271,7 @@ class BigQueryAdapter(BaseAdapter):
 
     @available
     def list_schemas(self, database: str) -> List[str]:
-        # the database string we get here is potentially quoted. Strip that off
-        # for the API call.
-        database = database.strip("`")
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-
-        def query_schemas():
-            # this is similar to how we have to deal with listing tables
-            all_datasets = client.list_datasets(project=database, max_results=10000)
-            return [ds.dataset_id for ds in all_datasets]
-
-        return self.connections._retry_and_handle(msg="list dataset", conn=conn, fn=query_schemas)
+        return self.connections.list_dataset(database)
 
     @available.parse(lambda *a, **k: False)
     def check_schema_exists(self, database: str, schema: str) -> bool:
@@ -480,40 +473,6 @@ class BigQueryAdapter(BaseAdapter):
             type_ = column_override.get(col_name, inferred_type)
             bq_schema.append(SchemaField(col_name, type_))  # type: ignore[arg-type]
         return bq_schema
-
-    def _materialize_as_view(self, model: Dict[str, Any]) -> str:
-        model_database = model.get("database")
-        model_schema = model.get("schema")
-        model_alias = model.get("alias")
-        model_code = model.get("compiled_code")
-
-        logger.debug("Model SQL ({}):\n{}".format(model_alias, model_code))
-        self.connections.create_view(
-            database=model_database, schema=model_schema, table_name=model_alias, sql=model_code
-        )
-        return "CREATE VIEW"
-
-    def _materialize_as_table(
-        self,
-        model: Dict[str, Any],
-        model_sql: str,
-        decorator: Optional[str] = None,
-    ) -> str:
-        model_database = model.get("database")
-        model_schema = model.get("schema")
-        model_alias = model.get("alias")
-
-        if decorator is None:
-            table_name = model_alias
-        else:
-            table_name = "{}${}".format(model_alias, decorator)
-
-        logger.debug("Model SQL ({}):\n{}".format(table_name, model_sql))
-        self.connections.create_table(
-            database=model_database, schema=model_schema, table_name=table_name, sql=model_sql
-        )
-
-        return "CREATE TABLE"
 
     @available.parse(lambda *a, **k: "")
     def copy_table(self, source, destination, materialization):

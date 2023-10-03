@@ -1,6 +1,11 @@
 import pytest
 
-from dbt.tests.adapter.store_test_failures_tests.basic import StoreTestFailures
+from dbt.tests.adapter.store_test_failures_tests.basic import (
+    StoreTestFailuresAsGeneric,
+    StoreTestFailuresAsInteractions,
+    StoreTestFailuresAsProjectLevelOff,
+    StoreTestFailuresAsProjectLevelView,
+)
 from dbt.tests.adapter.store_test_failures_tests.test_store_test_failures import (
     StoreTestFailuresBase,
 )
@@ -24,5 +29,17 @@ class TestBigQueryStoreTestFailures(StoreTestFailuresBase):
         self.run_tests_store_failures_and_assert(project)
 
 
-class TestStoreTestFailures(StoreTestFailures):
+class TestBigQueryStoreTestFailuresAsInteractions(StoreTestFailuresAsInteractions):
+    pass
+
+
+class TestBigQueryStoreTestFailuresAsProjectLevelOff(StoreTestFailuresAsProjectLevelOff):
+    pass
+
+
+class TestBigQueryStoreTestFailuresAsProjectLevelView(StoreTestFailuresAsProjectLevelView):
+    pass
+
+
+class TestBigQueryStoreTestFailuresAsGeneric(StoreTestFailuresAsGeneric):
     pass

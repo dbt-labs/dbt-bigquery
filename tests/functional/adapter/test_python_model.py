@@ -1,5 +1,6 @@
 import os
 import pytest
+import time
 from dbt.tests.util import run_dbt, run_dbt_and_capture, write_file
 import dbt.tests.adapter.python_model.test_python_model as dbt_tests
 
@@ -63,6 +64,93 @@ def model(dbt, spark):
     data = [[1,2]] * 10
     return spark.createDataFrame(data, schema=['test1', 'test3'])
 """
+
+models__python_array_batch_id_python = """
+import pandas as pd
+
+def model(dbt, spark):
+    random_array = [
+        [9001.3985362160208, -157.9871329592354],
+        [-817.8786101352823, -528.9769041860632],
+        [-886.6488625065194, 941.0504221837489],
+        [6.69525238666165, 919.5903586746183],
+        [754.3718741592056, -121.25678519054622],
+        [-352.3158889341157, 254.9985130814921],
+        [563.0633042715097, 833.2963094260072],
+    ]
+
+    df = pd.DataFrame(random_array, columns=["A", "B"])
+
+    df["C"] = df["A"] * df["B"]
+
+    final_df = df[["A", "B", "C"]]
+
+    return final_df
+"""
+
+models__python_array_batch_id_yaml = """
+models:
+  - name: python_array_batch_id
+    description: A random table with a calculated column defined in python.
+    config:
+      batch_id: '{{ run_started_at.strftime("%Y-%m-%d-%H-%M-%S") }}-python-array'
+    columns:
+      - name: A
+        description: Column A
+      - name: B
+        description: Column B
+      - name: C
+        description: Column C
+"""
+
+custom_ts_id = str("custom-" + str(time.time()).replace(".", "-"))
+
+models__bad_python_array_batch_id_yaml = f"""
+models:
+  - name: python_array_batch_id
+    description: A random table with a calculated column defined in python.
+    config:
+      batch_id: {custom_ts_id}-python-array
+    columns:
+      - name: A
+        description: Column A
+      - name: B
+        description: Column B
+      - name: C
+        description: Column C
+"""
+
+
+class TestPythonBatchIdModels:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "python_array_batch_id.py": models__python_array_batch_id_python,
+            "python_array_batch_id.yml": models__python_array_batch_id_yaml,
+        }
+
+    def test_multiple_named_python_models(self, project):
+        result, output = run_dbt_and_capture(["run"], expect_pass=True)
+        time.sleep(5)  # In case both runs are submitted simultaneously
+        result_two, output_two = run_dbt_and_capture(["run"], expect_pass=True)
+        assert len(result) == 1
+        assert len(result_two) == 1
+
+
+class TestPythonDuplicateBatchIdModels:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "python_array_batch_id.py": models__python_array_batch_id_python,
+            "python_array_batch_id.yml": models__bad_python_array_batch_id_yaml,
+        }
+
+    def test_multiple_python_models_fixed_id(self, project):
+        result, output = run_dbt_and_capture(["run"], expect_pass=True)
+        result_two, output_two = run_dbt_and_capture(["run"], expect_pass=False)
+        assert result_two[0].message.startswith("409 Already exists: Failed to create batch:")
+        assert len(result) == 1
+        assert len(result_two) == 1
 
 
 @pytest.mark.skip(reason=TEST_SKIP_MESSAGE)

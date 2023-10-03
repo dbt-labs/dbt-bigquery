@@ -82,7 +82,7 @@ class BigQueryColumn(Column):
     def data_type(self) -> str:
         if self.dtype.upper() == "RECORD":
             subcols = [
-                "{} {}".format(col.name, col.data_type) for col in self.fields  # type: ignore[attr-defined]
+                "{} {}".format(col.quoted, col.data_type) for col in self.fields  # type: ignore[attr-defined]
             ]
             field_type = "STRUCT<{}>".format(", ".join(subcols))
 

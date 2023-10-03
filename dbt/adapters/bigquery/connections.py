@@ -1,7 +1,11 @@
+import asyncio
+import functools
 import json
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+
+from dbt.events.contextvars import get_node_info
 from mashumaro.helper import pass_through
 
 from functools import lru_cache
@@ -104,10 +108,12 @@ class DataprocBatchConfig(ExtensibleDbtClassMixin):
 
 @dataclass
 class BigQueryCredentials(Credentials):
-    method: BigQueryConnectionMethod
+    method: BigQueryConnectionMethod = None  # type: ignore
+
     # BigQuery allows an empty database / project, where it defers to the
     # environment for the project
-    database: Optional[str]  # type: ignore
+    database: Optional[str] = None  # type: ignore
+    schema: Optional[str] = None  # type: ignore
     execution_project: Optional[str] = None
     location: Optional[str] = None
     priority: Optional[Priority] = None
@@ -162,6 +168,11 @@ class BigQueryCredentials(Credentials):
             self.keyfile_json["private_key"] = self.keyfile_json["private_key"].replace(
                 "\\n", "\n"
             )
+        if not self.method:
+            raise DbtRuntimeError("Must specify authentication method")
+
+        if not self.schema:
+            raise DbtRuntimeError("Must specify schema")
 
     @property
     def type(self):
@@ -186,12 +197,9 @@ class BigQueryCredentials(Credentials):
             "job_creation_timeout_seconds",
             "job_execution_timeout_seconds",
             "keyfile",
-            "keyfile_json",
             "timeout_seconds",
-            "token",
             "refresh_token",
             "client_id",
-            "client_secret",
             "token_uri",
             "dataproc_region",
             "dataproc_cluster_name",
@@ -437,7 +445,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
         conn = self.get_thread_connection()
         client = conn.handle
 
-        fire_event(SQLQuery(conn_name=conn.name, sql=sql))
+        fire_event(SQLQuery(conn_name=conn.name, sql=sql, node_info=get_node_info()))
+
         if (
             hasattr(self.profile, "query_comment")
             and self.profile.query_comment
@@ -693,6 +702,20 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         self._retry_and_handle(msg="create dataset", conn=conn, fn=fn)
 
+    def list_dataset(self, database: str):
+        # the database string we get here is potentially quoted. Strip that off
+        # for the API call.
+        database = database.strip("`")
+        conn = self.get_thread_connection()
+        client = conn.handle
+
+        def query_schemas():
+            # this is similar to how we have to deal with listing tables
+            all_datasets = client.list_datasets(project=database, max_results=10000)
+            return [ds.dataset_id for ds in all_datasets]
+
+        return self._retry_and_handle(msg="list dataset", conn=conn, fn=query_schemas)
+
     def _query_and_results(
         self,
         client,
@@ -706,7 +729,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
         query_job = client.query(query=sql, job_config=job_config, timeout=job_creation_timeout)
-
         if (
             query_job.location is not None
             and query_job.job_id is not None
@@ -716,8 +738,25 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
             )
 
-        iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
+        # only use async logic if user specifies a timeout
+        if job_execution_timeout:
+            loop = asyncio.new_event_loop()
+            future_iterator = asyncio.wait_for(
+                loop.run_in_executor(None, functools.partial(query_job.result, max_results=limit)),
+                timeout=job_execution_timeout,
+            )
 
+            try:
+                iterator = loop.run_until_complete(future_iterator)
+            except asyncio.TimeoutError:
+                query_job.cancel()
+                raise DbtRuntimeError(
+                    f"Query exceeded configured timeout of {job_execution_timeout}s"
+                )
+            finally:
+                loop.close()
+        else:
+            iterator = query_job.result(max_results=limit)
         return query_job, iterator
 
     def _retry_and_handle(self, msg, conn, fn):

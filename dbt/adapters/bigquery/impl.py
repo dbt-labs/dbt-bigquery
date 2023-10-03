@@ -190,12 +190,16 @@ class BigqueryConfig(AdapterConfig):
     require_partition_filter: Optional[bool] = None
     partition_expiration_days: Optional[int] = None
     merge_update_columns: Optional[str] = None
+    enable_refresh: Optional[bool] = None
+    refresh_interval_minutes: Optional[int] = None
+    max_staleness: Optional[str] = None
 
 
 class BigQueryAdapter(BaseAdapter):
     RELATION_TYPES = {
         "TABLE": RelationType.Table,
         "VIEW": RelationType.View,
+        "MATERIALIZED_VIEW": RelationType.MaterializedView,
         "EXTERNAL": RelationType.External,
     }
 
@@ -212,6 +216,10 @@ class BigQueryAdapter(BaseAdapter):
         ConstraintType.primary_key: ConstraintSupport.ENFORCED,
         ConstraintType.foreign_key: ConstraintSupport.ENFORCED,
     }
+
+    def __init__(self, config) -> None:
+        super().__init__(config)
+        self.connections: BigQueryConnectionManager = self.connections
 
     ###
     # Implementations of abstract methods
@@ -263,18 +271,7 @@ class BigQueryAdapter(BaseAdapter):
 
     @available
     def list_schemas(self, database: str) -> List[str]:
-        # the database string we get here is potentially quoted. Strip that off
-        # for the API call.
-        database = database.strip("`")
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-
-        def query_schemas():
-            # this is similar to how we have to deal with listing tables
-            all_datasets = client.list_datasets(project=database, max_results=10000)
-            return [ds.dataset_id for ds in all_datasets]
-
-        return self.connections._retry_and_handle(msg="list dataset", conn=conn, fn=query_schemas)
+        return self.connections.list_dataset(database)
 
     @available.parse(lambda *a, **k: False)
     def check_schema_exists(self, database: str, schema: str) -> bool:
@@ -477,40 +474,6 @@ class BigQueryAdapter(BaseAdapter):
             bq_schema.append(SchemaField(col_name, type_))  # type: ignore[arg-type]
         return bq_schema
 
-    def _materialize_as_view(self, model: Dict[str, Any]) -> str:
-        model_database = model.get("database")
-        model_schema = model.get("schema")
-        model_alias = model.get("alias")
-        model_code = model.get("compiled_code")
-
-        logger.debug("Model SQL ({}):\n{}".format(model_alias, model_code))
-        self.connections.create_view(
-            database=model_database, schema=model_schema, table_name=model_alias, sql=model_code
-        )
-        return "CREATE VIEW"
-
-    def _materialize_as_table(
-        self,
-        model: Dict[str, Any],
-        model_sql: str,
-        decorator: Optional[str] = None,
-    ) -> str:
-        model_database = model.get("database")
-        model_schema = model.get("schema")
-        model_alias = model.get("alias")
-
-        if decorator is None:
-            table_name = model_alias
-        else:
-            table_name = "{}${}".format(model_alias, decorator)
-
-        logger.debug("Model SQL ({}):\n{}".format(table_name, model_sql))
-        self.connections.create_table(
-            database=model_database, schema=model_schema, table_name=table_name, sql=model_sql
-        )
-
-        return "CREATE TABLE"
-
     @available.parse(lambda *a, **k: "")
     def copy_table(self, source, destination, materialization):
         if materialization == "incremental":
@@ -620,12 +583,13 @@ class BigQueryAdapter(BaseAdapter):
             table_field = (
                 table.time_partitioning.field.lower() if table.time_partitioning.field else None
             )
+
             table_granularity = table.partitioning_type
             conf_table_field = conf_partition.field
             return (
-                table_field == conf_table_field
+                table_field == conf_table_field.lower()
                 or (conf_partition.time_ingestion_partitioning and table_field is not None)
-            ) and table_granularity == conf_partition.granularity
+            ) and table_granularity.lower() == conf_partition.granularity.lower()
         elif conf_partition and table.range_partitioning is not None:
             dest_part = table.range_partitioning
             conf_part = conf_partition.range or {}

@@ -113,7 +113,7 @@ df.write \
   {%- if partition_config.data_type | lower in ('date','timestamp','datetime') %}
   .option("partitionField", "{{- partition_config.field -}}") \
   {%- if partition_config.granularity is not none %}
-  .option("partitonType", "{{- partition_config.granularity -}}") \
+  .option("partitionType", "{{- partition_config.granularity -}}") \
   {%- endif %}
   {%- endif %}
   {%- if raw_cluster_by is not none %}

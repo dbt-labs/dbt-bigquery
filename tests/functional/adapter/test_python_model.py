@@ -125,6 +125,7 @@ models:
         description: Column C
 """
 
+
 class TestPythonPartitionedModels:
     @pytest.fixture(scope="class")
     def macros(self):
@@ -138,7 +139,7 @@ class TestPythonPartitionedModels:
         }
 
     def test_multiple_named_python_models(self, project):
-        result= run_dbt(["run"])
+        result = run_dbt(["run"])
         assert len(result) == 1
 
         test_results = run_dbt(["test"])

@@ -1,4 +1,4 @@
-from dbt.tests.util import AnyString, AnyFloat
+from dbt.tests.util import AnyString, AnyInteger
 
 
 def bigquery_stats(is_table, partition=None, cluster=None):
@@ -10,14 +10,14 @@ def bigquery_stats(is_table, partition=None, cluster=None):
                 "num_bytes": {
                     "id": "num_bytes",
                     "label": AnyString(),
-                    "value": AnyFloat(),
+                    "value": AnyInteger(),
                     "description": AnyString(),
                     "include": True,
                 },
                 "num_rows": {
                     "id": "num_rows",
                     "label": AnyString(),
-                    "value": AnyFloat(),
+                    "value": AnyInteger(),
                     "description": AnyString(),
                     "include": True,
                 },

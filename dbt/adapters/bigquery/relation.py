@@ -4,6 +4,7 @@ from typing import Optional
 from itertools import chain, islice
 
 from dbt.adapters.base.relation import BaseRelation, ComponentName, InformationSchema
+from dbt.contracts.relation import RelationType
 from dbt.exceptions import CompilationError
 from dbt.utils import filter_null_values
 from typing import TypeVar
@@ -16,6 +17,9 @@ Self = TypeVar("Self", bound="BigQueryRelation")
 class BigQueryRelation(BaseRelation):
     quote_character: str = "`"
     location: Optional[str] = None
+    # why do we need to use default_factory here but we can assign it directly in dbt-postgres?
+    renameable_relations = frozenset({RelationType.Table})
+    replaceable_relations = frozenset({RelationType.Table, RelationType.View})
 
     def matches(
         self,

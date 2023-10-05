@@ -8,7 +8,7 @@ from dbt.tests.util import run_dbt
 _MACRO__BQ_LABELS = """
 {% macro bq_labels() %}{
     "system": "{{ env_var('LABEL_SYSTEM', 'my_system') }}",
-    "env_type": "{{ env_var('LABEL_ENV', 'dev') }}",
+    "env_type": "{{ env_var('LABEL_ENV', 'dev') }}"
 }{% endmacro %}
 """
 _MODEL__MY_TABLE = """

@@ -1,4 +1,20 @@
 {% macro bigquery__get_describe_partition_sql(relation) %}
+    with max_partition_id as (
+        select
+            table_name,
+            table_schema,
+            table_catalog,
+            max(partition_id) as partition_id
+        from {{ relation.information_schema('PARTITIONS') }}
+        where table_name = '{{ relation.identifier }}'
+        and table_schema = '{{ relation.schema }}'
+        and table_catalog = '{{ relation.database }}'
+        group by
+            table_name,
+            table_schema,
+            table_catalog
+    )
+
     select
         c.column_name as partition_column_name,
         c.data_type as partition_data_type,
@@ -8,14 +24,14 @@
             when regexp_contains(p.partition_id, '^[0-9]{8}$') THEN 'day'
             when regexp_contains(p.partition_id, '^[0-9]{10}$') THEN 'hour'
         end as partition_type
-    from {{ relation.information_schema('PARTITIONS') }} p
-    join {{ relation.information_schema('COLUMNS') }} c
-        on c.table_name = p.table_name
-        and c.table_schema = p.table_schema
-        and c.table_catalog = p.table_catalog
-    where p.table_name = '{{ relation.identifier }}'
-    and p.table_schema = '{{ relation.schema }}'
-    and p.table_catalog = '{{ relation.database }}'
+    from {{ relation.information_schema('COLUMNS') }} c
+    left join max_partition_id p
+        on p.table_name = t.table_name
+        and p.table_schema = t.table_schema
+        and p.table_catalog = t.table_catalog
+    where c.table_name = '{{ relation.identifier }}'
+    and c.table_schema = '{{ relation.schema }}'
+    and c.table_catalog = '{{ relation.database }}'
     and c.is_partitioning_column = 'YES'
 {% endmacro %}
 

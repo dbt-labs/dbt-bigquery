@@ -128,6 +128,22 @@ class PartitionConfig(dbtClassMixin):
 
         return config_dict
 
+    def __eq__(self, other: Any) -> bool:
+        """
+        We can't query partitions on materialized views, hence we are assuming that if the field and data type
+        have not changed, then the partition has not changed either. This should be updated to include the
+        granularity and range once that issue is resolved. Until then, users will need to supply --full-refresh
+        if they keep the field but change the partition granularity.
+        """
+        if isinstance(other, PartitionConfig):
+            return all(
+                {
+                    other.field == self.field,
+                    other.data_type == self.data_type,
+                }
+            )
+        return False
+
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
 class BigQueryPartitionConfigChange(RelationConfigChange):

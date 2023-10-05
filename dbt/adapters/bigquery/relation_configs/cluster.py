@@ -40,9 +40,8 @@ class BigQueryClusterConfig(BigQueryRelationConfigBase):
         return config_dict
 
     @classmethod
-    def parse_relation_results(cls, relation_results_entry: agate.Row) -> Dict[str, Any]:  # type: ignore
-        field_list = relation_results_entry.get("cluster_by", "")
-        config_dict = {"fields": frozenset(field_list.split(","))}
+    def parse_relation_results(cls, relation_results: agate.Table) -> Dict[str, Any]:  # type: ignore
+        config_dict = {"fields": frozenset(row.get("column_name") for row in relation_results)}
         return config_dict
 
 

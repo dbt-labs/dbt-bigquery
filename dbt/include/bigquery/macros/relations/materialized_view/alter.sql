@@ -2,7 +2,9 @@
     relation,
     configuration_changes,
     sql,
-    existing_relation
+    existing_relation,
+    backup_relation,
+    intermediate_relation
 ) %}
 
     {% if configuration_changes.requires_full_refresh %}

@@ -113,9 +113,9 @@ class PartitionConfig(dbtClassMixin):
         Parse the results of a describe query into a raw config for `PartitionConfig.parse`
         """
         config_dict = {
-            "field": describe_relation_results.get("partition_field"),
+            "field": describe_relation_results.get("partition_column_name"),
             "data_type": describe_relation_results.get("partition_data_type"),
-            "granularity": describe_relation_results.get("partition_granularity"),
+            "granularity": describe_relation_results.get("partition_type"),
         }
 
         # combine range fields into dictionary, like the model config

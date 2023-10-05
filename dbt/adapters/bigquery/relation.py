@@ -1,12 +1,11 @@
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import FrozenSet, Optional
 
 from itertools import chain, islice
 from dbt.context.providers import RuntimeConfigObject
 from dbt.adapters.base.relation import BaseRelation, ComponentName, InformationSchema
 from dbt.adapters.relation_configs import RelationResults, RelationConfigChangeAction
 from dbt.adapters.bigquery.relation_configs import (
-    BigQueryIncludePolicy,
     BigQueryQuotePolicy,
     BigQueryMaterializedViewConfig,
     BigQueryMaterializedViewConfigChangeset,
@@ -28,11 +27,13 @@ Self = TypeVar("Self", bound="BigQueryRelation")
 class BigQueryRelation(BaseRelation):
     quote_character: str = "`"
     location: Optional[str] = None
-    include_policy: BigQueryIncludePolicy = field(default_factory=lambda: BigQueryIncludePolicy())
+    # this is causing unit tests to fail
+    # include_policy: BigQueryIncludePolicy = field(default_factory=lambda: BigQueryIncludePolicy())
     quote_policy: BigQueryQuotePolicy = field(default_factory=lambda: BigQueryQuotePolicy())
-    # why do we need to use default_factory here but we can assign it directly in dbt-postgres?
-    renameable_relations = frozenset({RelationType.Table})
-    replaceable_relations = frozenset({RelationType.Table, RelationType.View})
+    renameable_relations: FrozenSet[RelationType] = frozenset({RelationType.Table})
+    replaceable_relations: FrozenSet[RelationType] = frozenset(
+        {RelationType.Table, RelationType.View}
+    )
 
     def matches(
         self,

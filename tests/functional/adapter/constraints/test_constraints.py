@@ -80,11 +80,8 @@ as (
 
 # Different on BigQuery:
 # - does not support a data type named 'text' (TODO handle this via type translation/aliasing!)
-constraints_yml = model_schema_yml.replace("text", "string")
-model_constraints_yml = constrained_model_schema_yml.replace("text", "string")
-model_contract_header_schema_yml = model_contract_header_schema_yml.replace("text", "string")
-model_fk_constraint_schema_yml = model_fk_constraint_schema_yml.replace("text", "string")
-constrained_model_schema_yml = constrained_model_schema_yml.replace("text", "string")
+constraints_yml = model_schema_yml
+model_constraints_yml = constrained_model_schema_yml
 
 my_model_contract_sql_header_sql = """
 {{

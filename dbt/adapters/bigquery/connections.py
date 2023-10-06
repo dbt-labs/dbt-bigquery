@@ -451,9 +451,10 @@ class BigQueryConnectionManager(BaseConnectionManager):
             hasattr(self.profile, "query_comment")
             and self.profile.query_comment
             and self.profile.query_comment.job_label
+            and self.query_header
+            and (query_comment := self.query_header.comment.query_comment)
         ):
-            query_comment = self.profile.query_comment
-            labels = self._labels_from_query_comment(query_comment.comment)
+            labels = self._labels_from_query_comment(query_comment)
         else:
             labels = {}
 

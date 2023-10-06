@@ -428,6 +428,18 @@ class BigQueryConnectionManager(BaseConnectionManager):
         column_names = [field.name for field in resp.schema]
         return agate_helper.table_from_data_flat(resp, column_names)
 
+    def get_labels_from_query_comment(cls):
+        if (
+            hasattr(cls.profile, "query_comment")
+            and cls.profile.query_comment
+            and cls.profile.query_comment.job_label
+            and cls.query_header
+        ):
+            query_comment = cls.query_header.comment.query_comment
+            return cls._labels_from_query_comment(query_comment)
+
+        return {}
+
     def raw_execute(
         self,
         sql,
@@ -440,15 +452,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         fire_event(SQLQuery(conn_name=conn.name, sql=sql, node_info=get_node_info()))
 
-        if (
-            hasattr(self.profile, "query_comment")
-            and self.profile.query_comment
-            and self.profile.query_comment.job_label
-        ):
-            query_comment = self.profile.query_comment
-            labels = self._labels_from_query_comment(query_comment.comment)
-        else:
-            labels = {}
+        labels = self.get_labels_from_query_comment()
 
         if active_user:
             labels["dbt_invocation_id"] = active_user.invocation_id

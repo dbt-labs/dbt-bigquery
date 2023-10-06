@@ -436,18 +436,16 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return agate_helper.table_from_data_flat(resp, column_names)
 
     def get_labels_from_query_comment(cls):
-        labels = {}
-
         if (
             hasattr(cls.profile, "query_comment")
             and cls.profile.query_comment
             and cls.profile.query_comment.job_label
+            and cls.query_header
         ):
-            if cls.query_header:
-                query_comment = cls.query_header.comment.query_comment
-                labels = cls._labels_from_query_comment(query_comment)
+            query_comment = cls.query_header.comment.query_comment
+            return cls._labels_from_query_comment(query_comment)
 
-        return labels
+        return {}
 
     def raw_execute(
         self,

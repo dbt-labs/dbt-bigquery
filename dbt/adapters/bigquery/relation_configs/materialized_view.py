@@ -13,10 +13,7 @@ from dbt.adapters.bigquery.relation_configs.auto_refresh import (
     BigQueryAutoRefreshConfig,
     BigQueryAutoRefreshConfigChange,
 )
-from dbt.adapters.bigquery.relation_configs.partition import (
-    PartitionConfig,
-    BigQueryPartitionConfigChange,
-)
+from dbt.adapters.bigquery.relation_configs.partition import PartitionConfig
 from dbt.adapters.bigquery.relation_configs.cluster import (
     BigQueryClusterConfig,
     BigQueryClusterConfigChange,
@@ -177,7 +174,6 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
 @dataclass
 class BigQueryMaterializedViewConfigChangeset:
     auto_refresh: Optional[BigQueryAutoRefreshConfigChange] = None
-    partition: Optional[BigQueryPartitionConfigChange] = None
     cluster: Optional[BigQueryClusterConfigChange] = None
     expiration_timestamp: Optional[datetime] = None
     kms_key_name: Optional[str] = None
@@ -189,7 +185,6 @@ class BigQueryMaterializedViewConfigChangeset:
         return any(
             {
                 self.auto_refresh.requires_full_refresh if self.auto_refresh else False,
-                self.partition.requires_full_refresh if self.partition else False,
                 self.cluster.requires_full_refresh if self.cluster else False,
             }
         )
@@ -198,8 +193,11 @@ class BigQueryMaterializedViewConfigChangeset:
     def has_changes(self) -> bool:
         return any(
             {
-                self.partition if self.partition else False,
                 self.cluster if self.cluster else False,
                 self.auto_refresh if self.auto_refresh else False,
+                self.expiration_timestamp if self.expiration_timestamp else False,
+                self.kms_key_name if self.kms_key_name else False,
+                self.labels if self.labels else False,
+                self.description if self.description else False,
             }
         )

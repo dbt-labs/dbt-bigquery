@@ -783,6 +783,18 @@ class BigQueryAdapter(BaseAdapter):
 
         return opts
 
+    def describe_relation(self, relation: BigQueryRelation):
+        if relation.type == RelationType.MaterializedView:
+            macro = "bigquery__describe_materialized_view"
+            parser = BigQueryMaterializedViewConfig
+        else:
+            raise dbt.exceptions.DbtRuntimeError(
+                f"The method `BigQueryAdapter.describe_relation` is not implemented "
+                f"for the relation type: {relation.type}."
+            )
+        relation_results = self.execute_macro(macro, kwargs={"relation": relation})
+        return parser.from_relation_results(relation_results)
+
     @available.parse_none
     def grant_access_to(self, entity, entity_type, role, grant_target_dict):
         """

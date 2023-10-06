@@ -11,13 +11,11 @@
     {%- endset %}
     {% set _materialized_view = run_query(_materialized_view_sql) %}
 
-    {%- set _partition_by = bigquery__describe_partition(relation) -%}
     {%- set _cluster_by = bigquery__describe_cluster(relation) -%}
     {%- set _options = bigquery__describe_options(relation) -%}
 
     {% do return({
         'materialized_view': _materialized_view,
-        'partition_by': _partition_by,
         'cluster_by': _cluster_by,
         'options': _options
     }) %}

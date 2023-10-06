@@ -26,9 +26,9 @@
         end as partition_type
     from {{ relation.information_schema('COLUMNS') }} c
     left join max_partition_id p
-        on p.table_name = t.table_name
-        and p.table_schema = t.table_schema
-        and p.table_catalog = t.table_catalog
+        on p.table_name = c.table_name
+        and p.table_schema = c.table_schema
+        and p.table_catalog = c.table_catalog
     where c.table_name = '{{ relation.identifier }}'
     and c.table_schema = '{{ relation.schema }}'
     and c.table_catalog = '{{ relation.database }}'

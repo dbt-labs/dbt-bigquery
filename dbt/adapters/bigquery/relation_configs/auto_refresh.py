@@ -24,7 +24,7 @@ class BigQueryAutoRefreshConfig(BigQueryRelationConfigBase):
     """
 
     enable_refresh: Optional[bool] = True
-    refresh_interval_minutes: Optional[int] = 30
+    refresh_interval_minutes: Optional[float] = 30
     max_staleness: Optional[str] = None
 
     @classmethod
@@ -38,6 +38,10 @@ class BigQueryAutoRefreshConfig(BigQueryRelationConfigBase):
             kwargs_dict.update({"refresh_interval_minutes": refresh_interval_minutes})
         if max_staleness := config_dict.get("max_staleness"):
             kwargs_dict.update({"max_staleness": max_staleness})
+
+        # avoid picking up defaults (e.g. refresh_interval_minutes = 30) when the user turns off refresh
+        if kwargs_dict.get("enable_refresh", True) is False:
+            kwargs_dict.update({"refresh-interval_minutes": None, "max_staleness": None})
 
         auto_refresh: "BigQueryAutoRefreshConfig" = super().from_dict(kwargs_dict)  # type: ignore
         return auto_refresh
@@ -67,9 +71,13 @@ class BigQueryAutoRefreshConfig(BigQueryRelationConfigBase):
         }
         config_dict = {
             "enable_refresh": bool_setting(options.get("enable_refresh")),
-            "refresh_interval_minutes": options.get("refresh_interval_minutes"),
             "max_staleness": options.get("max_staleness"),
         }
+
+        if refresh_interval_minutes := options.get("refresh_interval_minutes"):
+            # refresh_interval_minutes
+            config_dict.update({"refresh_interval_minutes": float(refresh_interval_minutes)})
+
         return config_dict
 
 

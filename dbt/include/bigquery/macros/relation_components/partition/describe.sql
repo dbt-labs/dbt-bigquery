@@ -37,6 +37,6 @@
 
 
 {% macro bigquery__describe_partition(relation) %}
-    {% set _sql = bigquery__get_describe_partition_sql(relation) %}
-    {% do return(run_query(_sql)) %}
+    {% set bq_relation = adapter.connections.get_bq_table(relation.database, relation.schema, relation.identifier) %}
+    {% do return(bq_relation) %}
 {% endmacro %}

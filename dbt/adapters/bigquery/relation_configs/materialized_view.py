@@ -98,10 +98,7 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
 
         # optional
         if partition_by := relation_results.get("partition_by"):
-            if len(partition_by) > 0:
-                config_dict.update(
-                    {"partition": PartitionConfig.parse_relation_results(partition_by[0])}
-                )
+            config_dict.update({"partition": PartitionConfig.parse_relation_results(partition_by)})  # type: ignore
 
         cluster_by: agate.Table = relation_results.get("cluster_by")  # type: ignore
         if len(cluster_by) > 0:

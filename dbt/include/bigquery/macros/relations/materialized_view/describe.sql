@@ -1,4 +1,10 @@
 {% macro bigquery__describe_materialized_view(relation) %}
+    {% set bq_relation = adapter.get_table(relation) %}
+    {% do return(bq_relation) %}
+{% endmacro %}
+
+
+{% macro bigquery__describe_materialized_view_sql(relation) %}
     {%- set _materialized_view_sql -%}
         select
             table_name,
@@ -16,6 +22,7 @@
 
     {% do return({
         'materialized_view': _materialized_view,
+        'partition_by': bigquery__describe_partition(relation),
         'cluster_by': _cluster_by,
         'options': _options
     }) %}

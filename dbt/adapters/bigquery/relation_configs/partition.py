@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-import agate
 from dbt.contracts.graph.nodes import ModelNode
 from dbt.dataclass_schema import dbtClassMixin, ValidationError
 import dbt.exceptions
 from dbt.adapters.relation_configs import RelationConfigChange
+from google.cloud.bigquery.table import Table
 
 
 @dataclass
@@ -108,21 +108,23 @@ class PartitionConfig(dbtClassMixin):
         return model_node.config.extra.get("partition_by")
 
     @classmethod
-    def parse_relation_results(cls, describe_relation_results: agate.Row) -> Dict[str, Any]:
+    def parse_relation_results(cls, bq_table: Table) -> Dict[str, Any]:
         """
-        Parse the results of a describe query into a raw config for `PartitionConfig.parse`
+        Parse the results of a BQ Table object into a raw config for `PartitionConfig.parse`
         """
+        range_partitioning = bq_table.range_partitioning
+        time_partitioning = bq_table.time_partitioning
         config_dict = {
-            "field": describe_relation_results.get("partition_column_name"),
-            "data_type": describe_relation_results.get("partition_data_type"),
-            "granularity": describe_relation_results.get("partition_type"),
+            "field": time_partitioning.field,
+            "data_type": "",
+            "granularity": time_partitioning.type_,
         }
 
         # combine range fields into dictionary, like the model config
         range_dict = {
-            "start": describe_relation_results.get("partition_start"),
-            "end": describe_relation_results.get("partition_end"),
-            "interval": describe_relation_results.get("partition_interval"),
+            "start": range_partitioning.range_.start,
+            "end": range_partitioning.range_.end,
+            "interval": range_partitioning.range_.interval,
         }
         config_dict.update({"range": range_dict})
 

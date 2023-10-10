@@ -32,7 +32,7 @@ import google.api_core
 import google.auth
 import google.oauth2
 import google.cloud.bigquery
-from google.cloud.bigquery import AccessEntry, SchemaField
+from google.cloud.bigquery import AccessEntry, SchemaField, Table
 import google.cloud.exceptions
 
 from dbt.adapters.bigquery import BigQueryColumn, BigQueryConnectionManager
@@ -554,6 +554,16 @@ class BigQueryAdapter(BaseAdapter):
 
     def get_table_ref_from_relation(self, relation: BaseRelation):
         return self.connections.table_ref(relation.database, relation.schema, relation.identifier)
+
+    @available.parse(lambda *a, **k: True)
+    def get_table(self, relation: BigQueryRelation) -> Optional[Table]:
+        try:
+            table = self.connections.get_bq_table(
+                database=relation.database, schema=relation.schema, identifier=relation.identifier
+            )
+        except google.cloud.exceptions.NotFound:
+            table = None
+        return table
 
     def _update_column_dict(self, bq_column_dict, dbt_columns, parent=""):
         """

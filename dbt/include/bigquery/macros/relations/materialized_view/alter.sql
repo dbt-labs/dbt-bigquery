@@ -11,16 +11,10 @@
         {{ get_replace_sql(existing_relation, relation, sql) }}
     {% else %}
 
-        {%- set auto_refresh = configuration_changes.auto_refresh -%}
-        {%- if auto_refresh -%}{{- log('Applying UPDATE AUTOREFRESH to: ' ~ relation) -}}{%- endif -%}
-
         alter materialized view {{ relation }}
-            set options (
-                {% if auto_refresh %} enable_refresh = {{ auto_refresh.context }}{% endif %}
-            )
+            set {{ bigquery_options(configuration_changes.options.context.as_ddl_dict()) }}
 
     {%- endif %}
-
 
 {% endmacro %}
 

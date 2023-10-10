@@ -38,3 +38,23 @@ select
     record_date
 from {{ ref('my_base_table') }}
 """
+
+
+MY_OTHER_MATERIALIZED_VIEW = """
+{{ config(
+    materialized='materialized_view',
+    partition_by={
+        "field": "record_date",
+        "data_type": "timestamp",
+        "granularity": "day"
+    },
+    cluster_by="id",
+    enable_refresh=False,
+    refresh_interval_minutes=60
+) }}
+select
+    id,
+    value,
+    record_date
+from {{ ref('my_base_table') }}
+"""

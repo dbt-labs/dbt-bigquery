@@ -5,7 +5,7 @@
     create materialized view if not exists {{ relation }}
     {% if materialized_view.partition %}{{ partition_by(materialized_view.partition) }}{% endif %}
     {% if materialized_view.cluster %}{{ cluster_by(materialized_view.cluster.fields) }}{% endif %}
-    {{ bigquery_options(adapter.get_materialized_view_options(materialized_view)) }}
+    {{ bigquery_options(materialized_view.options.as_ddl_dict()) }}
     as {{ sql }}
 
 {% endmacro %}

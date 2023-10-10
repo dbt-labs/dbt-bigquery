@@ -17,9 +17,9 @@ class BigQueryMaterializedViewChanges(BigQueryMaterializedViewMixin, Materialize
         with get_connection(project.adapter):
             results = project.adapter.describe_relation(materialized_view)
         assert isinstance(results, BigQueryMaterializedViewConfig)
-        assert results.auto_refresh.enable_refresh is True
-        assert results.auto_refresh.refresh_interval_minutes == 60
-        assert results.auto_refresh.max_staleness == "0-0 0 0:45:0"
+        assert results.options.enable_refresh is True
+        assert results.options.refresh_interval_minutes == 60
+        assert results.options.max_staleness == "0-0 0 0:45:0"  # ~= "INTERVAL 45 MINUTE"
         assert results.cluster.fields == frozenset({"id", "value"})
 
     @staticmethod
@@ -33,9 +33,12 @@ class BigQueryMaterializedViewChanges(BigQueryMaterializedViewMixin, Materialize
         with get_connection(project.adapter):
             results = project.adapter.describe_relation(materialized_view)
         assert isinstance(results, BigQueryMaterializedViewConfig)
-        assert results.auto_refresh.enable_refresh is False
-        assert results.auto_refresh.refresh_interval_minutes is None
-        assert results.auto_refresh.max_staleness is None
+        # these change when run manually
+        assert results.options.enable_refresh is False
+        assert results.options.refresh_interval_minutes == 30  # BQ returns it to the default
+        # this does not change when run manually
+        # in fact, it doesn't even show up in the DDL whereas the other two do
+        assert results.options.max_staleness is None
 
     @staticmethod
     def change_config_via_replace(project, materialized_view):

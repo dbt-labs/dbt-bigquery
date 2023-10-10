@@ -44,7 +44,11 @@ from dbt.adapters.bigquery.python_submissions import (
     ServerlessDataProcHelper,
 )
 from dbt.adapters.bigquery.relation import BigQueryRelation
-from dbt.adapters.bigquery.relation_configs import BigQueryMaterializedViewConfig, PartitionConfig
+from dbt.adapters.bigquery.relation_configs import (
+    BigQueryMaterializedViewConfig,
+    PartitionConfig,
+)
+from dbt.adapters.bigquery.utility import sql_escape
 
 
 logger = AdapterLogger("BigQuery")
@@ -55,12 +59,6 @@ WRITE_TRUNCATE = google.cloud.bigquery.job.WriteDisposition.WRITE_TRUNCATE
 
 CREATE_SCHEMA_MACRO_NAME = "create_schema"
 _dataset_lock = threading.Lock()
-
-
-def sql_escape(string):
-    if not isinstance(string, str):
-        raise dbt.exceptions.CompilationError(f"cannot escape a non-string: {string}")
-    return json.dumps(string)[1:-1]
 
 
 @dataclass
@@ -751,38 +749,6 @@ class BigQueryAdapter(BaseAdapter):
         opts = self.get_common_options(config, node)
         return opts
 
-    @available.parse(lambda *a, **k: {})
-    def get_materialized_view_options(
-        self,
-        materialized_view: BigQueryMaterializedViewConfig,
-    ) -> Dict[str, Any]:
-        opts: Dict[str, Any] = {}
-
-        if expiration_timestamp := materialized_view.expiration_timestamp:
-            opts.update({"expiration_timestamp": expiration_timestamp})
-
-        if description := materialized_view.description:
-            escaped_description = sql_escape(description)
-            opts.update({"description": f'"""{escaped_description}"""'})
-
-        if labels := materialized_view.labels:
-            opts.update({"labels": list(labels.items())})
-
-        if kms_key_name := materialized_view.kms_key_name:
-            opts.update({"kms_key_name": f"'{kms_key_name}'"})
-
-        if auto_refresh := materialized_view.auto_refresh:
-            opts.update(
-                {
-                    "enable_refresh": auto_refresh.enable_refresh,
-                    "refresh_interval_minutes": auto_refresh.refresh_interval_minutes,
-                }
-            )
-            if max_staleness := auto_refresh.max_staleness:
-                opts.update({"max_staleness": max_staleness})
-
-        return opts
-
     def describe_relation(self, relation: BigQueryRelation):
         if relation.type == RelationType.MaterializedView:
             macro = "bigquery__describe_materialized_view"
@@ -790,7 +756,7 @@ class BigQueryAdapter(BaseAdapter):
         else:
             raise dbt.exceptions.DbtRuntimeError(
                 f"The method `BigQueryAdapter.describe_relation` is not implemented "
-                f"for the relation type: {relation.type}."
+                f"for the relation type: {relation.type}"
             )
         relation_results = self.execute_macro(macro, kwargs={"relation": relation})
         return parser.from_relation_results(relation_results)

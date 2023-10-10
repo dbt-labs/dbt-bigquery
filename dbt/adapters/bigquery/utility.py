@@ -1,4 +1,7 @@
+import json
 from typing import Any, Optional
+
+import dbt.exceptions
 
 
 def bool_setting(value: Optional[Any] = None) -> Optional[bool]:
@@ -7,15 +10,36 @@ def bool_setting(value: Optional[Any] = None) -> Optional[bool]:
     elif isinstance(value, bool):
         return value
     elif isinstance(value, str):
-        if value.lower() in ["true", "false"]:
-            return bool(value)
+        # don't do bool(value) as that is equivalent to: len(value) > 0
+        if value.lower() == "true":
+            return True
+        elif value.lower() == "false":
+            return False
         else:
             raise ValueError(
                 f"Invalid input, "
-                f"expecting bool or str ex. (True, False, 'true', 'False'), recieved: {value}"
+                f"expecting `bool` or `str` ex. (True, False, 'true', 'False'), received: {value}"
             )
     else:
         raise TypeError(
-            f"Invalide type for bool evaluation, "
-            f"expecting bool or str, recieved: {type(value)}"
+            f"Invalid type for bool evaluation, "
+            f"expecting `bool` or `str`, received: {type(value)}"
         )
+
+
+def float_setting(value: Optional[Any] = None) -> Optional[float]:
+    if value is None:
+        return None
+    elif any(isinstance(value, i) for i in [int, float, str]):
+        return float(value)
+    else:
+        raise TypeError(
+            f"Invalid type for float evaluation, "
+            f"expecting `int`, `float`, or `str`, received: {type(value)}"
+        )
+
+
+def sql_escape(string):
+    if not isinstance(string, str):
+        raise dbt.exceptions.CompilationError(f"cannot escape a non-string: {string}")
+    return json.dumps(string)[1:-1]

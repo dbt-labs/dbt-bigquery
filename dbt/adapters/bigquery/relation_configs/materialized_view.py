@@ -1,17 +1,15 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 import agate
 from dbt.adapters.relation_configs import RelationResults
 from dbt.contracts.graph.nodes import ModelNode
 from dbt.contracts.relation import ComponentName
-from dbt.exceptions import DbtRuntimeError
 
 from dbt.adapters.bigquery.relation_configs._base import BigQueryRelationConfigBase
-from dbt.adapters.bigquery.relation_configs.auto_refresh import (
-    BigQueryAutoRefreshConfig,
-    BigQueryAutoRefreshConfigChange,
+from dbt.adapters.bigquery.relation_configs.options import (
+    BigQueryOptionsConfig,
+    BigQueryOptionsConfigChange,
 )
 from dbt.adapters.bigquery.relation_configs.partition import PartitionConfig
 from dbt.adapters.bigquery.relation_configs.cluster import (
@@ -28,27 +26,19 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
 
     The following parameters are configurable by dbt:
     - materialized_view_name: name of the materialized view
-    - schema: dataset name of the materialized view
-    - database: project name of the database
-    - auto_refresh: object containing refresh scheduling information
+    - schema_name: dataset name of the materialized view
+    - database_name: project name of the database
+    - options: options that get set in `SET OPTIONS()` clause
     - partition: object containing partition information
     - cluster: object containing cluster information
-    - expiration_timestamp: the time when table expires
-    - kms_key_name: user defined Cloud KMS encryption key
-    - labels: used to organized and group objects
-    - description: user description for materialized view
     """
 
     materialized_view_name: str
     schema_name: str
     database_name: str
-    auto_refresh: BigQueryAutoRefreshConfig
+    options: BigQueryOptionsConfig
     partition: Optional[PartitionConfig] = None
     cluster: Optional[BigQueryClusterConfig] = None
-    expiration_timestamp: Optional[datetime] = None
-    kms_key_name: Optional[str] = None
-    labels: Optional[Dict[str, str]] = None
-    description: Optional[str] = None
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "BigQueryMaterializedViewConfig":
@@ -61,7 +51,7 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
             "database_name": cls._render_part(
                 ComponentName.Database, config_dict["database_name"]
             ),
-            "auto_refresh": BigQueryAutoRefreshConfig.from_dict(config_dict["auto_refresh"]),
+            "options": BigQueryOptionsConfig.from_dict(config_dict["options"]),
         }
 
         # optional
@@ -71,31 +61,8 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
         if cluster := config_dict.get("cluster"):
             kwargs_dict.update({"cluster": BigQueryClusterConfig.from_dict(cluster)})
 
-        optional_attributes = [
-            "expiration_timestamp",
-            "kms_key_name",
-            "labels",
-            "description",
-        ]
-        optional_attributes_set_by_user = {
-            k: v for k, v in config_dict.items() if k in optional_attributes
-        }
-        kwargs_dict.update(optional_attributes_set_by_user)
-
         materialized_view: "BigQueryMaterializedViewConfig" = super().from_dict(kwargs_dict)  # type: ignore
         return materialized_view
-
-    @classmethod
-    def from_model_node(cls, model_node: ModelNode) -> "BigQueryMaterializedViewConfig":
-        materialized_view = super().from_model_node(model_node)
-        if isinstance(materialized_view, BigQueryMaterializedViewConfig):
-            return materialized_view
-        else:
-            raise DbtRuntimeError(
-                f"An unexpected error occurred in BigQueryMaterializedViewConfig.from_model_node:\n"
-                f"    Expected: BigQueryMaterializedViewConfig\n"
-                f"    Actual: {materialized_view}"
-            )
 
     @classmethod
     def parse_model_node(cls, model_node: ModelNode) -> Dict[str, Any]:
@@ -103,7 +70,8 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
             "materialized_view_name": model_node.identifier,
             "schema_name": model_node.schema,
             "database_name": model_node.database,
-            "auto_refresh": BigQueryAutoRefreshConfig.parse_model_node(model_node),
+            # despite this being a foreign object, there will always be options because of defaults
+            "options": BigQueryOptionsConfig.parse_model_node(model_node),
         }
 
         # optional
@@ -113,37 +81,19 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
         if "cluster_by" in model_node.config:
             config_dict.update({"cluster": BigQueryClusterConfig.parse_model_node(model_node)})
 
-        if hours_to_expiration := model_node.config.extra.get("hours_to_expiration"):
-            config_dict.update(
-                {"expiration_timestamp": datetime.now() + timedelta(hours=hours_to_expiration)}
-            )
-
-        if kms_key_name := model_node.config.extra.get("kms_key_name"):
-            config_dict.update({"kms_key_name": kms_key_name})
-
-        if labels := model_node.config.extra.get("labels"):
-            config_dict.update({"labels": labels})
-
-        if description := model_node.config.extra.get("description"):
-            if model_node.config.persist_docs:
-                config_dict.update({"description": description})
-
         return config_dict
 
     @classmethod
     def parse_relation_results(cls, relation_results: RelationResults) -> Dict[str, Any]:
         materialized_view_config: agate.Table = relation_results.get("materialized_view")  # type: ignore
         materialized_view: agate.Row = cls._get_first_row(materialized_view_config)
-        options_config: agate.Table = relation_results.get("options")  # type: ignore
-        options = {
-            option.get("option_name"): option.get("option_value") for option in options_config.rows
-        }
 
         config_dict = {
             "materialized_view_name": materialized_view.get("table_name"),
             "schema_name": materialized_view.get("table_schema"),
             "database_name": materialized_view.get("table_catalog"),
-            "auto_refresh": BigQueryAutoRefreshConfig.parse_relation_results(relation_results),
+            # despite this being a foreign object, there will always be options because of defaults
+            "options": BigQueryOptionsConfig.parse_relation_results(relation_results),
         }
 
         # optional
@@ -159,32 +109,19 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
                 {"cluster": BigQueryClusterConfig.parse_relation_results(cluster_by)}
             )
 
-        config_dict.update(
-            {
-                "expiration_timestamp": options.get("expiration_timestamp"),
-                "kms_key_name": options.get("kms_key_name"),
-                "labels": options.get("labels"),
-                "description": options.get("description"),
-            }
-        )
-
         return config_dict
 
 
 @dataclass
 class BigQueryMaterializedViewConfigChangeset:
-    auto_refresh: Optional[BigQueryAutoRefreshConfigChange] = None
+    options: Optional[BigQueryOptionsConfigChange] = None
     cluster: Optional[BigQueryClusterConfigChange] = None
-    expiration_timestamp: Optional[datetime] = None
-    kms_key_name: Optional[str] = None
-    labels: Optional[Dict[str, str]] = None
-    description: Optional[str] = None
 
     @property
     def requires_full_refresh(self) -> bool:
         return any(
             {
-                self.auto_refresh.requires_full_refresh if self.auto_refresh else False,
+                self.options.requires_full_refresh if self.options else False,
                 self.cluster.requires_full_refresh if self.cluster else False,
             }
         )
@@ -193,11 +130,7 @@ class BigQueryMaterializedViewConfigChangeset:
     def has_changes(self) -> bool:
         return any(
             {
+                self.options if self.options else False,
                 self.cluster if self.cluster else False,
-                self.auto_refresh if self.auto_refresh else False,
-                self.expiration_timestamp if self.expiration_timestamp else False,
-                self.kms_key_name if self.kms_key_name else False,
-                self.labels if self.labels else False,
-                self.description if self.description else False,
             }
         )

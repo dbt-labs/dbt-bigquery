@@ -47,7 +47,7 @@ from dbt.tests.util import run_dbt_and_capture, run_dbt
 
 _expected_sql_bigquery = """
 create or replace table <model_identifier> (
-    id integer not null primary key not enforced references <foreign_key_model_identifier> (id) not enforced,
+    id INT64 not null primary key not enforced references <foreign_key_model_identifier> (id) not enforced,
     color string,
     date_day string
 )
@@ -79,7 +79,7 @@ as (
 """
 
 # Different on BigQuery:
-# - does not support a data type named 'text' (TODO handle this via type translation/aliasing!)
+# Switch from text to string handled by aliasing
 constraints_yml = model_schema_yml
 model_constraints_yml = constrained_model_schema_yml
 
@@ -331,7 +331,7 @@ class TestBigQueryModelConstraintsRuntimeEnforcement(BaseModelConstraintsRuntime
     def expected_sql(self):
         return """
 create or replace table <model_identifier> (
-    id integer not null,
+    id INT64 not null,
     color string,
     date_day string,
     primary key (id) not enforced,
@@ -358,14 +358,14 @@ class TestBigQueryConstraintQuotedColumn(BaseConstraintQuotedColumn):
     def models(self):
         return {
             "my_model.sql": my_model_with_quoted_column_name_sql,
-            "constraints_schema.yml": model_quoted_column_schema_yml.replace("text", "string"),
+            "constraints_schema.yml": model_quoted_column_schema_yml,
         }
 
     @pytest.fixture(scope="class")
     def expected_sql(self):
         return """
 create or replace table <model_identifier> (
-    id integer not null,
+    id INT64 not null,
     `from` string not null,
     date_day string
 )

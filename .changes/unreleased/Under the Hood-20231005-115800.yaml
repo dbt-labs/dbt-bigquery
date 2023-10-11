@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: Support for use of type aliases in contract column data_type
+time: 2023-10-05T11:58:00.719136-04:00
+custom:
+  Author: gshank
+  Issue: "953"

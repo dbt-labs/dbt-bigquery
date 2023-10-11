@@ -13,9 +13,13 @@ from dbt.tests.adapter.utils.test_concat import BaseConcat
 from dbt.tests.adapter.utils.test_current_timestamp import BaseCurrentTimestampAware
 from dbt.tests.adapter.utils.test_dateadd import BaseDateAdd
 from dbt.tests.adapter.utils.test_datediff import BaseDateDiff
+from dbt.tests.adapter.utils.test_date_spine import BaseDateSpine
 from dbt.tests.adapter.utils.test_date_trunc import BaseDateTrunc
 from dbt.tests.adapter.utils.test_escape_single_quotes import BaseEscapeSingleQuotesBackslash
 from dbt.tests.adapter.utils.test_except import BaseExcept
+from dbt.tests.adapter.utils.test_generate_series import BaseGenerateSeries
+from dbt.tests.adapter.utils.test_get_intervals_between import BaseGetIntervalsBetween
+from dbt.tests.adapter.utils.test_get_powers_of_two import BaseGetPowersOfTwo
 from dbt.tests.adapter.utils.test_hash import BaseHash
 from dbt.tests.adapter.utils.test_intersect import BaseIntersect
 from dbt.tests.adapter.utils.test_last_day import BaseLastDay
@@ -40,6 +44,10 @@ from tests.functional.adapter.utils.fixture_array_construct import (
     models__array_construct_actual_sql,
     models__array_construct_expected_sql,
     macros__array_to_string_sql,
+)
+from tests.functional.adapter.utils.fixture_get_intervals_between import (
+    models__bq_test_get_intervals_between_sql,
+    models___bq_test_get_intervals_between_yml,
 )
 
 
@@ -117,6 +125,10 @@ class TestDateDiff(BaseDateDiff):
     pass
 
 
+class TestDateSpine(BaseDateSpine):
+    pass
+
+
 class TestDateTrunc(BaseDateTrunc):
     pass
 
@@ -126,6 +138,25 @@ class TestEscapeSingleQuotes(BaseEscapeSingleQuotesBackslash):
 
 
 class TestExcept(BaseExcept):
+    pass
+
+
+class TestGenerateSeries(BaseGenerateSeries):
+    pass
+
+
+class TestGetIntervalsBetween(BaseGetIntervalsBetween):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "test_get_intervals_between.yml": models___bq_test_get_intervals_between_yml,
+            "test_get_intervals_between.sql": self.interpolate_macro_namespace(
+                models__bq_test_get_intervals_between_sql, "get_intervals_between"
+            ),
+        }
+
+
+class TestGetPowersOfTwo(BaseGetPowersOfTwo):
     pass
 
 

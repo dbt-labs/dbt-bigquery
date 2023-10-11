@@ -5,6 +5,7 @@ import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
+from dbt.events.contextvars import get_node_info
 from mashumaro.helper import pass_through
 
 from functools import lru_cache
@@ -433,6 +434,18 @@ class BigQueryConnectionManager(BaseConnectionManager):
         column_names = [field.name for field in resp.schema]
         return agate_helper.table_from_data_flat(resp, column_names)
 
+    def get_labels_from_query_comment(cls):
+        if (
+            hasattr(cls.profile, "query_comment")
+            and cls.profile.query_comment
+            and cls.profile.query_comment.job_label
+            and cls.query_header
+        ):
+            query_comment = cls.query_header.comment.query_comment
+            return cls._labels_from_query_comment(query_comment)
+
+        return {}
+
     def raw_execute(
         self,
         sql,
@@ -443,16 +456,9 @@ class BigQueryConnectionManager(BaseConnectionManager):
         conn = self.get_thread_connection()
         client = conn.handle
 
-        fire_event(SQLQuery(conn_name=conn.name, sql=sql))
-        if (
-            hasattr(self.profile, "query_comment")
-            and self.profile.query_comment
-            and self.profile.query_comment.job_label
-        ):
-            query_comment = self.profile.query_comment
-            labels = self._labels_from_query_comment(query_comment.comment)
-        else:
-            labels = {}
+        fire_event(SQLQuery(conn_name=conn.name, sql=sql, node_info=get_node_info()))
+
+        labels = self.get_labels_from_query_comment()
 
         if active_user:
             labels["dbt_invocation_id"] = active_user.invocation_id
@@ -698,6 +704,20 @@ class BigQueryConnectionManager(BaseConnectionManager):
             return client.create_dataset(dataset_ref, exists_ok=True)
 
         self._retry_and_handle(msg="create dataset", conn=conn, fn=fn)
+
+    def list_dataset(self, database: str):
+        # the database string we get here is potentially quoted. Strip that off
+        # for the API call.
+        database = database.strip("`")
+        conn = self.get_thread_connection()
+        client = conn.handle
+
+        def query_schemas():
+            # this is similar to how we have to deal with listing tables
+            all_datasets = client.list_datasets(project=database, max_results=10000)
+            return [ds.dataset_id for ds in all_datasets]
+
+        return self._retry_and_handle(msg="list dataset", conn=conn, fn=query_schemas)
 
     def _query_and_results(
         self,

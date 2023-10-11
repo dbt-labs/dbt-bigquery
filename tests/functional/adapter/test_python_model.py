@@ -66,7 +66,7 @@ def model(dbt, spark):
 """
 
 models__python_array_batch_id_python = """
-import pandas
+import pandas as pd
 
 def model(dbt, spark):
     random_array = [

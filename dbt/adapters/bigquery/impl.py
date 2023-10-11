@@ -759,6 +759,7 @@ class BigQueryAdapter(BaseAdapter):
             table = None
         return table
 
+    @available.parse(lambda *a, **k: True)
     def describe_relation(self, relation: BigQueryRelation):
         if relation.type == RelationType.MaterializedView:
             bq_table = self.get_bq_table(relation)

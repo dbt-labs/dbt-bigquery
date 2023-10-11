@@ -16,7 +16,6 @@ from dbt.contracts.graph.nodes import ModelNode
 from dbt.contracts.relation import RelationType
 from dbt.exceptions import CompilationError
 from dbt.utils import filter_null_values
-from google.cloud.bigquery import Table as BigQueryTable
 
 
 Self = TypeVar("Self", bound="BigQueryRelation")
@@ -74,10 +73,11 @@ class BigQueryRelation(BaseRelation):
 
     @classmethod
     def materialized_view_config_changeset(
-        cls, table: BigQueryTable, runtime_config: RuntimeConfigObject
+        cls,
+        existing_materialized_view: BigQueryMaterializedViewConfig,
+        runtime_config: RuntimeConfigObject,
     ) -> Optional[BigQueryMaterializedViewConfigChangeset]:
         config_change_collection = BigQueryMaterializedViewConfigChangeset()
-        existing_materialized_view = BigQueryMaterializedViewConfig.from_bq_table(table)
         new_materialized_view = cls.materialized_view_from_model_node(runtime_config.model)
         assert isinstance(existing_materialized_view, BigQueryMaterializedViewConfig)
         assert isinstance(new_materialized_view, BigQueryMaterializedViewConfig)

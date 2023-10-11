@@ -3,7 +3,9 @@ from typing import Optional
 
 import agate
 from dbt.adapters.base.relation import Policy
-from dbt.adapters.relation_configs import RelationConfigBase, RelationResults
+from dbt.adapters.relation_configs import RelationConfigBase
+from google.cloud.bigquery import Table as BigQueryTable
+
 from dbt.adapters.bigquery.relation_configs.policies import (
     BigQueryIncludePolicy,
     BigQueryQuotePolicy,
@@ -35,16 +37,14 @@ class BigQueryRelationConfigBase(RelationConfigBase):
         )
 
     @classmethod
-    def from_relation_results(cls, relation_results: RelationResults) -> "RelationConfigBase":
-        relation_config = cls.parse_relation_results(relation_results)
+    def from_bq_table(cls, table: BigQueryTable) -> "RelationConfigBase":
+        relation_config = cls.parse_bq_table(table)
         relation = cls.from_dict(relation_config)
         return relation
 
     @classmethod
-    def parse_relation_results(cls, relation_results: RelationResults) -> dict:
-        raise NotImplementedError(
-            "`parse_relation_results()` needs to be implemented on this RelationConfigBase instance"
-        )
+    def parse_bq_table(cls, table: BigQueryTable) -> dict:
+        raise NotImplementedError("`parse_bq_table()` is not implemented for this relation type")
 
     @classmethod
     def _render_part(cls, component: ComponentName, value: Optional[str]) -> Optional[str]:

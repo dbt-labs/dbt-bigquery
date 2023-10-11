@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-import agate
 from dbt.contracts.graph.nodes import ModelNode
 from dbt.dataclass_schema import dbtClassMixin, ValidationError
 import dbt.exceptions
 from dbt.adapters.relation_configs import RelationConfigChange
+from google.cloud.bigquery.table import Table as BigQueryTable
 
 
 @dataclass
@@ -108,23 +108,31 @@ class PartitionConfig(dbtClassMixin):
         return model_node.config.extra.get("partition_by")
 
     @classmethod
-    def parse_relation_results(cls, describe_relation_results: agate.Row) -> Dict[str, Any]:
+    def parse_bq_table(cls, table: BigQueryTable) -> Dict[str, Any]:
         """
-        Parse the results of a describe query into a raw config for `PartitionConfig.parse`
+        Parse the results of a BQ Table object into a raw config for `PartitionConfig.parse`
         """
-        config_dict = {
-            "field": describe_relation_results.get("partition_column_name"),
-            "data_type": describe_relation_results.get("partition_data_type"),
-            "granularity": describe_relation_results.get("partition_type"),
-        }
+        if time_partitioning := table.time_partitioning:
+            field_types = {field.name: field.field_type.lower() for field in table.schema}
+            config_dict = {
+                "field": time_partitioning.field,
+                "data_type": field_types[time_partitioning.field],
+                "granularity": time_partitioning.type_,
+            }
 
-        # combine range fields into dictionary, like the model config
-        range_dict = {
-            "start": describe_relation_results.get("partition_start"),
-            "end": describe_relation_results.get("partition_end"),
-            "interval": describe_relation_results.get("partition_interval"),
-        }
-        config_dict.update({"range": range_dict})
+        elif range_partitioning := table.range_partitioning:
+            config_dict = {
+                "field": range_partitioning.field,
+                "data_type": "int64",
+                "range": {
+                    "start": range_partitioning.range_.start,
+                    "end": range_partitioning.range_.end,
+                    "interval": range_partitioning.range_.interval,
+                },
+            }
+
+        else:
+            config_dict = {}
 
         return config_dict
 

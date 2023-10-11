@@ -32,7 +32,7 @@ import google.api_core
 import google.auth
 import google.oauth2
 import google.cloud.bigquery
-from google.cloud.bigquery import AccessEntry, SchemaField
+from google.cloud.bigquery import AccessEntry, SchemaField, Table as BigQueryTable
 import google.cloud.exceptions
 
 from dbt.adapters.bigquery import BigQueryColumn, BigQueryConnectionManager
@@ -749,17 +749,27 @@ class BigQueryAdapter(BaseAdapter):
         opts = self.get_common_options(config, node)
         return opts
 
+    @available.parse(lambda *a, **k: True)
+    def get_bq_table(self, relation: BigQueryRelation) -> Optional[BigQueryTable]:
+        try:
+            table = self.connections.get_bq_table(
+                relation.database, relation.schema, relation.identifier
+            )
+        except google.cloud.exceptions.NotFound:
+            table = None
+        return table
+
+    @available.parse(lambda *a, **k: True)
     def describe_relation(self, relation: BigQueryRelation):
         if relation.type == RelationType.MaterializedView:
-            macro = "bigquery__describe_materialized_view"
+            bq_table = self.get_bq_table(relation)
             parser = BigQueryMaterializedViewConfig
         else:
             raise dbt.exceptions.DbtRuntimeError(
                 f"The method `BigQueryAdapter.describe_relation` is not implemented "
                 f"for the relation type: {relation.type}"
             )
-        relation_results = self.execute_macro(macro, kwargs={"relation": relation})
-        return parser.from_relation_results(relation_results)
+        return parser.from_bq_table(bq_table)
 
     @available.parse_none
     def grant_access_to(self, entity, entity_type, role, grant_target_dict):

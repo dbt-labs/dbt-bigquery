@@ -5,25 +5,21 @@ from dbt.contracts.relation import RelationType
 from dbt.tests.util import get_connection, run_dbt
 
 from dbt.adapters.bigquery.relation_configs import BigQueryMaterializedViewConfig
-from tests.functional.adapter.describe_relation._files import (
-    MY_BASE_TABLE,
-    MY_MATERIALIZED_VIEW,
-    MY_OTHER_MATERIALIZED_VIEW,
-    MY_SEED,
-)
+from tests.functional.adapter.describe_relation import _files
 
 
 class TestDescribeRelation:
     @pytest.fixture(scope="class", autouse=True)
     def seeds(self):
-        return {"my_seed.csv": MY_SEED}
+        return {"my_seed.csv": _files.MY_SEED}
 
     @pytest.fixture(scope="class", autouse=True)
     def models(self):
         yield {
-            "my_base_table.sql": MY_BASE_TABLE,
-            "my_materialized_view.sql": MY_MATERIALIZED_VIEW,
-            "my_other_materialized_view.sql": MY_OTHER_MATERIALIZED_VIEW,
+            "my_base_table.sql": _files.MY_BASE_TABLE,
+            "my_materialized_view.sql": _files.MY_MATERIALIZED_VIEW,
+            "my_other_base_table.sql": _files.MY_OTHER_BASE_TABLE,
+            "my_other_materialized_view.sql": _files.MY_OTHER_MATERIALIZED_VIEW,
         }
 
     @pytest.fixture(scope="class")
@@ -79,9 +75,12 @@ class TestDescribeRelation:
         with get_connection(project.adapter):
             results = project.adapter.describe_relation(my_materialized_view)
         assert isinstance(results, BigQueryMaterializedViewConfig)
-        assert results.materialized_view_name == f'"{my_materialized_view.identifier}"'
-        assert results.schema_name == f'"{my_materialized_view.schema}"'
-        assert results.database_name == f'"{my_materialized_view.database}"'
+        assert results.table_id == f'"{my_materialized_view.identifier}"'
+        assert results.dataset_id == f'"{my_materialized_view.schema}"'
+        assert results.project_id == f'"{my_materialized_view.database}"'
+        assert results.partition.field == "record_date"
+        assert results.partition.data_type == "datetime"
+        assert results.partition.granularity == "day"
         assert results.cluster.fields == frozenset({"id"})
         assert results.options.enable_refresh is True
         assert results.options.refresh_interval_minutes == 30
@@ -90,9 +89,12 @@ class TestDescribeRelation:
         with get_connection(project.adapter):
             results = project.adapter.describe_relation(my_other_materialized_view)
         assert isinstance(results, BigQueryMaterializedViewConfig)
-        assert results.materialized_view_name == f'"{my_other_materialized_view.identifier}"'
-        assert results.schema_name == f'"{my_other_materialized_view.schema}"'
-        assert results.database_name == f'"{my_other_materialized_view.database}"'
+        assert results.table_id == f'"{my_other_materialized_view.identifier}"'
+        assert results.dataset_id == f'"{my_other_materialized_view.schema}"'
+        assert results.project_id == f'"{my_other_materialized_view.database}"'
+        assert results.partition.field == "value"
+        assert results.partition.data_type == "int64"
+        assert results.partition.range == {"start": 0, "end": 500, "interval": 50}
         assert results.cluster.fields == frozenset({"id"})
         assert results.options.enable_refresh is False
         assert results.options.refresh_interval_minutes == 30  # BQ returns it to the default

@@ -9,7 +9,7 @@
   {# cycle over ref() and source() to create source tables array #}
   {% set source_array = [] %}
   {% for ref_table in model.refs %}
-    {{ source_array.append(ref(*ref_table)) }}
+    {{ source_array.append(ref(ref_table.get('package'), ref_table.name, version=ref_table.get('version'))) }}
   {% endfor %}
 
   {% for src_table in model.sources %}

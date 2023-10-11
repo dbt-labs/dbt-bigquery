@@ -5,12 +5,13 @@ id,value,record_valid_date
 3,300,2023-01-02 00:00:00
 """.strip()
 
+
 MY_BASE_TABLE = """
 {{ config(
     materialized='table',
     partition_by={
         "field": "record_valid_date",
-        "data_type": "timestamp",
+        "data_type": "datetime",
         "granularity": "day"
     },
     cluster_by=["id", "value"]
@@ -22,12 +23,13 @@ select
 from {{ ref('my_seed') }}
 """
 
+
 MY_MATERIALIZED_VIEW = """
 {{ config(
     materialized='materialized_view',
     partition_by={
         "field": "record_valid_date",
-        "data_type": "timestamp",
+        "data_type": "datetime",
         "granularity": "day"
     },
     cluster_by=["id", "value"],

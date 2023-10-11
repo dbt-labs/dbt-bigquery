@@ -19,7 +19,9 @@ class BigQueryMaterializedViewChanges(BigQueryMaterializedViewMixin, Materialize
         assert isinstance(results, BigQueryMaterializedViewConfig)
         assert results.options.enable_refresh is True
         assert results.options.refresh_interval_minutes == 60
-        assert results.options.max_staleness == "0-0 0 0:45:0"  # ~= "INTERVAL 45 MINUTE"
+        assert results.partition.field == "record_valid_date"
+        assert results.partition.data_type == "datetime"
+        assert results.partition.granularity == "day"
         assert results.cluster.fields == frozenset({"id", "value"})
 
     @staticmethod

@@ -11,7 +11,9 @@ from dbt.adapters.bigquery.relation_configs import BigQueryMaterializedViewConfi
 from tests.functional.adapter.materialized_view_tests._mixin import BigQueryMaterializedViewMixin
 
 
-class BigQueryMaterializedViewChanges(BigQueryMaterializedViewMixin, MaterializedViewChanges):
+class BigQueryMaterializedViewPartitionChanges(
+    BigQueryMaterializedViewMixin, MaterializedViewChanges
+):
     @staticmethod
     def check_start_state(project, materialized_view):
         with get_connection(project.adapter):
@@ -22,7 +24,6 @@ class BigQueryMaterializedViewChanges(BigQueryMaterializedViewMixin, Materialize
         assert results.partition.field == "record_valid_date"
         assert results.partition.data_type == "datetime"
         assert results.partition.granularity == "day"
-        assert results.cluster.fields == frozenset({"id", "value"})
 
     @staticmethod
     def change_config_via_alter(project, materialized_view):
@@ -59,10 +60,8 @@ class BigQueryMaterializedViewChanges(BigQueryMaterializedViewMixin, Materialize
             "interval": 50
         }
     },"""
-        new_model = (
-            initial_model.replace(old_partition, new_partition)
-            .replace("'my_base_table'", "'my_other_base_table'")
-            .replace('cluster_by=["id", "value"]', 'cluster_by="id"')
+        new_model = initial_model.replace(old_partition, new_partition).replace(
+            "'my_base_table'", "'my_other_base_table'"
         )
         set_model_file(project, materialized_view, new_model)
 
@@ -74,22 +73,21 @@ class BigQueryMaterializedViewChanges(BigQueryMaterializedViewMixin, Materialize
         assert results.partition.field == "value"
         assert results.partition.data_type == "int64"
         assert results.partition.range == {"start": 0, "end": 500, "interval": 50}
-        assert results.cluster.fields == frozenset({"id"})
 
 
-class TestBigQueryMaterializedViewChangesApply(
-    BigQueryMaterializedViewChanges, MaterializedViewChangesApplyMixin
+class TestBigQueryMaterializedViewPartitionChangesApply(
+    BigQueryMaterializedViewPartitionChanges, MaterializedViewChangesApplyMixin
 ):
     pass
 
 
-class TestBigQueryMaterializedViewChangesContinue(
-    BigQueryMaterializedViewChanges, MaterializedViewChangesContinueMixin
+class TestBigQueryMaterializedViewPartitionChangesContinue(
+    BigQueryMaterializedViewPartitionChanges, MaterializedViewChangesContinueMixin
 ):
     pass
 
 
-class TestBigQueryMaterializedViewChangesFail(
-    BigQueryMaterializedViewChanges, MaterializedViewChangesFailMixin
+class TestBigQueryMaterializedViewPartitionChangesFail(
+    BigQueryMaterializedViewPartitionChanges, MaterializedViewChangesFailMixin
 ):
     pass

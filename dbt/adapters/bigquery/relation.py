@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
-from typing import FrozenSet, Optional
+from typing import FrozenSet, Optional, TypeVar
 
 from itertools import chain, islice
 from dbt.context.providers import RuntimeConfigObject
 from dbt.adapters.base.relation import BaseRelation, ComponentName, InformationSchema
-from dbt.adapters.relation_configs import RelationResults, RelationConfigChangeAction
+from dbt.adapters.relation_configs import RelationConfigChangeAction
 from dbt.adapters.bigquery.relation_configs import (
     BigQueryClusterConfigChange,
     BigQueryMaterializedViewConfig,
@@ -16,7 +16,7 @@ from dbt.contracts.graph.nodes import ModelNode
 from dbt.contracts.relation import RelationType
 from dbt.exceptions import CompilationError
 from dbt.utils import filter_null_values
-from typing import TypeVar
+from google.cloud.bigquery import Table as BigQueryTable
 
 
 Self = TypeVar("Self", bound="BigQueryRelation")
@@ -74,12 +74,10 @@ class BigQueryRelation(BaseRelation):
 
     @classmethod
     def materialized_view_config_changeset(
-        cls, relation_results: RelationResults, runtime_config: RuntimeConfigObject
+        cls, table: BigQueryTable, runtime_config: RuntimeConfigObject
     ) -> Optional[BigQueryMaterializedViewConfigChangeset]:
         config_change_collection = BigQueryMaterializedViewConfigChangeset()
-        existing_materialized_view = BigQueryMaterializedViewConfig.from_relation_results(
-            relation_results
-        )
+        existing_materialized_view = BigQueryMaterializedViewConfig.from_bq_table(table)
         new_materialized_view = cls.materialized_view_from_model_node(runtime_config.model)
         assert isinstance(existing_materialized_view, BigQueryMaterializedViewConfig)
         assert isinstance(new_materialized_view, BigQueryMaterializedViewConfig)

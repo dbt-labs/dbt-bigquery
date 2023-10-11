@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-import agate
-from dbt.adapters.relation_configs import RelationConfigChange, RelationResults
+from dbt.adapters.relation_configs import RelationConfigChange
 from dbt.contracts.graph.nodes import ModelNode
+from google.cloud.bigquery import Table as BigQueryTable
 
 from dbt.adapters.bigquery.relation_configs._base import BigQueryRelationConfigBase
 from dbt.adapters.bigquery.utility import bool_setting, float_setting, sql_escape
@@ -24,18 +24,6 @@ class BigQueryOptionsConfig(BigQueryRelationConfigBase):
     kms_key_name: Optional[str] = None
     description: Optional[str] = None
     labels: Optional[Dict[str, str]] = None
-
-    @classmethod
-    def user_configurable_options(cls) -> List[str]:
-        return [
-            "enable_refresh",
-            "refresh_interval_minutes",
-            "expiration_timestamp",
-            "max_staleness",
-            "kms_key_name",
-            "description",
-            "labels",
-        ]
 
     def as_ddl_dict(self) -> Dict[str, Any]:
         """
@@ -121,7 +109,15 @@ class BigQueryOptionsConfig(BigQueryRelationConfigBase):
     def parse_model_node(cls, model_node: ModelNode) -> Dict[str, Any]:
         config_dict = {
             option: model_node.config.extra.get(option)
-            for option in cls.user_configurable_options()
+            for option in [
+                "enable_refresh",
+                "refresh_interval_minutes",
+                "expiration_timestamp",
+                "max_staleness",
+                "kms_key_name",
+                "description",
+                "labels",
+            ]
         }
 
         # update dbt-specific versions of these settings
@@ -135,13 +131,17 @@ class BigQueryOptionsConfig(BigQueryRelationConfigBase):
         return config_dict
 
     @classmethod
-    def parse_relation_results(cls, relation_results: RelationResults) -> Dict[str, Any]:
-        options_config: agate.Table = relation_results.get("options")  # type: ignore
+    def parse_bq_table(cls, table: BigQueryTable) -> Dict[str, Any]:
         config_dict = {
-            option.get("option_name"): option.get("option_value")
-            for option in options_config
-            if option.get("option_name") in cls.user_configurable_options()
+            "enable_refresh": table.mview_enable_refresh,
+            "refresh_interval_minutes": table.mview_refresh_interval.seconds / 60,
+            "expiration_timestamp": table.expires,
+            "max_staleness": None,
+            "description": table.description,
+            "labels": table.labels,
         }
+        if encryption_configuration := table.encryption_configuration:
+            config_dict.update({"kms_key_name": encryption_configuration.kms_key_name})
         return config_dict
 
 

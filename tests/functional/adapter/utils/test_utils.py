@@ -45,6 +45,10 @@ from tests.functional.adapter.utils.fixture_array_construct import (
     models__array_construct_expected_sql,
     macros__array_to_string_sql,
 )
+from tests.functional.adapter.utils.fixture_get_intervals_between import (
+    models__bq_test_get_intervals_between_sql,
+    models___bq_test_get_intervals_between_yml,
+)
 
 
 class TestAnyValue(BaseAnyValue):
@@ -141,8 +145,15 @@ class TestGenerateSeries(BaseGenerateSeries):
     pass
 
 
-class TestGetIntervalsBeteween(BaseGetIntervalsBetween):
-    pass
+class TestGetIntervalsBetween(BaseGetIntervalsBetween):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "test_get_intervals_between.yml": models___bq_test_get_intervals_between_yml,
+            "test_get_intervals_between.sql": self.interpolate_macro_namespace(
+                models__bq_test_get_intervals_between_sql, "get_intervals_between"
+            ),
+        }
 
 
 class TestGetPowersOfTwo(BaseGetPowersOfTwo):

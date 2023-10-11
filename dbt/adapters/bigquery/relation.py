@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import FrozenSet, Optional, TypeVar
 
 from itertools import chain, islice
@@ -10,7 +10,7 @@ from dbt.adapters.bigquery.relation_configs import (
     BigQueryMaterializedViewConfig,
     BigQueryMaterializedViewConfigChangeset,
     BigQueryOptionsConfigChange,
-    BigQueryQuotePolicy,
+    BigQueryPartitionConfigChange,
 )
 from dbt.contracts.graph.nodes import ModelNode
 from dbt.contracts.relation import RelationType
@@ -25,9 +25,6 @@ Self = TypeVar("Self", bound="BigQueryRelation")
 class BigQueryRelation(BaseRelation):
     quote_character: str = "`"
     location: Optional[str] = None
-    # this is causing unit tests to fail
-    # include_policy: BigQueryIncludePolicy = field(default_factory=lambda: BigQueryIncludePolicy())
-    quote_policy: BigQueryQuotePolicy = field(default_factory=lambda: BigQueryQuotePolicy())
     renameable_relations: FrozenSet[RelationType] = frozenset({RelationType.Table})
     replaceable_relations: FrozenSet[RelationType] = frozenset(
         {RelationType.Table, RelationType.View}
@@ -79,8 +76,6 @@ class BigQueryRelation(BaseRelation):
     ) -> Optional[BigQueryMaterializedViewConfigChangeset]:
         config_change_collection = BigQueryMaterializedViewConfigChangeset()
         new_materialized_view = cls.materialized_view_from_model_node(runtime_config.model)
-        assert isinstance(existing_materialized_view, BigQueryMaterializedViewConfig)
-        assert isinstance(new_materialized_view, BigQueryMaterializedViewConfig)
 
         if new_materialized_view.options != existing_materialized_view.options:
             config_change_collection.options = BigQueryOptionsConfigChange(
@@ -88,10 +83,13 @@ class BigQueryRelation(BaseRelation):
                 context=new_materialized_view.options,
             )
 
-        if (
-            new_materialized_view.cluster != existing_materialized_view.cluster
-            and new_materialized_view.cluster
-        ):
+        if new_materialized_view.partition != existing_materialized_view.partition:
+            config_change_collection.partition = BigQueryPartitionConfigChange(
+                action=RelationConfigChangeAction.alter,
+                context=new_materialized_view.partition,
+            )
+
+        if new_materialized_view.cluster != existing_materialized_view.cluster:
             config_change_collection.cluster = BigQueryClusterConfigChange(
                 action=RelationConfigChangeAction.alter,
                 context=new_materialized_view.cluster,

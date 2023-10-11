@@ -1,15 +1,15 @@
 from dataclasses import dataclass
-from typing import Any, Dict, FrozenSet
+from typing import Any, Dict, FrozenSet, Optional
 
 from dbt.adapters.relation_configs import RelationConfigChange
 from dbt.contracts.graph.nodes import ModelNode
 from google.cloud.bigquery import Table as BigQueryTable
 
-from dbt.adapters.bigquery.relation_configs._base import BigQueryRelationConfigBase
+from dbt.adapters.bigquery.relation_configs._base import BigQueryBaseRelationConfig
 
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
-class BigQueryClusterConfig(BigQueryRelationConfigBase):
+class BigQueryClusterConfig(BigQueryBaseRelationConfig):
     """
     This config manages table options supporting clustering. See the following for more information:
         - https://docs.getdbt.com/reference/resource-configs/bigquery-configs#using-table-partitioning-and-clustering
@@ -47,7 +47,7 @@ class BigQueryClusterConfig(BigQueryRelationConfigBase):
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
 class BigQueryClusterConfigChange(RelationConfigChange):
-    context: BigQueryClusterConfig
+    context: Optional[BigQueryClusterConfig]
 
     @property
     def requires_full_refresh(self) -> bool:

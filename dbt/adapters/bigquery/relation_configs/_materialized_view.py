@@ -5,20 +5,23 @@ from dbt.contracts.graph.nodes import ModelNode
 from dbt.contracts.relation import ComponentName
 from google.cloud.bigquery import Table as BigQueryTable
 
-from dbt.adapters.bigquery.relation_configs._base import BigQueryRelationConfigBase
-from dbt.adapters.bigquery.relation_configs.options import (
+from dbt.adapters.bigquery.relation_configs._base import BigQueryBaseRelationConfig
+from dbt.adapters.bigquery.relation_configs._options import (
     BigQueryOptionsConfig,
     BigQueryOptionsConfigChange,
 )
-from dbt.adapters.bigquery.relation_configs.partition import PartitionConfig
-from dbt.adapters.bigquery.relation_configs.cluster import (
+from dbt.adapters.bigquery.relation_configs._partition import (
+    BigQueryPartitionConfigChange,
+    PartitionConfig,
+)
+from dbt.adapters.bigquery.relation_configs._cluster import (
     BigQueryClusterConfig,
     BigQueryClusterConfigChange,
 )
 
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
-class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
+class BigQueryMaterializedViewConfig(BigQueryBaseRelationConfig):
     """
     This config follow the specs found here:
     https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#create_materialized_view_statement
@@ -101,6 +104,7 @@ class BigQueryMaterializedViewConfig(BigQueryRelationConfigBase):
 @dataclass
 class BigQueryMaterializedViewConfigChangeset:
     options: Optional[BigQueryOptionsConfigChange] = None
+    partition: Optional[BigQueryPartitionConfigChange] = None
     cluster: Optional[BigQueryClusterConfigChange] = None
 
     @property
@@ -108,6 +112,7 @@ class BigQueryMaterializedViewConfigChangeset:
         return any(
             {
                 self.options.requires_full_refresh if self.options else False,
+                self.partition.requires_full_refresh if self.partition else False,
                 self.cluster.requires_full_refresh if self.cluster else False,
             }
         )
@@ -117,6 +122,7 @@ class BigQueryMaterializedViewConfigChangeset:
         return any(
             {
                 self.options if self.options else False,
+                self.partition if self.partition else False,
                 self.cluster if self.cluster else False,
             }
         )

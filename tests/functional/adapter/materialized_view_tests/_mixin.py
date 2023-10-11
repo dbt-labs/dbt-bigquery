@@ -12,11 +12,7 @@ from dbt.tests.util import (
     set_model_file,
 )
 
-from tests.functional.adapter.materialized_view_tests._files import (
-    MY_BASE_TABLE,
-    MY_MATERIALIZED_VIEW,
-    MY_SEED,
-)
+from tests.functional.adapter.materialized_view_tests import _files
 
 
 class BigQueryMaterializedViewMixin:
@@ -35,11 +31,24 @@ class BigQueryMaterializedViewMixin:
             type=RelationType.Table,
         )
 
+    @pytest.fixture(scope="class")
+    def my_other_base_table(self, project) -> BaseRelation:
+        """
+        Following the sentiment of `my_base_table` above, if we want to alter the partition
+        on the materialized view, we either need to update the partition on the base table,
+        or we need a second table with a different partition.
+        """
+        return project.adapter.Relation.create(
+            identifier="my_other_base_table",
+            schema=project.test_schema,
+            database=project.database,
+            type=RelationType.Table,
+        )
+
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self, project, my_base_table, my_materialized_view):  # type: ignore
+    def setup(self, project, my_base_table, my_other_base_table, my_materialized_view):  # type: ignore
         run_dbt(["seed"])
-        run_dbt(["run", "--models", my_base_table.identifier, "--full-refresh"])
-        run_dbt(["run", "--models", my_materialized_view.identifier, "--full-refresh"])
+        run_dbt(["run", "--full-refresh"])
 
         # the tests touch these files, store their contents in memory
         initial_model = get_model_file(project, my_materialized_view)
@@ -52,15 +61,16 @@ class BigQueryMaterializedViewMixin:
 
     @pytest.fixture(scope="class", autouse=True)
     def seeds(self):
-        return {"my_seed.csv": MY_SEED}
+        return {"my_seed.csv": _files.MY_SEED}
 
     @pytest.fixture(scope="class", autouse=True)
     def models(self):
         yield {
             "my_table.sql": MY_TABLE,
             "my_view.sql": MY_VIEW,
-            "my_base_table.sql": MY_BASE_TABLE,
-            "my_materialized_view.sql": MY_MATERIALIZED_VIEW,
+            "my_base_table.sql": _files.MY_BASE_TABLE,
+            "my_other_base_table.sql": _files.MY_OTHER_BASE_TABLE,
+            "my_materialized_view.sql": _files.MY_MATERIALIZED_VIEW,
         }
 
     @staticmethod

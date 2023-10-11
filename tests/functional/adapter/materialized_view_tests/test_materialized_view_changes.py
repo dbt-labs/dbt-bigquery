@@ -45,7 +45,28 @@ class BigQueryMaterializedViewChanges(BigQueryMaterializedViewMixin, Materialize
     @staticmethod
     def change_config_via_replace(project, materialized_view):
         initial_model = get_model_file(project, materialized_view)
-        new_model = initial_model.replace('cluster_by=["id", "value"]', 'cluster_by="id"')
+        # the whitespace to the left on partition matters here
+        old_partition = """
+    partition_by={
+        "field": "record_valid_date",
+        "data_type": "datetime",
+        "granularity": "day"
+    },"""
+        new_partition = """
+    partition_by={
+        "field": "value",
+        "data_type": "int64",
+        "range": {
+            "start": 0,
+            "end": 500,
+            "interval": 50
+        }
+    },"""
+        new_model = (
+            initial_model.replace('cluster_by=["id", "value"]', 'cluster_by="id"')
+            .replace(old_partition, new_partition)
+            .replace("'my_base_table'", "'my_other_base_table'")
+        )
         set_model_file(project, materialized_view, new_model)
 
     @staticmethod

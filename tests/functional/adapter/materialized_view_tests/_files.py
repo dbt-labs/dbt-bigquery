@@ -24,6 +24,7 @@ from {{ ref('my_seed') }}
 """
 
 
+# the whitespace to the left on partition matters here
 MY_MATERIALIZED_VIEW = """
 {{ config(
     materialized='materialized_view',
@@ -42,4 +43,27 @@ select
     value,
     record_valid_date
 from {{ ref('my_base_table') }}
+"""
+
+
+# the whitespace to the left on partition matters here
+MY_OTHER_BASE_TABLE = """
+{{ config(
+    materialized='table',
+    partition_by={
+        "field": "value",
+        "data_type": "int64",
+        "range": {
+            "start": 0,
+            "end": 500,
+            "interval": 50
+        }
+    },
+    cluster_by=["id", "value"]
+) }}
+select
+    id,
+    value,
+    record_valid_date
+from {{ ref('my_seed') }}
 """

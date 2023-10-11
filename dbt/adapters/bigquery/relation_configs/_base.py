@@ -6,7 +6,7 @@ from dbt.adapters.base.relation import Policy
 from dbt.adapters.relation_configs import RelationConfigBase
 from google.cloud.bigquery import Table as BigQueryTable
 
-from dbt.adapters.bigquery.relation_configs.policies import (
+from dbt.adapters.bigquery.relation_configs._policies import (
     BigQueryIncludePolicy,
     BigQueryQuotePolicy,
 )
@@ -15,7 +15,7 @@ from dbt.contracts.relation import ComponentName
 
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
-class BigQueryRelationConfigBase(RelationConfigBase):
+class BigQueryBaseRelationConfig(RelationConfigBase):
     @classmethod
     def include_policy(cls) -> Policy:
         return BigQueryIncludePolicy()
@@ -25,10 +25,10 @@ class BigQueryRelationConfigBase(RelationConfigBase):
         return BigQueryQuotePolicy()
 
     @classmethod
-    def from_model_node(cls, model_node: ModelNode) -> "RelationConfigBase":
+    def from_model_node(cls, model_node: ModelNode) -> "BigQueryBaseRelationConfig":
         relation_config = cls.parse_model_node(model_node)
         relation = cls.from_dict(relation_config)
-        return relation
+        return relation  # type: ignore
 
     @classmethod
     def parse_model_node(cls, model_node: ModelNode) -> dict:
@@ -37,10 +37,10 @@ class BigQueryRelationConfigBase(RelationConfigBase):
         )
 
     @classmethod
-    def from_bq_table(cls, table: BigQueryTable) -> "RelationConfigBase":
+    def from_bq_table(cls, table: BigQueryTable) -> "BigQueryBaseRelationConfig":
         relation_config = cls.parse_bq_table(table)
         relation = cls.from_dict(relation_config)
-        return relation
+        return relation  # type: ignore
 
     @classmethod
     def parse_bq_table(cls, table: BigQueryTable) -> dict:

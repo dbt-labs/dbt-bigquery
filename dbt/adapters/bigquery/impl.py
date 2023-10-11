@@ -45,6 +45,7 @@ from dbt.adapters.bigquery.python_submissions import (
 )
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery.relation_configs import (
+    BigQueryBaseRelationConfig,
     BigQueryMaterializedViewConfig,
     PartitionConfig,
 )
@@ -760,7 +761,9 @@ class BigQueryAdapter(BaseAdapter):
         return table
 
     @available.parse(lambda *a, **k: True)
-    def describe_relation(self, relation: BigQueryRelation):
+    def describe_relation(
+        self, relation: BigQueryRelation
+    ) -> Optional[BigQueryBaseRelationConfig]:
         if relation.type == RelationType.MaterializedView:
             bq_table = self.get_bq_table(relation)
             parser = BigQueryMaterializedViewConfig
@@ -769,7 +772,9 @@ class BigQueryAdapter(BaseAdapter):
                 f"The method `BigQueryAdapter.describe_relation` is not implemented "
                 f"for the relation type: {relation.type}"
             )
-        return parser.from_bq_table(bq_table)
+        if bq_table:
+            return parser.from_bq_table(bq_table)
+        return None
 
     @available.parse_none
     def grant_access_to(self, entity, entity_type, role, grant_target_dict):

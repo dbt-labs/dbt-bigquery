@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from dbt.adapters.relation_configs import RelationConfigChange
 from dbt.contracts.graph.nodes import ModelNode
 from dbt.dataclass_schema import dbtClassMixin, ValidationError
 import dbt.exceptions
-from dbt.adapters.relation_configs import RelationConfigChange
 from google.cloud.bigquery.table import Table as BigQueryTable
 
 
@@ -104,13 +104,26 @@ class PartitionConfig(dbtClassMixin):
     def parse_model_node(cls, model_node: ModelNode) -> Dict[str, Any]:
         """
         Parse model node into a raw config for `PartitionConfig.parse`
+
+        - Note:
+            This doesn't currently collect `time_ingestion_partitioning` and `copy_partitions`
+            because this was built for materialized views, which do not support those settings.
         """
-        return model_node.config.extra.get("partition_by")
+        config_dict = model_node.config.extra.get("partition_by")
+        if "time_ingestion_partitioning" in config_dict:
+            del config_dict["time_ingestion_partitioning"]
+        if "copy_partitions" in config_dict:
+            del config_dict["copy_partitions"]
+        return config_dict
 
     @classmethod
     def parse_bq_table(cls, table: BigQueryTable) -> Dict[str, Any]:
         """
-        Parse the results of a BQ Table object into a raw config for `PartitionConfig.parse`
+        Parse the BQ Table object into a raw config for `PartitionConfig.parse`
+
+        - Note:
+            This doesn't currently collect `time_ingestion_partitioning` and `copy_partitions`
+            because this was built for materialized views, which do not support those settings.
         """
         if time_partitioning := table.time_partitioning:
             field_types = {field.name: field.field_type.lower() for field in table.schema}
@@ -136,26 +149,10 @@ class PartitionConfig(dbtClassMixin):
 
         return config_dict
 
-    def __eq__(self, other: Any) -> bool:
-        """
-        We can't query partitions on materialized views, hence we are assuming that if the field and data type
-        have not changed, then the partition has not changed either. This should be updated to include the
-        granularity and range once that issue is resolved. Until then, users will need to supply --full-refresh
-        if they keep the field but change the partition granularity.
-        """
-        if isinstance(other, PartitionConfig):
-            return all(
-                {
-                    other.field == self.field,
-                    other.data_type == self.data_type,
-                }
-            )
-        return False
-
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
 class BigQueryPartitionConfigChange(RelationConfigChange):
-    context: PartitionConfig
+    context: Optional[PartitionConfig]
 
     @property
     def requires_full_refresh(self) -> bool:

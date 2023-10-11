@@ -6,12 +6,12 @@ from dbt.adapters.relation_configs import RelationConfigChange
 from dbt.contracts.graph.nodes import ModelNode
 from google.cloud.bigquery import Table as BigQueryTable
 
-from dbt.adapters.bigquery.relation_configs._base import BigQueryRelationConfigBase
+from dbt.adapters.bigquery.relation_configs._base import BigQueryBaseRelationConfig
 from dbt.adapters.bigquery.utility import bool_setting, float_setting, sql_escape
 
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
-class BigQueryOptionsConfig(BigQueryRelationConfigBase):
+class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
     """
     This config manages materialized view options. See the following for more information:
     - https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#materialized_view_option_list

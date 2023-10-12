@@ -1,6 +1,0 @@
-kind: Fixes
-body: case insensitive check on partition matching
-time: 2023-08-18T21:46:16.828488+02:00
-custom:
-  Author: Kayrnt
-  Issue: "886"

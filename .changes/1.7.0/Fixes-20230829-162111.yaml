@@ -1,6 +1,0 @@
-kind: Fixes
-body: Time out queries if user supplies `job_execution_timeout`
-time: 2023-08-29T16:21:11.69291-07:00
-custom:
-  Author: colin-rogers-dbt McKnight-42
-  Issue: "231"

@@ -1,7 +1,0 @@
-kind: Features
-body: Support partition_by and cluster_by on python models when supplied in model
-  configurations
-time: 2023-04-26T15:25:26.285021+09:00
-custom:
-  Author: kalanyuz
-  Issue: "680"

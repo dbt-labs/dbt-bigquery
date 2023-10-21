@@ -15,7 +15,7 @@ from typing import Optional, Any, Dict, Tuple
 
 import google.auth
 import google.auth.exceptions
-import google.cloud.bigquery
+import google.cloud.bigquery as bigquery
 import google.cloud.exceptions
 from google.api_core import retry, client_info
 from google.auth import impersonated_credentials
@@ -61,6 +61,15 @@ RETRYABLE_ERRORS = (
     ConnectionResetError,
     ConnectionError,
 )
+
+
+# Override broken json deserializer for dbt show --inline
+def _json_from_json(value, _):
+    """NOOP string -> string coercion"""
+    return json.loads(value)
+
+
+bigquery._helpers._CELLDATA_FROM_JSON["JSON"] = _json_from_json
 
 
 @lru_cache()

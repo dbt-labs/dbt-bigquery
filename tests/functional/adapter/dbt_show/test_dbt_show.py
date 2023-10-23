@@ -33,6 +33,8 @@ class TestBigQueryShowSqlHeader(BaseShowSqlHeader):
     pass
 
 
+# Added to check if dbt show works with JSON struct
+# Addresses: https://github.com/dbt-labs/dbt-bigquery/issues/972
 class TestBigQueryShowSqlWorksWithJSONStruct:
     @pytest.fixture(scope="class")
     def models(self):

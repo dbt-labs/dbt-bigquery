@@ -11,7 +11,7 @@ from mashumaro.helper import pass_through
 from functools import lru_cache
 import agate
 from requests.exceptions import ConnectionError
-from typing import Optional, Any, Dict, Tuple
+from typing import Optional, Any, Dict, List, Tuple
 
 import google.auth
 import google.auth.exceptions
@@ -297,7 +297,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 exc_message = exc_message.split(BQ_QUERY_JOB_SPLIT)[0].strip()
             raise DbtRuntimeError(exc_message)
 
-    def cancel_open(self) -> None:
+    def cancel_open(self) -> List[str]:
         names = []
         this_connection = self.get_if_exists()
         with self.lock:
@@ -318,6 +318,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
                 if connection.name is not None:
                     names.append(connection.name)
+
+        return names
 
     @classmethod
     def close(cls, connection):

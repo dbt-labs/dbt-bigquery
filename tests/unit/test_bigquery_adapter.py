@@ -344,7 +344,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
 
     def test_cancel_open_connections_empty(self):
         adapter = self.get_adapter("oauth")
-        self.assertEqual(adapter.cancel_open_connections(), None)
+        self.assertEqual(len(list(adapter.cancel_open_connections())), 0)
 
     def test_cancel_open_connections_master(self):
         adapter = self.get_adapter("oauth")

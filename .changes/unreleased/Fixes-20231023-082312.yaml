@@ -1,0 +1,6 @@
+kind: Fixes
+body: Patch for json inline --show
+time: 2023-10-23T08:23:12.245223-06:00
+custom:
+  Author: matt-winkler
+  Issue: "972"

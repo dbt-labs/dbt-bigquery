@@ -1,6 +1,0 @@
-kind: Fixes
-body: Patch for json inline --show
-time: 2023-10-21T15:42:37.406853-06:00
-custom:
-  Author: matt.winkler@dbtlabs.com
-  Issue: "972"

@@ -24,6 +24,7 @@ from google.cloud.bigquery import AccessEntry
 from .utils import (
     config_from_parts_or_dicts,
     inject_adapter,
+    mock_connection,
     TestAdapterConversions,
 )
 
@@ -348,8 +349,8 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
 
     def test_cancel_open_connections_master(self):
         adapter = self.get_adapter("oauth")
-        adapter.connections.thread_connections[0] = object()
-        self.assertEqual(adapter.cancel_open_connections(), None)
+        adapter.connections.thread_connections[0] = mock_connection("master")
+        self.assertEqual(len(list(adapter.cancel_open_connections())), 0)
 
     def test_cancel_open_connections_single(self):
         adapter = self.get_adapter("oauth")

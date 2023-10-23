@@ -21,7 +21,11 @@ from dbt.context.providers import RuntimeConfigObject
 
 from google.cloud.bigquery import AccessEntry
 
-from .utils import config_from_parts_or_dicts, inject_adapter, TestAdapterConversions
+from .utils import (
+    config_from_parts_or_dicts,
+    inject_adapter,
+    TestAdapterConversions,
+)
 
 
 def _bq_conn():

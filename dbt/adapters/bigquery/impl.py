@@ -130,7 +130,7 @@ class BigQueryAdapter(BaseAdapter):
 
     @classmethod
     def is_cancelable(cls) -> bool:
-        return False
+        return True
 
     def drop_relation(self, relation: BigQueryRelation) -> None:
         is_cached = self._schema_is_cached(relation.database, relation.schema)  # type: ignore[arg-type]

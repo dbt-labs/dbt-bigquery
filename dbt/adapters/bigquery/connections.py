@@ -11,7 +11,7 @@ from mashumaro.helper import pass_through
 from functools import lru_cache
 import agate
 from requests.exceptions import ConnectionError
-from typing import Optional, Any, Dict, Tuple
+from typing import Optional, Any, Dict, List, Tuple
 
 import google.auth
 import google.auth.exceptions
@@ -25,10 +25,11 @@ from google.oauth2 import (
 )
 
 from dbt.adapters.bigquery import gcloud
+from dbt.adapters.bigquery.jobs import define_job_id
 from dbt.clients import agate_helper
 from dbt.config.profile import INVALID_PROFILE_MESSAGE
 from dbt.tracking import active_user
-from dbt.contracts.connection import ConnectionState, AdapterResponse
+from dbt.contracts.connection import ConnectionState, AdapterResponse, AdapterRequiredConfig
 from dbt.exceptions import (
     FailedToConnectError,
     DbtRuntimeError,
@@ -229,6 +230,10 @@ class BigQueryConnectionManager(BaseConnectionManager):
     DEFAULT_INITIAL_DELAY = 1.0  # Seconds
     DEFAULT_MAXIMUM_DELAY = 3.0  # Seconds
 
+    def __init__(self, profile: AdapterRequiredConfig):
+        super().__init__(profile)
+        self.jobs_by_thread: Dict[Any, Any] = {}
+
     @classmethod
     def handle_error(cls, error, message):
         error_msg = "\n".join([item["message"] for item in error.errors])
@@ -282,8 +287,28 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 exc_message = exc_message.split(BQ_QUERY_JOB_SPLIT)[0].strip()
             raise DbtRuntimeError(exc_message)
 
-    def cancel_open(self) -> None:
-        pass
+    def cancel_open(self) -> List[str]:
+        names = []
+        this_connection = self.get_if_exists()
+        with self.lock:
+            for thread_id, connection in self.thread_connections.items():
+                if connection is this_connection:
+                    continue
+
+                if connection.handle is not None and connection.state == ConnectionState.OPEN:
+                    client = connection.handle
+                    for job_id in self.jobs_by_thread.get(thread_id, []):
+
+                        def fn():
+                            return client.cancel_job(job_id)
+
+                        self._retry_and_handle(msg=f"Cancel job: {job_id}", conn=connection, fn=fn)
+
+                    self.close(connection)
+
+                if connection.name is not None:
+                    names.append(connection.name)
+        return names
 
     @classmethod
     def close(cls, connection):
@@ -481,18 +506,26 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         job_creation_timeout = self.get_job_creation_timeout_seconds(conn)
         job_execution_timeout = self.get_job_execution_timeout_seconds(conn)
+        # build out determinsitic_id
+        model_name = client.connection.name
+        invocation_id = client.connection.clent_info.invocation_id
+        job_id = define_job_id(model_name, invocation_id)
+        thread_id = self.get_thread_identifier()
+        self.jobs_by_thread[thread_id] = self.jobs_by_thread.get(thread_id, []) + [job_id]
 
         def fn():
             return self._query_and_results(
                 client,
                 sql,
                 job_params,
+                job_id,
                 job_creation_timeout=job_creation_timeout,
                 job_execution_timeout=job_execution_timeout,
                 limit=limit,
             )
 
         query_job, iterator = self._retry_and_handle(msg=sql, conn=conn, fn=fn)
+        self.jobs_by_thread.get(thread_id, []).remove(job_id)
 
         return query_job, iterator
 
@@ -724,6 +757,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         client,
         sql,
         job_params,
+        job_id,
         job_creation_timeout=None,
         job_execution_timeout=None,
         limit: Optional[int] = None,
@@ -731,7 +765,9 @@ class BigQueryConnectionManager(BaseConnectionManager):
         """Query the client and wait for results."""
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
-        query_job = client.query(query=sql, job_config=job_config, timeout=job_creation_timeout)
+        query_job = client.query(
+            query=sql, job_config=job_config, job_id=job_id, timeout=job_creation_timeout
+        )
         if (
             query_job.location is not None
             and query_job.job_id is not None

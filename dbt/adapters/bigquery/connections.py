@@ -64,6 +64,7 @@ RETRYABLE_ERRORS = (
 
 
 # Override broken json deserializer for dbt show --inline
+# can remove once this is fixed: https://github.com/googleapis/python-bigquery/issues/1500
 def _json_from_json(value, _):
     """NOOP string -> string coercion"""
     return json.loads(value)

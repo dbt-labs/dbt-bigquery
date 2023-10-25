@@ -520,7 +520,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         job_execution_timeout = self.get_job_execution_timeout_seconds(conn)
         # build out determinsitic_id
         model_name = conn.credentials.schema  # schema name as model name is not
-        # breakpoint()
         invocation_id = str(uuid.uuid4())
         job_id = define_job_id(model_name, invocation_id)
         thread_id = self.get_thread_identifier()

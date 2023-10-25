@@ -518,8 +518,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
         job_creation_timeout = self.get_job_creation_timeout_seconds(conn)
         job_execution_timeout = self.get_job_execution_timeout_seconds(conn)
         # build out determinsitic_id
-        model_name = client.connection.name
-        invocation_id = client.connection.clent_info.invocation_id
+        model_name = conn.name
+        invocation_id = client.connection.client_info.invocation_id
         job_id = define_job_id(model_name, invocation_id)
         thread_id = self.get_thread_identifier()
         self.jobs_by_thread[thread_id] = self.jobs_by_thread.get(thread_id, []) + [job_id]

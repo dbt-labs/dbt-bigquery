@@ -95,7 +95,7 @@ class BigQueryRelation(BaseRelation):
                 context=new_materialized_view.cluster,
             )
 
-        if config_change_collection:
+        if config_change_collection.has_changes:
             return config_change_collection
         return None
 

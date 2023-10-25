@@ -8,7 +8,7 @@ from dbt.tests.util import get_connection, get_model_file, set_model_file
 
 from dbt.adapters.bigquery.relation_configs import BigQueryMaterializedViewConfig
 
-from tests.functional.adapter.materialized_view_tests._mixin import BigQueryMaterializedViewMixin
+from tests.functional.adapter.materialized_view_tests.mixin import BigQueryMaterializedViewMixin
 
 
 class BigQueryMaterializedViewClusterChanges(

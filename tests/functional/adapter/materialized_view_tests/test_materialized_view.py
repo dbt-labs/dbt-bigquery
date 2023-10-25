@@ -3,7 +3,7 @@ import pytest
 from dbt.tests.util import run_dbt
 from dbt.tests.adapter.materialized_view.basic import MaterializedViewBasic
 
-from tests.functional.adapter.materialized_view_tests._mixin import BigQueryMaterializedViewMixin
+from tests.functional.adapter.materialized_view_tests.mixin import BigQueryMaterializedViewMixin
 
 
 class TestBigqueryMaterializedViewsBasic(BigQueryMaterializedViewMixin, MaterializedViewBasic):

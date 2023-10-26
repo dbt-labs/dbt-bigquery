@@ -17,6 +17,7 @@ from dbt.adapters.base import (  # type: ignore
     available,
 )
 from dbt.adapters.cache import _make_ref_key_dict  # type: ignore
+from dbt.adapters.relation_configs import RelationConfigBase, RelationConfigFactory
 import dbt.clients.agate_helper
 from dbt.contracts.connection import AdapterResponse
 from dbt.contracts.graph.manifest import Manifest
@@ -45,7 +46,6 @@ from dbt.adapters.bigquery.python_submissions import (
 )
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery.relation_configs import (
-    BigQueryBaseRelationConfig,
     BigQueryMaterializedViewConfig,
     PartitionConfig,
 )
@@ -123,6 +123,13 @@ class BigQueryAdapter(BaseAdapter):
     ###
     # Implementations of abstract methods
     ###
+
+    def _relation_config_factory(self) -> RelationConfigFactory:
+        return RelationConfigFactory(
+            relation_configs={
+                RelationType.MaterializedView: BigQueryMaterializedViewConfig,
+            },
+        )
 
     @classmethod
     def date_function(cls) -> str:
@@ -761,9 +768,7 @@ class BigQueryAdapter(BaseAdapter):
         return table
 
     @available.parse(lambda *a, **k: True)
-    def describe_relation(
-        self, relation: BigQueryRelation
-    ) -> Optional[BigQueryBaseRelationConfig]:
+    def describe_relation(self, relation: BigQueryRelation) -> Optional[RelationConfigBase]:
         if relation.type == RelationType.MaterializedView:
             bq_table = self.get_bq_table(relation)
             parser = BigQueryMaterializedViewConfig
@@ -773,7 +778,7 @@ class BigQueryAdapter(BaseAdapter):
                 f"for the relation type: {relation.type}"
             )
         if bq_table:
-            return parser.from_bq_table(bq_table)
+            return parser.from_api_results(bq_table)
         return None
 
     @available.parse_none

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from dbt.adapters.relation_configs import RelationConfigChange
-from dbt.contracts.graph.nodes import ModelNode
+from dbt.contracts.graph.nodes import ParsedNode
 from dbt.dataclass_schema import dbtClassMixin, ValidationError
 import dbt.exceptions
 from google.cloud.bigquery.table import Table as BigQueryTable
@@ -101,7 +101,7 @@ class PartitionConfig(dbtClassMixin):
             )
 
     @classmethod
-    def parse_model_node(cls, model_node: ModelNode) -> Dict[str, Any]:
+    def parse_node(cls, node: ParsedNode) -> Dict[str, Any]:
         """
         Parse model node into a raw config for `PartitionConfig.parse`
 
@@ -109,7 +109,7 @@ class PartitionConfig(dbtClassMixin):
             This doesn't currently collect `time_ingestion_partitioning` and `copy_partitions`
             because this was built for materialized views, which do not support those settings.
         """
-        config_dict = model_node.config.extra.get("partition_by")
+        config_dict = node.config.extra.get("partition_by")
         if "time_ingestion_partitioning" in config_dict:
             del config_dict["time_ingestion_partitioning"]
         if "copy_partitions" in config_dict:
@@ -117,7 +117,7 @@ class PartitionConfig(dbtClassMixin):
         return config_dict
 
     @classmethod
-    def parse_bq_table(cls, table: BigQueryTable) -> Dict[str, Any]:
+    def parse_api_results(cls, table: BigQueryTable) -> Dict[str, Any]:
         """
         Parse the BQ Table object into a raw config for `PartitionConfig.parse`
 

@@ -1,17 +1,17 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
+from typing_extensions import Self
 
-from dbt.adapters.relation_configs import RelationConfigChange
-from dbt.contracts.graph.nodes import ModelNode
+from dbt.adapters.relation_configs import RelationConfigBase, RelationConfigChange
+from dbt.contracts.graph.nodes import ParsedNode
 from google.cloud.bigquery import Table as BigQueryTable
 
-from dbt.adapters.bigquery.relation_configs._base import BigQueryBaseRelationConfig
 from dbt.adapters.bigquery.utility import bool_setting, float_setting, sql_escape
 
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
-class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
+class BigQueryOptionsConfig(RelationConfigBase):
     """
     This config manages materialized view options. See the following for more information:
     - https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#materialized_view_option_list
@@ -78,7 +78,7 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
         return options
 
     @classmethod
-    def from_dict(cls, config_dict: Dict[str, Any]) -> "BigQueryOptionsConfig":
+    def from_dict(cls, config_dict: Dict[str, Any]) -> Self:
         setting_formatters = {
             "enable_refresh": bool_setting,
             "refresh_interval_minutes": float_setting,
@@ -102,13 +102,12 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
         if kwargs_dict["enable_refresh"] is False:
             kwargs_dict.update({"refresh_interval_minutes": None, "max_staleness": None})
 
-        options: "BigQueryOptionsConfig" = super().from_dict(kwargs_dict)  # type: ignore
-        return options
+        return super().from_dict(kwargs_dict)  # type: ignore
 
     @classmethod
-    def parse_model_node(cls, model_node: ModelNode) -> Dict[str, Any]:
+    def parse_node(cls, node: ParsedNode) -> Dict[str, Any]:
         config_dict = {
-            option: model_node.config.extra.get(option)
+            option: node.config.extra.get(option)
             for option in [
                 "enable_refresh",
                 "refresh_interval_minutes",
@@ -121,17 +120,17 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
         }
 
         # update dbt-specific versions of these settings
-        if hours_to_expiration := model_node.config.extra.get("hours_to_expiration"):
+        if hours_to_expiration := node.config.extra.get("hours_to_expiration"):
             config_dict.update(
                 {"expiration_timestamp": datetime.now() + timedelta(hours=hours_to_expiration)}
             )
-        if not model_node.config.persist_docs:
+        if not node.config.persist_docs:
             del config_dict["description"]
 
         return config_dict
 
     @classmethod
-    def parse_bq_table(cls, table: BigQueryTable) -> Dict[str, Any]:
+    def parse_api_results(cls, table: BigQueryTable) -> Dict[str, Any]:
         config_dict = {
             "enable_refresh": table.mview_enable_refresh,
             "refresh_interval_minutes": table.mview_refresh_interval.seconds / 60,

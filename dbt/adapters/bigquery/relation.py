@@ -11,8 +11,8 @@ from dbt.adapters.bigquery.relation_configs import (
     BigQueryMaterializedViewConfigChangeset,
     BigQueryOptionsConfigChange,
     BigQueryPartitionConfigChange,
+    QUOTE_CHARACTER,
 )
-from dbt.contracts.graph.nodes import ModelNode
 from dbt.contracts.relation import RelationType
 from dbt.exceptions import CompilationError
 from dbt.utils import filter_null_values
@@ -23,7 +23,7 @@ Self = TypeVar("Self", bound="BigQueryRelation")
 
 @dataclass(frozen=True, eq=False, repr=False)
 class BigQueryRelation(BaseRelation):
-    quote_character: str = "`"
+    quote_character: str = QUOTE_CHARACTER
     location: Optional[str] = None
     renameable_relations: FrozenSet[RelationType] = frozenset({RelationType.Table})
     replaceable_relations: FrozenSet[RelationType] = frozenset(
@@ -63,19 +63,13 @@ class BigQueryRelation(BaseRelation):
         return self.schema
 
     @classmethod
-    def materialized_view_from_model_node(
-        cls, model_node: ModelNode
-    ) -> BigQueryMaterializedViewConfig:
-        return BigQueryMaterializedViewConfig.from_model_node(model_node)  # type: ignore
-
-    @classmethod
     def materialized_view_config_changeset(
         cls,
         existing_materialized_view: BigQueryMaterializedViewConfig,
         runtime_config: RuntimeConfigObject,
     ) -> Optional[BigQueryMaterializedViewConfigChangeset]:
         config_change_collection = BigQueryMaterializedViewConfigChangeset()
-        new_materialized_view = cls.materialized_view_from_model_node(runtime_config.model)
+        new_materialized_view = BigQueryMaterializedViewConfig.from_node(runtime_config.model)
 
         if new_materialized_view.options != existing_materialized_view.options:
             config_change_collection.options = BigQueryOptionsConfigChange(
@@ -105,7 +99,7 @@ class BigQueryRelation(BaseRelation):
 
 @dataclass(frozen=True, eq=False, repr=False)
 class BigQueryInformationSchema(InformationSchema):
-    quote_character: str = "`"
+    quote_character: str = QUOTE_CHARACTER
     location: Optional[str] = None
 
     @classmethod

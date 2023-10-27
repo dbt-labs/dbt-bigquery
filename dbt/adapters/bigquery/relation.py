@@ -1,13 +1,21 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import FrozenSet, Optional, TypeVar
 
 from itertools import chain, islice
-
+from dbt.context.providers import RuntimeConfigObject
 from dbt.adapters.base.relation import BaseRelation, ComponentName, InformationSchema
+from dbt.adapters.relation_configs import RelationConfigChangeAction
+from dbt.adapters.bigquery.relation_configs import (
+    BigQueryClusterConfigChange,
+    BigQueryMaterializedViewConfig,
+    BigQueryMaterializedViewConfigChangeset,
+    BigQueryOptionsConfigChange,
+    BigQueryPartitionConfigChange,
+)
+from dbt.contracts.graph.nodes import ModelNode
 from dbt.contracts.relation import RelationType
 from dbt.exceptions import CompilationError
 from dbt.utils import filter_null_values
-from typing import TypeVar
 
 
 Self = TypeVar("Self", bound="BigQueryRelation")
@@ -17,9 +25,10 @@ Self = TypeVar("Self", bound="BigQueryRelation")
 class BigQueryRelation(BaseRelation):
     quote_character: str = "`"
     location: Optional[str] = None
-    # why do we need to use default_factory here but we can assign it directly in dbt-postgres?
-    renameable_relations = frozenset({RelationType.Table})
-    replaceable_relations = frozenset({RelationType.Table, RelationType.View})
+    renameable_relations: FrozenSet[RelationType] = frozenset({RelationType.Table})
+    replaceable_relations: FrozenSet[RelationType] = frozenset(
+        {RelationType.Table, RelationType.View}
+    )
 
     def matches(
         self,
@@ -52,6 +61,43 @@ class BigQueryRelation(BaseRelation):
     @property
     def dataset(self):
         return self.schema
+
+    @classmethod
+    def materialized_view_from_model_node(
+        cls, model_node: ModelNode
+    ) -> BigQueryMaterializedViewConfig:
+        return BigQueryMaterializedViewConfig.from_model_node(model_node)  # type: ignore
+
+    @classmethod
+    def materialized_view_config_changeset(
+        cls,
+        existing_materialized_view: BigQueryMaterializedViewConfig,
+        runtime_config: RuntimeConfigObject,
+    ) -> Optional[BigQueryMaterializedViewConfigChangeset]:
+        config_change_collection = BigQueryMaterializedViewConfigChangeset()
+        new_materialized_view = cls.materialized_view_from_model_node(runtime_config.model)
+
+        if new_materialized_view.options != existing_materialized_view.options:
+            config_change_collection.options = BigQueryOptionsConfigChange(
+                action=RelationConfigChangeAction.alter,
+                context=new_materialized_view.options,
+            )
+
+        if new_materialized_view.partition != existing_materialized_view.partition:
+            config_change_collection.partition = BigQueryPartitionConfigChange(
+                action=RelationConfigChangeAction.alter,
+                context=new_materialized_view.partition,
+            )
+
+        if new_materialized_view.cluster != existing_materialized_view.cluster:
+            config_change_collection.cluster = BigQueryClusterConfigChange(
+                action=RelationConfigChangeAction.alter,
+                context=new_materialized_view.cluster,
+            )
+
+        if config_change_collection:
+            return config_change_collection
+        return None
 
     def information_schema(self, identifier: Optional[str] = None) -> "BigQueryInformationSchema":
         return BigQueryInformationSchema.from_relation(self, identifier)

@@ -55,7 +55,8 @@ merge_time_sql = """
         partition_by={
             "field": "date_time",
             "data_type": "dateTime"
-        }
+        },
+        require_partition_filter=true
     )
 }}
 

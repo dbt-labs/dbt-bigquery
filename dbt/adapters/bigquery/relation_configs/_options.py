@@ -138,8 +138,12 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
             "expiration_timestamp": table.expires,
             "max_staleness": None,
             "description": table.description,
-            "labels": table.labels,
         }
+
+        # map the empty dict to None
+        if labels := table.labels:
+            config_dict.update({"labels": labels})
+
         if encryption_configuration := table.encryption_configuration:
             config_dict.update({"kms_key_name": encryption_configuration.kms_key_name})
         return config_dict

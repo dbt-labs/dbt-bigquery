@@ -1,11 +1,16 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
+from typing_extensions import Self
 
-from dbt.contracts.graph.nodes import ModelNode
+from dbt.adapters.relation_configs import MaterializedViewRelationConfig
+from dbt.contracts.graph.nodes import ParsedNode
 from dbt.contracts.relation import ComponentName
 from google.cloud.bigquery import Table as BigQueryTable
 
-from dbt.adapters.bigquery.relation_configs._base import BigQueryBaseRelationConfig
+from dbt.adapters.bigquery.relation_configs._cluster import (
+    BigQueryClusterConfig,
+    BigQueryClusterConfigChange,
+)
 from dbt.adapters.bigquery.relation_configs._options import (
     BigQueryOptionsConfig,
     BigQueryOptionsConfigChange,
@@ -14,14 +19,11 @@ from dbt.adapters.bigquery.relation_configs._partition import (
     BigQueryPartitionConfigChange,
     PartitionConfig,
 )
-from dbt.adapters.bigquery.relation_configs._cluster import (
-    BigQueryClusterConfig,
-    BigQueryClusterConfigChange,
-)
+from dbt.adapters.bigquery.relation_configs._policies import render_part
 
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
-class BigQueryMaterializedViewConfig(BigQueryBaseRelationConfig):
+class BigQueryMaterializedViewConfig(MaterializedViewRelationConfig):
     """
     This config follow the specs found here:
     https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#create_materialized_view_statement
@@ -42,13 +44,28 @@ class BigQueryMaterializedViewConfig(BigQueryBaseRelationConfig):
     partition: Optional[PartitionConfig] = None
     cluster: Optional[BigQueryClusterConfig] = None
 
+    @property
+    def auto_refresh(self):
+        return self.options.enable_refresh
+
+    @property
+    def fully_qualified_path(self) -> str:
+        return ".".join(
+            render_part(component, part)
+            for component, part in {
+                ComponentName.Database: self.project_id,
+                ComponentName.Schema: self.dataset_id,
+                ComponentName.Identifier: self.table_id,
+            }.items()
+        )
+
     @classmethod
-    def from_dict(cls, config_dict: Dict[str, Any]) -> "BigQueryMaterializedViewConfig":
+    def from_dict(cls, config_dict: Dict[str, Any]) -> Self:
         # required
         kwargs_dict: Dict[str, Any] = {
-            "table_id": cls._render_part(ComponentName.Identifier, config_dict["table_id"]),
-            "dataset_id": cls._render_part(ComponentName.Schema, config_dict["dataset_id"]),
-            "project_id": cls._render_part(ComponentName.Database, config_dict["project_id"]),
+            "table_id": config_dict["table_id"],
+            "dataset_id": config_dict["dataset_id"],
+            "project_id": config_dict["project_id"],
             "options": BigQueryOptionsConfig.from_dict(config_dict["options"]),
         }
 
@@ -59,44 +76,43 @@ class BigQueryMaterializedViewConfig(BigQueryBaseRelationConfig):
         if cluster := config_dict.get("cluster"):
             kwargs_dict.update({"cluster": BigQueryClusterConfig.from_dict(cluster)})
 
-        materialized_view: "BigQueryMaterializedViewConfig" = super().from_dict(kwargs_dict)  # type: ignore
-        return materialized_view
+        return super().from_dict(kwargs_dict)  # type: ignore
 
     @classmethod
-    def parse_model_node(cls, model_node: ModelNode) -> Dict[str, Any]:
+    def parse_node(cls, node: ParsedNode) -> Dict[str, Any]:
         config_dict = {
-            "table_id": model_node.identifier,
-            "dataset_id": model_node.schema,
-            "project_id": model_node.database,
+            "table_id": node.identifier,
+            "dataset_id": node.schema,
+            "project_id": node.database,
             # despite this being a foreign object, there will always be options because of defaults
-            "options": BigQueryOptionsConfig.parse_model_node(model_node),
+            "options": BigQueryOptionsConfig.parse_node(node),
         }
 
         # optional
-        if "partition_by" in model_node.config:
-            config_dict.update({"partition": PartitionConfig.parse_model_node(model_node)})
+        if "partition_by" in node.config:
+            config_dict.update({"partition": PartitionConfig.parse_node(node)})
 
-        if "cluster_by" in model_node.config:
-            config_dict.update({"cluster": BigQueryClusterConfig.parse_model_node(model_node)})
+        if "cluster_by" in node.config:
+            config_dict.update({"cluster": BigQueryClusterConfig.parse_node(node)})
 
         return config_dict
 
     @classmethod
-    def parse_bq_table(cls, table: BigQueryTable) -> Dict[str, Any]:
+    def parse_api_results(cls, table: BigQueryTable) -> Dict[str, Any]:
         config_dict = {
             "table_id": table.table_id,
             "dataset_id": table.dataset_id,
             "project_id": table.project,
             # despite this being a foreign object, there will always be options because of defaults
-            "options": BigQueryOptionsConfig.parse_bq_table(table),
+            "options": BigQueryOptionsConfig.parse_api_results(table),
         }
 
         # optional
         if table.time_partitioning or table.range_partitioning:
-            config_dict.update({"partition": PartitionConfig.parse_bq_table(table)})
+            config_dict.update({"partition": PartitionConfig.parse_api_results(table)})
 
         if table.clustering_fields:
-            config_dict.update({"cluster": BigQueryClusterConfig.parse_bq_table(table)})
+            config_dict.update({"cluster": BigQueryClusterConfig.parse_api_results(table)})
 
         return config_dict
 

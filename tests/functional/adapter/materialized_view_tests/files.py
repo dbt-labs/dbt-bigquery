@@ -67,3 +67,21 @@ select
     record_valid_date
 from {{ ref('my_seed') }}
 """
+
+
+MY_MATERIALIZED_VIEW_AUTOREFRESH_ON = """
+{{ config(
+    materialized='materialized_view',
+    enable_refresh=True,
+) }}
+select * from {{ ref('my_seed') }}
+"""
+
+
+MY_MATERIALIZED_VIEW_AUTOREFRESH_OFF = """
+{{ config(
+    materialized='materialized_view',
+    enable_refresh=False,
+) }}
+select * from {{ ref('my_seed') }}
+"""

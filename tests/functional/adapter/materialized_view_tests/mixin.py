@@ -12,7 +12,7 @@ from dbt.tests.util import (
     set_model_file,
 )
 
-from tests.functional.adapter.materialized_view_tests import _files
+from tests.functional.adapter.materialized_view_tests import files
 
 
 class BigQueryMaterializedViewMixin:
@@ -61,16 +61,16 @@ class BigQueryMaterializedViewMixin:
 
     @pytest.fixture(scope="class", autouse=True)
     def seeds(self):
-        return {"my_seed.csv": _files.MY_SEED}
+        return {"my_seed.csv": files.MY_SEED}
 
     @pytest.fixture(scope="class", autouse=True)
     def models(self):
         yield {
             "my_table.sql": MY_TABLE,
             "my_view.sql": MY_VIEW,
-            "my_base_table.sql": _files.MY_BASE_TABLE,
-            "my_other_base_table.sql": _files.MY_OTHER_BASE_TABLE,
-            "my_materialized_view.sql": _files.MY_MATERIALIZED_VIEW,
+            "my_base_table.sql": files.MY_BASE_TABLE,
+            "my_other_base_table.sql": files.MY_OTHER_BASE_TABLE,
+            "my_materialized_view.sql": files.MY_MATERIALIZED_VIEW,
         }
 
     @staticmethod

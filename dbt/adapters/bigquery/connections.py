@@ -15,7 +15,7 @@ from typing import Optional, Any, Dict, Tuple
 
 import google.auth
 import google.auth.exceptions
-import google.cloud.bigquery
+import google.cloud.bigquery as bigquery
 import google.cloud.exceptions
 from google.api_core import retry, client_info
 from google.auth import impersonated_credentials
@@ -61,6 +61,16 @@ RETRYABLE_ERRORS = (
     ConnectionResetError,
     ConnectionError,
 )
+
+
+# Override broken json deserializer for dbt show --inline
+# can remove once this is fixed: https://github.com/googleapis/python-bigquery/issues/1500
+def _json_from_json(value, _):
+    """NOOP string -> string coercion"""
+    return json.loads(value)
+
+
+bigquery._helpers._CELLDATA_FROM_JSON["JSON"] = _json_from_json
 
 
 @lru_cache()
@@ -356,7 +366,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
             source_credentials=source_credentials,
             target_principal=profile_credentials.impersonate_service_account,
             target_scopes=list(profile_credentials.scopes),
-            lifetime=(profile_credentials.job_execution_timeout_seconds or 300),
         )
 
     @classmethod

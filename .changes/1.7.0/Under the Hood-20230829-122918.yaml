@@ -1,6 +1,0 @@
-kind: Under the Hood
-body: Re-organize adapters.sql into more granular files inside of macros/relations
-time: 2023-08-29T12:29:18.356174-04:00
-custom:
-  Author: mikealfare
-  Issue: "904"

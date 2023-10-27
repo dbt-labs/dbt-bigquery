@@ -13,12 +13,9 @@ Self = TypeVar("Self", bound="BigQueryColumn")
 @dataclass(init=False)
 class BigQueryColumn(Column):
     TYPE_LABELS = {
-        "STRING": "STRING",
-        "TIMESTAMP": "TIMESTAMP",
+        "TEXT": "STRING",
         "FLOAT": "FLOAT64",
         "INTEGER": "INT64",
-        "BOOLEAN": "BOOLEAN",
-        "RECORD": "RECORD",
     }
     fields: List[Self]  # type: ignore
     mode: str  # type: ignore

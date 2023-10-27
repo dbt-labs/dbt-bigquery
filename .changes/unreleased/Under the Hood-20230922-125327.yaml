@@ -1,6 +1,0 @@
-kind: Under the Hood
-body: Fixed a mypy failure by reworking BigQueryAdapter constructor.
-time: 2023-09-22T12:53:27.339599-04:00
-custom:
-  Author: peterallenwebb
-  Issue: "934"

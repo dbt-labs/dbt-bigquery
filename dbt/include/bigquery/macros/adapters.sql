@@ -218,12 +218,12 @@ having count(*) > 1
             {% endset %}
             {% do predicates.append(unique_key_match) %}
         {% endif %}
-        {% if partition_config %}
+        {% if partition_config and config.get('require_partition_filter') -%}
             {% set avoid_require_partition %}
                 DBT_INTERNAL_DEST.{{ partition_config.field }} IS NULL OR DBT_INTERNAL_DEST.{{ partition_config.field }} IS NOT NULL
             {% endset %}
             {% do predicates.append(avoid_require_partition) %}
-        {% endif %}
+        {%- endif -%}
     {% else %}
         {% do predicates.append('FALSE') %}
     {% endif %}

@@ -497,3 +497,34 @@ with data as (
 
 select * from data
 """.lstrip()
+
+overwrite_zero_rows_sql = """
+{{
+    config(
+        materialized="incremental",
+        incremental_strategy='insert_overwrite',
+        cluster_by="id",
+        partition_by={
+            "field": "date_day",
+            "data_type": "date"
+        },
+        require_partition_filter = true
+    )
+}}
+
+
+with data as (
+
+        select 10 as id, cast('2020-01-01' as date) as date_day union all
+        select 20 as id, cast('2020-01-01' as date) as date_day union all
+        select 30 as id, cast('2020-01-02' as date) as date_day union all
+        select 40 as id, cast('2020-01-02' as date) as date_day
+
+)
+
+select * from data
+
+{% if is_incremental() %}
+where false
+{% endif %}
+""".lstrip()

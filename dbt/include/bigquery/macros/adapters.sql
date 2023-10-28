@@ -193,3 +193,37 @@ having count(*) > 1
   {% do adapter.upload_file(local_file_path, database, table_schema, table_name, kwargs=kwargs) %}
 
 {% endmacro %}
+
+{% macro bigquery__get_insert_overwrite_merge_sql(target, source, dest_columns, predicates, include_sql_header) -%}
+    {#-- The only time include_sql_header is True: --#}
+    {#-- BigQuery + insert_overwrite strategy + "static" partitions config --#}
+    {#-- We should consider including the sql header at the materialization level instead --#}
+
+    {%- set predicates = [] if predicates is none else [] + predicates -%}
+    {%- set dest_cols_csv = get_quoted_csv(dest_columns | map(attribute="name")) -%}
+    {%- set sql_header = config.get('sql_header', none) -%}
+    {%- set raw_partition_by = config.get('partition_by', none) -%}
+    {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
+
+    {{ sql_header if sql_header is not none and include_sql_header }}
+    {% if partition_config and config.get('require_partition_filter') -%}
+        {% set avoid_require_partition %}
+            DBT_INTERNAL_DEST.{{ partition_config.field }} IS NULL OR DBT_INTERNAL_DEST.{{ partition_config.field }} IS NOT NULL
+        {% endset %}
+        {% do predicates.append(avoid_require_partition) %}
+    {%- endif -%}
+
+    merge into {{ target }} as DBT_INTERNAL_DEST
+        using {{ source }} as DBT_INTERNAL_SOURCE
+        on FALSE
+
+    when not matched by source
+        {% if predicates %} and {{"(" ~ predicates | join(") and (") ~ ")"}} {% endif %}
+        then delete
+
+    when not matched then insert
+        ({{ dest_cols_csv }})
+    values
+        ({{ dest_cols_csv }})
+
+{% endmacro %}

@@ -515,10 +515,10 @@ overwrite_zero_rows_sql = """
 
 with data as (
 
-        select 10 as id, cast('2020-01-01' as date) as date_day union all
-        select 20 as id, cast('2020-01-01' as date) as date_day union all
-        select 30 as id, cast('2020-01-02' as date) as date_day union all
-        select 40 as id, cast('2020-01-02' as date) as date_day
+    select 10 as id, cast('2020-01-01' as date) as date_day union all
+    select 20 as id, cast('2020-01-01' as date) as date_day union all
+    select 30 as id, cast('2020-01-02' as date) as date_day union all
+    select 40 as id, cast('2020-01-02' as date) as date_day
 
 )
 

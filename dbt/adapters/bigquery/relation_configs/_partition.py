@@ -61,7 +61,10 @@ class PartitionConfig(dbtClassMixin):
             column = f"{alias}.{column}"
 
         if self.data_type_should_be_truncated():
-            return f"{self.data_type}_trunc({column}, {self.granularity})"
+            if self.data_type == "datetime":
+                return f"date_trunc({column}, {self.granularity})"
+            else:
+                return f"{self.data_type}_trunc({column}, {self.granularity})"
         else:
             return column
 

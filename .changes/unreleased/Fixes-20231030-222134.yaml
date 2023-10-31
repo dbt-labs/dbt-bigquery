@@ -1,0 +1,6 @@
+kind: Fixes
+body: Assign the correct relation type to materialized views in catalog queries
+time: 2023-10-30T22:21:34.401675-04:00
+custom:
+  Author: mikealfare
+  Issue: "995"

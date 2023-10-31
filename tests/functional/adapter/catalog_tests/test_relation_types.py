@@ -37,7 +37,7 @@ class TestCatalogRelationTypes:
         self, docs: CatalogArtifact, node_name: str, relation_type: str
     ):
         """
-        This test addresses: https://github.com/dbt-labs/dbt-core/issues/8864
+        This test addresses: https://github.com/dbt-labs/dbt-bigquery/issues/995
         """
         assert node_name in docs.nodes
         node = docs.nodes[node_name]

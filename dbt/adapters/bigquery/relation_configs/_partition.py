@@ -55,16 +55,13 @@ class PartitionConfig(dbtClassMixin):
 
     def render(self, alias: Optional[str] = None):
         column: str = (
-            self.field if not self.time_ingestion_partitioning else self.time_partitioning_field()
+            f"`{self.field if not self.time_ingestion_partitioning else self.time_partitioning_field()}`"
         )
         if alias:
             column = f"{alias}.{column}"
 
         if self.data_type_should_be_truncated():
-            if self.data_type == "datetime":
-                return f"date_trunc({column}, {self.granularity})"
-            else:
-                return f"{self.data_type}_trunc({column}, {self.granularity})"
+            return f"{self.data_type}_trunc({column}, {self.granularity})"
         else:
             return column
 

@@ -51,12 +51,6 @@
     tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
 ) %}
 
-      {% set predicate -%}
-          {{ partition_by.render_wrapped(alias='DBT_INTERNAL_DEST') }} in (
-              {{ partitions | join (', ') }}
-          )
-      {%- endset %}
-
       {%- set source_sql -%}
         (
           {% if partition_by.time_ingestion_partitioning and tmp_relation_exists -%}
@@ -74,6 +68,7 @@
 
         )
       {%- endset -%}
+      {%- set raw_partition_field = partition_by.time_partitioning_field() if partition_by.time_ingestion_partitioning else partition_by.field -%}
 
       {% if copy_partitions %}
           {% do bq_copy_partitions(tmp_relation, target_relation, partitions, partition_by) %}
@@ -86,7 +81,19 @@
          sql_header is included by the create_table_as macro.
       #}
       -- 1. run the merge statement
-      {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }};
+      execute immediate format(
+        """{{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, ['%s'], include_sql_header = not tmp_relation_exists) }}""",
+        (
+          select
+            concat('(', array_to_string(array_agg(
+              concat(
+                'DBT_INTERNAL_DEST.`{{ raw_partition_field }}` >= {{ partition_by.data_type_for_partition() }}_trunc({{ partition_by.data_type_for_partition() }}(', x, '), {{ partition_by.granularity }})',
+                ' and DBT_INTERNAL_DEST.`{{ raw_partition_field }}` < {{ partition_by.data_type_for_partition() }}_trunc({{ partition_by.data_type_for_partition() }}_add({{ partition_by.data_type_for_partition() }}(', x, '), interval 1 {{ partition_by.granularity }}), {{ partition_by.granularity }})'
+              )
+            ), ') or ('), ')')
+          from unnest([{{ '""" ' ~ partitions | join (' """, """ ') ~ ' """' }}]) x
+        )
+      );
 
       {%- if tmp_relation_exists -%}
       -- 2. clean up the temp table
@@ -121,9 +128,6 @@
   {%- if copy_partitions is true %}
      {{ bq_dynamic_copy_partitions_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, copy_partitions) }}
   {% else -%}
-      {% set predicate -%}
-          {{ partition_by.render_wrapped(alias='DBT_INTERNAL_DEST') }} in unnest(dbt_partitions_for_replacement)
-      {%- endset %}
 
       {%- set source_sql -%}
       (
@@ -146,6 +150,7 @@
         -- 1. temp table already exists, we used it to check for schema changes
       {% endif %}
       {%- set partition_field = partition_by.time_partitioning_field() if partition_by.time_ingestion_partitioning else partition_by.render_wrapped() -%}
+      {%- set raw_partition_field = partition_by.time_partitioning_field() if partition_by.time_ingestion_partitioning else partition_by.field -%}
 
       -- 2. define partitions to update
       set (dbt_partitions_for_replacement) = (
@@ -156,7 +161,22 @@
       );
 
       -- 3. run the merge statement
-      {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate]) }};
+      execute immediate format(
+        """{{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, ['%s']) }}""",
+        (
+          select
+            concat('(', array_to_string(array_agg(
+              concat(
+                'DBT_INTERNAL_DEST.`{{ raw_partition_field }}` >= {{ partition_by.data_type_for_partition() }}_trunc(@dbt_partitions_for_replacement[ordinal(', x, ')], {{ partition_by.granularity }})',
+                ' and DBT_INTERNAL_DEST.`{{ raw_partition_field }}` < {{ partition_by.data_type_for_partition() }}_trunc({{ partition_by.data_type_for_partition() }}_add(@dbt_partitions_for_replacement[ordinal(', x, ')], interval 1 {{ partition_by.granularity }}), {{ partition_by.granularity }})'
+              )
+            ), ') or ('), ')')
+          from unnest(generate_array(1, array_length(dbt_partitions_for_replacement))) x
+        )
+      )
+      using
+        dbt_partitions_for_replacement as dbt_partitions_for_replacement
+      ;
 
       -- 4. clean up the temp table
       drop table if exists {{ tmp_relation }}

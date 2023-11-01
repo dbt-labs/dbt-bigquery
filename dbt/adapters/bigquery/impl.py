@@ -485,7 +485,7 @@ class BigQueryAdapter(BaseAdapter):
                 table.time_partitioning.field.lower() if table.time_partitioning.field else None
             )
 
-            table_granularity = table.partitioning_type
+            table_granularity = table.time_partitioning.type_
             conf_table_field = conf_partition.field
             return (
                 table_field == conf_table_field.lower()

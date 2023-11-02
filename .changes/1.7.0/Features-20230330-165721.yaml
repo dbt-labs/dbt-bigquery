@@ -1,6 +1,0 @@
-kind: Features
-body: Add support for materialized views
-time: 2023-03-30T16:57:21.858512-04:00
-custom:
-  Author: mikealfare McKnight-42
-  Issue: dbt-labs/dbt-core#6911

@@ -1,0 +1,7 @@
+kind: Fixes
+body: Insert_overwrite incremental strategy in combination with required partition_filter
+  fails when there are zero rows to insert
+time: 2023-11-05T17:49:40.356397+09:00
+custom:
+  Author: tnk-ysk
+  Issue: "319"

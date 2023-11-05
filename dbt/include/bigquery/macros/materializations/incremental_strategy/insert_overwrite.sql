@@ -68,7 +68,6 @@
 
         )
       {%- endset -%}
-      {%- set raw_partition_field = partition_by.time_partitioning_field() if partition_by.time_ingestion_partitioning else partition_by.field -%}
 
       {% if copy_partitions %}
           {% do bq_copy_partitions(tmp_relation, target_relation, partitions, partition_by) %}
@@ -89,6 +88,7 @@
           {%- endset -%}
           {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }};
       {%- else -%}
+          {%- set raw_partition_field = partition_by.time_partitioning_field() if partition_by.time_ingestion_partitioning else partition_by.field -%}
           {%- set wrapped_partitions = [] -%}
           {% for partition in partitions %}
               {% do wrapped_partitions.append("'" ~ partition | replace('\\', '\\\\') | replace("'", "\\'") ~ "'") %}
@@ -163,7 +163,6 @@
         -- 1. temp table already exists, we used it to check for schema changes
       {% endif %}
       {%- set partition_field = partition_by.time_partitioning_field() if partition_by.time_ingestion_partitioning else partition_by.render_wrapped() -%}
-      {%- set raw_partition_field = partition_by.time_partitioning_field() if partition_by.time_ingestion_partitioning else partition_by.field -%}
 
       -- 2. define partitions to update
       set (dbt_partitions_for_replacement) = (
@@ -180,6 +179,7 @@
           {%- endset %}
           {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate]) }};
       {%- else -%}
+          {%- set raw_partition_field = partition_by.time_partitioning_field() if partition_by.time_ingestion_partitioning else partition_by.field -%}
           execute immediate format(
             """{{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, ['%s']) }}""",
             (

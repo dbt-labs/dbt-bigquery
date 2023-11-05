@@ -81,19 +81,32 @@
          sql_header is included by the create_table_as macro.
       #}
       -- 1. run the merge statement
-      execute immediate format(
-        """{{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, ['%s'], include_sql_header = not tmp_relation_exists) }}""",
-        (
-          select
-            concat('(', array_to_string(array_agg(
-              concat(
-                'DBT_INTERNAL_DEST.`{{ raw_partition_field }}` >= {{ partition_by.data_type_for_partition() }}_trunc({{ partition_by.data_type_for_partition() }}(', x, '), {{ partition_by.granularity }})',
-                ' and DBT_INTERNAL_DEST.`{{ raw_partition_field }}` < {{ partition_by.data_type_for_partition() }}_trunc({{ partition_by.data_type_for_partition() }}_add({{ partition_by.data_type_for_partition() }}(', x, '), interval 1 {{ partition_by.granularity }}), {{ partition_by.granularity }})'
+      {% if partition_by.data_type == 'int64' -%}
+          {%- set predicate -%}
+              {{ partition_by.render_wrapped(alias='DBT_INTERNAL_DEST') }} in (
+                  {{ partitions | join (', ') }}
               )
-            ), ') or ('), ')')
-          from unnest([{{ '""" ' ~ partitions | join (' """, """ ') ~ ' """' }}]) x
-        )
-      );
+          {%- endset -%}
+          {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }};
+      {%- else -%}
+          {%- set wrapped_partitions = [] -%}
+          {% for partition in partitions %}
+              {% do wrapped_partitions.append("'" ~ partition | replace('\\', '\\\\') | replace("'", "\\'") ~ "'") %}
+          {% endfor %}
+          execute immediate format(
+            """{{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, ['%s'], include_sql_header = not tmp_relation_exists) }}""",
+            (
+              select
+                concat('(', array_to_string(array_agg(
+                  concat(
+                    'DBT_INTERNAL_DEST.`{{ raw_partition_field }}` >= {{ partition_by.data_type_for_partition() }}_trunc({{ partition_by.data_type_for_partition() }}(', x, '), {{ partition_by.granularity }})',
+                    ' and DBT_INTERNAL_DEST.`{{ raw_partition_field }}` < {{ partition_by.data_type_for_partition() }}_trunc({{ partition_by.data_type_for_partition() }}_add({{ partition_by.data_type_for_partition() }}(', x, '), interval 1 {{ partition_by.granularity }}), {{ partition_by.granularity }})'
+                  )
+                ), ') or ('), ')')
+              from unnest([{{ wrapped_partitions | join (', ') }}]) x
+            )
+          );
+      {%- endif -%}
 
       {%- if tmp_relation_exists -%}
       -- 2. clean up the temp table
@@ -161,22 +174,29 @@
       );
 
       -- 3. run the merge statement
-      execute immediate format(
-        """{{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, ['%s']) }}""",
-        (
-          select
-            concat('(', array_to_string(array_agg(
-              concat(
-                'DBT_INTERNAL_DEST.`{{ raw_partition_field }}` >= {{ partition_by.data_type_for_partition() }}_trunc(@dbt_partitions_for_replacement[ordinal(', x, ')], {{ partition_by.granularity }})',
-                ' and DBT_INTERNAL_DEST.`{{ raw_partition_field }}` < {{ partition_by.data_type_for_partition() }}_trunc({{ partition_by.data_type_for_partition() }}_add(@dbt_partitions_for_replacement[ordinal(', x, ')], interval 1 {{ partition_by.granularity }}), {{ partition_by.granularity }})'
-              )
-            ), ') or ('), ')')
-          from unnest(generate_array(1, array_length(dbt_partitions_for_replacement))) x
-        )
-      )
-      using
-        dbt_partitions_for_replacement as dbt_partitions_for_replacement
-      ;
+      {% if partition_by.data_type == 'int64' -%}
+          {% set predicate -%}
+              {{ partition_by.render_wrapped(alias='DBT_INTERNAL_DEST') }} in unnest(dbt_partitions_for_replacement)
+          {%- endset %}
+          {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate]) }};
+      {%- else -%}
+          execute immediate format(
+            """{{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, ['%s']) }}""",
+            (
+              select
+                concat('(', array_to_string(array_agg(
+                  concat(
+                    'DBT_INTERNAL_DEST.`{{ raw_partition_field }}` >= {{ partition_by.data_type_for_partition() }}_trunc(@dbt_partitions_for_replacement[ordinal(', x, ')], {{ partition_by.granularity }})',
+                    ' and DBT_INTERNAL_DEST.`{{ raw_partition_field }}` < {{ partition_by.data_type_for_partition() }}_trunc({{ partition_by.data_type_for_partition() }}_add(@dbt_partitions_for_replacement[ordinal(', x, ')], interval 1 {{ partition_by.granularity }}), {{ partition_by.granularity }})'
+                  )
+                ), ') or ('), ')')
+              from unnest(generate_array(1, array_length(dbt_partitions_for_replacement))) x
+            )
+          )
+          using
+            dbt_partitions_for_replacement as dbt_partitions_for_replacement
+          ;
+      {%- endif -%}
 
       -- 4. clean up the temp table
       drop table if exists {{ tmp_relation }}

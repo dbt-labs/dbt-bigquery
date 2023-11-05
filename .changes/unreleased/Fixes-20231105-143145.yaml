@@ -1,0 +1,6 @@
+kind: Fixes
+body: Merge fails when partition is required
+time: 2023-11-05T14:31:45.869783+09:00
+custom:
+  Author: tnk-ysk
+  Issue: "792"

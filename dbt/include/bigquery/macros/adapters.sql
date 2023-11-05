@@ -198,8 +198,9 @@ having count(*) > 1
     {%- set raw_partition_by = config.get('partition_by', none) -%}
     {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
     {% if partition_config and config.get('require_partition_filter') -%}
+        {%- set partition_field = partition_config.time_partitioning_field() if partition_config.time_ingestion_partitioning else partition_config.field -%}
         {% set predicate %}
-            {{ target }}.{{ partition_config.field }} is null or {{ target }}.{{ partition_config.field }} is not null
+            {{ target }}.`{{ partition_field }}` is null or {{ target }}.`{{ partition_field }}` is not null
         {% endset %}
         {% do predicates.append(predicate) %}
     {%- endif -%}

@@ -194,6 +194,17 @@ having count(*) > 1
 
 {% endmacro %}
 
+{% macro avoid_require_partition_filter(target, predicates) %}
+    {%- set raw_partition_by = config.get('partition_by', none) -%}
+    {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
+    {% if partition_config and config.get('require_partition_filter') -%}
+        {% set predicate %}
+            {{ target }}.{{ partition_config.field }} is null or {{ target }}.{{ partition_config.field }} is not null
+        {% endset %}
+        {% do predicates.append(predicate) %}
+    {%- endif -%}
+{% endmacro %}
+
 {% macro bigquery__get_merge_sql(target, source, unique_key, dest_columns, incremental_predicates=none) -%}
     {%- set predicates = [] if incremental_predicates is none else [] + incremental_predicates -%}
     {%- set dest_cols_csv = get_quoted_csv(dest_columns | map(attribute="name")) -%}
@@ -201,8 +212,6 @@ having count(*) > 1
     {%- set merge_exclude_columns = config.get('merge_exclude_columns') -%}
     {%- set update_columns = get_merge_update_columns(merge_update_columns, merge_exclude_columns, dest_columns) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
-    {%- set raw_partition_by = config.get('partition_by', none) -%}
-    {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
 
     {% if unique_key %}
         {% if unique_key is sequence and unique_key is not mapping and unique_key is not string %}
@@ -218,12 +227,7 @@ having count(*) > 1
             {% endset %}
             {% do predicates.append(unique_key_match) %}
         {% endif %}
-        {% if partition_config and config.get('require_partition_filter') -%}
-            {% set avoid_require_partition %}
-                DBT_INTERNAL_DEST.{{ partition_config.field }} IS NULL OR DBT_INTERNAL_DEST.{{ partition_config.field }} IS NOT NULL
-            {% endset %}
-            {% do predicates.append(avoid_require_partition) %}
-        {%- endif -%}
+        {{ avoid_require_partition_filter('DBT_INTERNAL_DEST', predicates) }}
     {% else %}
         {% do predicates.append('FALSE') %}
     {% endif %}

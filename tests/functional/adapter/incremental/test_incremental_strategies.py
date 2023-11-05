@@ -67,10 +67,10 @@ class TestBigQueryScripting(SeedConfigBase):
     def test__bigquery_assert_incremental_configurations_apply_the_right_strategy(self, project):
         run_dbt(["seed"])
         results = run_dbt()
-        assert len(results) == 11
+        assert len(results) == 12
 
         results = run_dbt()
-        assert len(results) == 11
+        assert len(results) == 12
         incremental_strategies = [
             ("incremental_merge_range", "merge_expected"),
             ("incremental_merge_time", "merge_expected"),
@@ -84,7 +84,7 @@ class TestBigQueryScripting(SeedConfigBase):
                 "incremental_overwrite_day_with_time_partition_expected",
             ),
             ("incremental_overwrite_static_day", "incremental_overwrite_day_expected"),
-            ("incremental_overwrite_zero_rows", "incremental_overwrite_day_expected"),
+            ("incremental_overwrite_zero_rows_view", "incremental_overwrite_date_expected"),
         ]
         db_with_schema = f"{project.database}.{project.test_schema}"
         for incremental_strategy in incremental_strategies:

@@ -508,6 +508,10 @@ overwrite_zero_rows_sql = """
             "field": "date_day",
             "data_type": "date"
         },
+        post_hook="
+            create or replace view `{{ schema }}.incremental_overwrite_zero_rows_view`
+            as select * from {{ this }} where date_day is null or date_day is not null
+        ",
         require_partition_filter = true
     )
 }}

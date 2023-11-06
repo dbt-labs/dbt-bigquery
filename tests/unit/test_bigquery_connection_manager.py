@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from requests.exceptions import ConnectionError
 from unittest.mock import patch, MagicMock, Mock, ANY
 
-import dbt.dataclass_schema
+import dbt.common.dataclass_schema
 
 from dbt.adapters.bigquery import BigQueryCredentials
 from dbt.adapters.bigquery import BigQueryRelation

@@ -7,14 +7,15 @@ import pytest
 import unittest
 from unittest.mock import patch, MagicMock, create_autospec
 
-import dbt.dataclass_schema
+import dbt.common.dataclass_schema
+import dbt.common.exceptions.base
 from dbt.adapters.bigquery.relation_configs import PartitionConfig
 from dbt.adapters.bigquery import BigQueryAdapter, BigQueryRelation
 from dbt.adapters.bigquery import Plugin as BigQueryPlugin
 from google.cloud.bigquery.table import Table
 from dbt.adapters.bigquery.connections import _sanitize_label, _VALIDATE_LABEL_LENGTH_LIMIT
 from dbt.adapters.base.query_headers import MacroQueryStringSetter
-from dbt.clients import agate_helper
+from dbt.common.clients import agate_helper
 import dbt.exceptions
 from dbt.logger import GLOBAL_LOGGER as logger  # noqa
 from dbt.context.providers import RuntimeConfigObject
@@ -187,7 +188,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection("dummy")
             self.assertEqual(connection.type, "bigquery")
 
-        except dbt.exceptions.DbtValidationError as e:
+        except dbt.common.exceptions.base.DbtValidationError as e:
             self.fail("got DbtValidationError: {}".format(str(e)))
 
         except BaseException:
@@ -204,7 +205,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection("dummy")
             self.assertEqual(connection.type, "bigquery")
 
-        except dbt.exceptions.DbtValidationError as e:
+        except dbt.common.exceptions.base.DbtValidationError as e:
             self.fail("got DbtValidationError: {}".format(str(e)))
 
         except BaseException:
@@ -245,7 +246,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection("dummy")
             self.assertEqual(connection.type, "bigquery")
 
-        except dbt.exceptions.DbtValidationError as e:
+        except dbt.common.exceptions.base.DbtValidationError as e:
             self.fail("got DbtValidationError: {}".format(str(e)))
 
         except BaseException:
@@ -262,7 +263,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection("dummy")
             self.assertEqual(connection.type, "bigquery")
 
-        except dbt.exceptions.DbtValidationError as e:
+        except dbt.common.exceptions.base.DbtValidationError as e:
             self.fail("got DbtValidationError: {}".format(str(e)))
 
         except BaseException:
@@ -279,7 +280,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection("dummy")
             self.assertEqual(connection.type, "bigquery")
 
-        except dbt.exceptions.DbtValidationError as e:
+        except dbt.common.exceptions.base.DbtValidationError as e:
             self.fail("got DbtValidationError: {}".format(str(e)))
 
         except BaseException:
@@ -298,7 +299,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection("dummy")
             self.assertEqual(connection.type, "bigquery")
 
-        except dbt.exceptions.DbtValidationError as e:
+        except dbt.common.exceptions.base.DbtValidationError as e:
             self.fail("got DbtValidationError: {}".format(str(e)))
 
         except BaseException:
@@ -316,7 +317,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             self.assertEqual(connection.type, "bigquery")
             self.assertEqual(connection.credentials.priority, "batch")
 
-        except dbt.exceptions.DbtValidationError as e:
+        except dbt.common.exceptions.base.DbtValidationError as e:
             self.fail("got DbtValidationError: {}".format(str(e)))
 
         mock_open_connection.assert_not_called()
@@ -331,7 +332,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             self.assertEqual(connection.type, "bigquery")
             self.assertEqual(connection.credentials.maximum_bytes_billed, 0)
 
-        except dbt.exceptions.DbtValidationError as e:
+        except dbt.common.exceptions.base.DbtValidationError as e:
             self.fail("got DbtValidationError: {}".format(str(e)))
 
         mock_open_connection.assert_not_called()
@@ -482,7 +483,7 @@ class TestBigQueryRelation(unittest.TestCase):
             },
             "quote_policy": {"identifier": False, "schema": True},
         }
-        with self.assertRaises(dbt.dataclass_schema.ValidationError):
+        with self.assertRaises(dbt.common.dataclass_schema.ValidationError):
             BigQueryRelation.validate(kwargs)
 
 
@@ -554,10 +555,10 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
     def test_parse_partition_by(self):
         adapter = self.get_adapter("oauth")
 
-        with self.assertRaises(dbt.exceptions.DbtValidationError):
+        with self.assertRaises(dbt.common.exceptions.base.DbtValidationError):
             adapter.parse_partition_by("date(ts)")
 
-        with self.assertRaises(dbt.exceptions.DbtValidationError):
+        with self.assertRaises(dbt.common.exceptions.base.DbtValidationError):
             adapter.parse_partition_by("ts")
 
         self.assertEqual(
@@ -709,7 +710,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         )
 
         # Invalid, should raise an error
-        with self.assertRaises(dbt.exceptions.DbtValidationError):
+        with self.assertRaises(dbt.common.exceptions.base.DbtValidationError):
             adapter.parse_partition_by({})
 
         # passthrough

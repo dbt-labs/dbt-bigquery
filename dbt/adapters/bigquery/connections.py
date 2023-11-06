@@ -5,7 +5,7 @@ import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
-from dbt.events.contextvars import get_node_info
+from dbt.common.events.contextvars import get_node_info
 from mashumaro.helper import pass_through
 
 from functools import lru_cache
@@ -25,23 +25,23 @@ from google.oauth2 import (
 )
 
 from dbt.adapters.bigquery import gcloud
-from dbt.clients import agate_helper
+from dbt.common.clients import agate_helper
 from dbt.config.profile import INVALID_PROFILE_MESSAGE
 from dbt.tracking import active_user
-from dbt.contracts.connection import ConnectionState, AdapterResponse
+from dbt.adapters.contracts.connection import ConnectionState, AdapterResponse
 from dbt.exceptions import (
-    FailedToConnectError,
     DbtRuntimeError,
-    DbtDatabaseError,
     DbtProfileError,
 )
+from dbt.common.exceptions import DbtDatabaseError
+from dbt.adapters.exceptions.connection import FailedToConnectError
 from dbt.adapters.base import BaseConnectionManager, Credentials
-from dbt.events import AdapterLogger
-from dbt.events.functions import fire_event
-from dbt.events.types import SQLQuery
+from dbt.common.events import AdapterLogger
+from dbt.common.events.functions import fire_event
+from dbt.common.events.types import SQLQuery
 from dbt.version import __version__ as dbt_version
 
-from dbt.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
+from dbt.common.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
 
 logger = AdapterLogger("BigQuery")
 

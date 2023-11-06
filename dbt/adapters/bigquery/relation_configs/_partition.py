@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+import dbt.common.exceptions.base
 from dbt.adapters.relation_configs import RelationConfigChange
 from dbt.contracts.graph.nodes import ModelNode
-from dbt.dataclass_schema import dbtClassMixin, ValidationError
+from dbt.common.dataclass_schema import dbtClassMixin, ValidationError
 import dbt.exceptions
 from google.cloud.bigquery.table import Table as BigQueryTable
 
@@ -92,7 +93,7 @@ class PartitionConfig(dbtClassMixin):
                 }
             )
         except ValidationError as exc:
-            raise dbt.exceptions.DbtValidationError("Could not parse partition config") from exc
+            raise dbt.common.exceptions.base.DbtValidationError("Could not parse partition config") from exc
         except TypeError:
             raise dbt.exceptions.CompilationError(
                 f"Invalid partition_by config:\n"

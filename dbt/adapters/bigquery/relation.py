@@ -12,10 +12,10 @@ from dbt.adapters.bigquery.relation_configs import (
     BigQueryOptionsConfigChange,
     BigQueryPartitionConfigChange,
 )
-from dbt.contracts.graph.nodes import ModelNode
+from dbt.adapters.contracts.model import AdapterModel
 from dbt.contracts.relation import RelationType
 from dbt.exceptions import CompilationError
-from dbt.utils import filter_null_values
+from dbt.common.utils.dict import filter_null_values
 
 
 Self = TypeVar("Self", bound="BigQueryRelation")
@@ -64,7 +64,7 @@ class BigQueryRelation(BaseRelation):
 
     @classmethod
     def materialized_view_from_model_node(
-        cls, model_node: ModelNode
+        cls, model_node: AdapterModel
     ) -> BigQueryMaterializedViewConfig:
         return BigQueryMaterializedViewConfig.from_model_node(model_node)  # type: ignore
 

@@ -1,7 +1,7 @@
 from typing import List
 from google.cloud.bigquery import Dataset, AccessEntry
 
-from dbt.events import AdapterLogger
+from dbt.common.events import AdapterLogger
 
 logger = AdapterLogger("BigQuery")
 

@@ -5,6 +5,8 @@ import time
 from typing import Any, Dict, List, Optional, Type, Set, Union
 
 import agate
+
+import dbt.common.exceptions.base
 from dbt import ui  # type: ignore
 from dbt.adapters.base import (  # type: ignore
     AdapterConfig,
@@ -17,17 +19,17 @@ from dbt.adapters.base import (  # type: ignore
     available,
 )
 from dbt.adapters.cache import _make_ref_key_dict  # type: ignore
-import dbt.clients.agate_helper
-from dbt.contracts.connection import AdapterResponse
+import dbt.common.clients.agate_helper
+from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ColumnLevelConstraint, ConstraintType, ModelLevelConstraint  # type: ignore
-from dbt.dataclass_schema import dbtClassMixin
+from dbt.common.dataclass_schema import dbtClassMixin
 import dbt.deprecations
-from dbt.events import AdapterLogger
-from dbt.events.functions import fire_event
-from dbt.events.types import SchemaCreation, SchemaDrop
+from dbt.common.events import AdapterLogger
+from dbt.common.events.functions import fire_event
+from dbt.common.events.types import SchemaCreation, SchemaDrop
 import dbt.exceptions
-from dbt.utils import filter_null_values
+from dbt.common.utils import filter_null_values
 import google.api_core
 import google.auth
 import google.oauth2
@@ -145,7 +147,7 @@ class BigQueryAdapter(BaseAdapter):
         conn.handle.delete_table(table_ref, not_found_ok=True)
 
     def truncate_relation(self, relation: BigQueryRelation) -> None:
-        raise dbt.exceptions.NotImplementedError("`truncate` is not implemented for this adapter!")
+        raise dbt.common.exceptions.base.NotImplementedError("`truncate` is not implemented for this adapter!")
 
     def rename_relation(
         self, from_relation: BigQueryRelation, to_relation: BigQueryRelation
@@ -458,7 +460,7 @@ class BigQueryAdapter(BaseAdapter):
         if self.nice_connection_name() in ["on-run-start", "on-run-end"]:
             self.warning_on_hooks(self.nice_connection_name())
         else:
-            raise dbt.exceptions.NotImplementedError(
+            raise dbt.common.exceptions.base.NotImplementedError(
                 "`add_query` is not implemented for this adapter!"
             )
 

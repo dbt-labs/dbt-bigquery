@@ -147,7 +147,9 @@ class BigQueryAdapter(BaseAdapter):
         conn.handle.delete_table(table_ref, not_found_ok=True)
 
     def truncate_relation(self, relation: BigQueryRelation) -> None:
-        raise dbt.common.exceptions.base.NotImplementedError("`truncate` is not implemented for this adapter!")
+        raise dbt.common.exceptions.base.NotImplementedError(
+            "`truncate` is not implemented for this adapter!"
+        )
 
     def rename_relation(
         self, from_relation: BigQueryRelation, to_relation: BigQueryRelation

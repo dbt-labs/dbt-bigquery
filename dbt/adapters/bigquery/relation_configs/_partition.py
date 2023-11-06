@@ -93,7 +93,9 @@ class PartitionConfig(dbtClassMixin):
                 }
             )
         except ValidationError as exc:
-            raise dbt.common.exceptions.base.DbtValidationError("Could not parse partition config") from exc
+            raise dbt.common.exceptions.base.DbtValidationError(
+                "Could not parse partition config"
+            ) from exc
         except TypeError:
             raise dbt.exceptions.CompilationError(
                 f"Invalid partition_by config:\n"

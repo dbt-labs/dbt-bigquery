@@ -2,7 +2,6 @@ import asyncio
 import functools
 import json
 import re
-import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
@@ -518,10 +517,13 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         job_creation_timeout = self.get_job_creation_timeout_seconds(conn)
         job_execution_timeout = self.get_job_execution_timeout_seconds(conn)
-        # build out determinsitic_id
-        model_name = conn.credentials.schema  # schema name as model name is not
-        invocation_id = str(uuid.uuid4())
-        job_id = define_job_id(model_name, invocation_id)
+
+        if active_user:
+            # build out deterministic job_id based on hashed query statement and
+            job_id = define_job_id(sql, active_user.invocation_id)
+        else:
+            job_id = define_job_id(sql)
+
         thread_id = self.get_thread_identifier()
         self.jobs_by_thread[thread_id] = self.jobs_by_thread.get(thread_id, []) + [job_id]
 

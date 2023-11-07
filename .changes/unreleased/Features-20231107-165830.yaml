@@ -1,0 +1,6 @@
+kind: Features
+body: Add support for integers as dataproc batch runtime config properties
+time: 2023-11-07T16:58:30.065966-05:00
+custom:
+  Author: jimmyshah
+  Issue: "1001"

@@ -183,5 +183,5 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
             batch = update_batch_from_config(self.credential.dataproc_batch, batch)
             if batch.runtime_config.properties:
                 for key, val in batch.runtime_config.properties.items():
-                    batch.runtime_config.properties[key] = str(val)
+                    batch.runtime_config.properties[key] = str(val) 
         return batch

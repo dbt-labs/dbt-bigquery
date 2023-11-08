@@ -4,6 +4,7 @@ from dbt.tests.util import run_dbt
 from dbt.tests.adapter.materialized_view.basic import MaterializedViewBasic
 
 from tests.functional.adapter.materialized_view_tests._mixin import BigQueryMaterializedViewMixin
+from tests.functional.adapter.materialized_view_tests import _files
 
 
 class TestBigqueryMaterializedViewsBasic(BigQueryMaterializedViewMixin, MaterializedViewBasic):
@@ -27,3 +28,26 @@ class TestBigqueryMaterializedViewsBasic(BigQueryMaterializedViewMixin, Material
         self, project, my_materialized_view, my_seed
     ):
         pass
+
+
+class TestMaterializedViewRerun:
+    """
+    This addresses: https://github.com/dbt-labs/dbt-bigquery/issues/1007
+
+    This effectively tests that defaults get properly set so that the run is idempotent.
+    If the defaults are not properly set, changes could appear when there are no changes
+    and cause unexpected scenarios.
+    """
+
+    @pytest.fixture(scope="class", autouse=True)
+    def models(self):
+        return {"my_minimal_materialized_view.sql": _files.MY_MINIMAL_MATERIALIZED_VIEW}
+
+    @pytest.fixture(scope="class", autouse=True)
+    def seeds(self):
+        return {"my_seed.csv": _files.MY_SEED}
+
+    def test_minimal_materialized_view_is_idempotent(self, project):
+        run_dbt(["seed"])
+        run_dbt(["run"])
+        run_dbt(["run"])

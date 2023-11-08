@@ -67,3 +67,14 @@ select
     record_valid_date
 from {{ ref('my_seed') }}
 """
+
+
+MY_MINIMAL_MATERIALIZED_VIEW = """
+{{
+  config(
+    materialized = 'materialized_view',
+    )
+}}
+
+select * from {{ ref('my_seed') }}
+"""

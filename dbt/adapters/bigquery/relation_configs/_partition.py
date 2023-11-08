@@ -54,9 +54,7 @@ class PartitionConfig(dbtClassMixin):
         return self.PARTITION_TIME
 
     def render(self, alias: Optional[str] = None):
-        column: str = (
-            f"`{self.field if not self.time_ingestion_partitioning else self.time_partitioning_field()}`"
-        )
+        column: str = f"`{self.field if not self.time_ingestion_partitioning else self.time_partitioning_field()}`"
         if alias:
             column = f"{alias}.{column}"
 

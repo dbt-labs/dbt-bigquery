@@ -110,14 +110,17 @@ df.write \
   .mode("overwrite") \
   .format("bigquery") \
   .option("writeMethod", "indirect").option("writeDisposition", 'WRITE_TRUNCATE') \
+  {%- if partition_config is not none %}
   {%- if partition_config.data_type | lower in ('date','timestamp','datetime') %}
   .option("partitionField", "{{- partition_config.field -}}") \
   {%- if partition_config.granularity is not none %}
   .option("partitionType", "{{- partition_config.granularity -}}") \
   {%- endif %}
   {%- endif %}
-  {%- if raw_cluster_by is not none %}
-  .option("clusteredFields", "{{- raw_cluster_by|join(',') -}}") \
   {%- endif %}
+  {%- if raw_cluster_by is not none %}
+  .option("clusteredFields", "{{- raw_cluster_by | join(',') -}}") \
+  {%- endif %}
+
   .save("{{target_relation}}")
 {% endmacro %}

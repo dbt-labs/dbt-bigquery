@@ -76,7 +76,10 @@ class TestBigQueryScripting(SeedConfigBase):
             ("incremental_merge_time", "merge_expected"),
             ("incremental_overwrite_time", "incremental_overwrite_time_expected"),
             ("incremental_overwrite_date", "incremental_overwrite_date_expected"),
-            ("incremental_overwrite_date_with_comment_at_end", "incremental_overwrite_date_expected"),
+            (
+                "incremental_overwrite_date_with_comment_at_end",
+                "incremental_overwrite_date_expected",
+            ),
             ("incremental_overwrite_partitions", "incremental_overwrite_date_expected"),
             ("incremental_overwrite_day", "incremental_overwrite_day_expected"),
             ("incremental_overwrite_range", "incremental_overwrite_range_expected"),

@@ -209,6 +209,7 @@ jobs:
   # python integration tests are slow so we only run them seperately and for a single OS / python version
   test-python:
     name: "test-python"
+    needs: test-metadata
     runs-on: ubuntu-latest
     if: >-
       needs.test-metadata.outputs.matrix &&

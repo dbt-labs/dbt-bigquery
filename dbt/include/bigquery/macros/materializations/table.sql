@@ -114,7 +114,7 @@ df.write \
   {%- if partition_config.data_type | lower in ('date','timestamp','datetime') %}
   .option("partitionField", "{{- partition_config.field -}}") \
   {%- if partition_config.granularity is not none %}
-  .option("partitionType", "{{- partition_config.granularity|upper -}}") \
+  .option("partitionType", "{{- partition_config.granularity| upper -}}") \
   {%- endif %}
   {%- endif %}
   {%- endif %}

@@ -114,13 +114,12 @@ df.write \
   {%- if partition_config.data_type | lower in ('date','timestamp','datetime') %}
   .option("partitionField", "{{- partition_config.field -}}") \
   {%- if partition_config.granularity is not none %}
-  .option("partitionType", "{{- partition_config.granularity -}}") \
+  .option("partitionType", "{{- partition_config.granularity|upper -}}") \
   {%- endif %}
   {%- endif %}
   {%- endif %}
   {%- if raw_cluster_by is not none %}
   .option("clusteredFields", "{{- raw_cluster_by | join(',') -}}") \
   {%- endif %}
-
   .save("{{target_relation}}")
 {% endmacro %}

@@ -13,7 +13,7 @@ from google.protobuf.json_format import ParseDict
 from dbt.adapters.bigquery.connections import DataprocBatchConfig
 
 _BATCH_RUNNING_STATES = [Batch.State.PENDING, Batch.State.RUNNING]
-DEFAULT_JAR_FILE_URI = "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-0.23.2.jar"
+DEFAULT_JAR_FILE_URI = "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.13-0.34.0.jar"
 
 
 def create_batch_request(

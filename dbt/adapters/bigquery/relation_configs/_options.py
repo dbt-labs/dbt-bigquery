@@ -21,7 +21,7 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
     refresh_interval_minutes: Optional[float] = 30
     expiration_timestamp: Optional[datetime] = None
     max_staleness: Optional[str] = None
-    allow_non_incremental_definition: Optional[bool] = None
+    allow_non_incremental_definition: Optional[bool] = False
     kms_key_name: Optional[str] = None
     description: Optional[str] = None
     labels: Optional[Dict[str, str]] = None

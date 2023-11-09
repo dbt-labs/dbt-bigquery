@@ -211,6 +211,8 @@ jobs:
     name: "test-python"
     runs-on: ubuntu-latest
     if: >-
+      needs.test-metadata.outputs.matrix &&
+      fromJSON( needs.test-metadata.outputs.matrix ).include[0] &&
       (
         github.event_name != 'pull_request_target' ||
         github.event.pull_request.head.repo.full_name == github.repository ||

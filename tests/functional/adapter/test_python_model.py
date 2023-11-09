@@ -29,7 +29,7 @@ class TestPythonModelDataprocTimeoutTest:
         return {"30_sec_python_model.py": blocks_for_thirty_sec}
 
     def test_model_times_out(self, project):
-        result, output = run_dbt_and_capture(["run", "--debug"], expect_pass=False)
+        result, output = run_dbt_and_capture(["run"], expect_pass=False)
         assert len(result) == 1
         assert "Operation did not complete within the designated timeout of 5 seconds." in output
 

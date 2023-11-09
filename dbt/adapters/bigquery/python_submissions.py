@@ -126,13 +126,9 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
 
     def _get_batch_id(self) -> str:
         model = self.parsed_model
-        if "batch_id" in model["config"]:
-            batch_id = model["config"]["batch_id"]
-        else:
-            batch_id = model["unique_id"].replace(".", "-").replace("_", "-") + str(
-                int(model["created_at"])
-            )
-        return batch_id
+        default_batch_id = model["unique_id"].replace(".", "-").replace("_", "-")
+        default_batch_id += str(int(model["created_at"]))
+        return model["config"].get("batch_id", default_batch_id)
 
     def _submit_dataproc_job(self) -> Batch:
         batch_id = self._get_batch_id()

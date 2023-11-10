@@ -176,7 +176,7 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
                 )
             }
         )
-        # Apply defaults
+        # Apply the defaults
         batch.pyspark_batch.main_python_file_uri = self.gcs_location
         jar_file_uri = self.parsed_model["config"].get(
             "jar_file_uri",

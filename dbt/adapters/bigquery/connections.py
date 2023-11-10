@@ -17,7 +17,7 @@ import google.auth
 import google.auth.exceptions
 import google.cloud.bigquery as bigquery
 import google.cloud.exceptions
-from google.api_core import retry, client_info
+from google.api_core import retry, client_info, client_options
 from google.auth import impersonated_credentials
 from google.oauth2 import (
     credentials as GoogleCredentials,
@@ -129,6 +129,7 @@ class BigQueryCredentials(Credentials):
     priority: Optional[Priority] = None
     maximum_bytes_billed: Optional[int] = None
     impersonate_service_account: Optional[str] = None
+    api_endpoint: Optional[str] = None
 
     job_retry_deadline_seconds: Optional[int] = None
     job_retries: Optional[int] = 1
@@ -381,6 +382,11 @@ class BigQueryConnectionManager(BaseConnectionManager):
         creds = cls.get_credentials(profile_credentials)
         execution_project = profile_credentials.execution_project
         location = getattr(profile_credentials, "location", None)
+        options: Optional[client_options.ClientOptions] = None
+        if profile_credentials.api_endpoint:
+            options = client_options.ClientOptions(
+                api_endpoint=profile_credentials.api_endpoint,
+            )
 
         info = client_info.ClientInfo(user_agent=f"dbt-{dbt_version}")
         return google.cloud.bigquery.Client(
@@ -388,6 +394,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             creds,
             location=location,
             client_info=info,
+            client_options=options,
         )
 
     @classmethod

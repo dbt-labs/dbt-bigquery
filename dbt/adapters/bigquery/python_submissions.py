@@ -47,7 +47,9 @@ class BaseDataProcHelper(PythonJobHelper):
             project=self.credential.execution_project,
             credentials=self.GoogleCredentials,
         )
-        self.gcs_location = "gs://{}/{}".format(self.credential.gcs_bucket, self.model_file_name)
+        self.gcs_location = "gs://{}/{}".format(
+            self.credential.gcs_bucket, self.model_file_name
+        )
 
         # set retry policy, default to timeout after 24 hours
         self.timeout = self.parsed_model["config"].get(
@@ -57,7 +59,9 @@ class BaseDataProcHelper(PythonJobHelper):
             predicate=POLLING_PREDICATE, maximum=10.0, timeout=self.timeout
         )
         self.client_options = ClientOptions(
-            api_endpoint="{}-dataproc.googleapis.com:443".format(self.credential.dataproc_region)
+            api_endpoint="{}-dataproc.googleapis.com:443".format(
+                self.credential.dataproc_region
+            )
         )
         self.job_client = self._get_job_client()
 

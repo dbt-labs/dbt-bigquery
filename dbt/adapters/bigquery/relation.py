@@ -78,8 +78,16 @@ class BigQueryRelation(BaseRelation):
         new_materialized_view = cls.materialized_view_from_model_node(runtime_config.model)
 
         if new_materialized_view.options != existing_materialized_view.options:
+            # allow_non_incremental_definition cannot be changed via ALTER, must recreate
+            if (
+                new_materialized_view.options.allow_non_incremental_definition
+                == existing_materialized_view.options.allow_non_incremental_definition
+            ):
+                action = RelationConfigChangeAction.alter
+            else:
+                action = RelationConfigChangeAction.create
             config_change_collection.options = BigQueryOptionsConfigChange(
-                action=RelationConfigChangeAction.alter,
+                action=action,
                 context=new_materialized_view.options,
             )
 

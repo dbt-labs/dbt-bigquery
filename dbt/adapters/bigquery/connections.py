@@ -126,10 +126,10 @@ class BigQueryCredentials(Credentials):
     schema: Optional[str] = None  # type: ignore
     execution_project: Optional[str] = None
     location: Optional[str] = None
+    api_endpoint: Optional[str] = None
     priority: Optional[Priority] = None
     maximum_bytes_billed: Optional[int] = None
     impersonate_service_account: Optional[str] = None
-    api_endpoint: Optional[str] = None
 
     job_retry_deadline_seconds: Optional[int] = None
     job_retries: Optional[int] = 1

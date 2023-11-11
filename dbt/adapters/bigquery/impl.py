@@ -112,8 +112,8 @@ class BigQueryAdapter(BaseAdapter):
         ConstraintType.check: ConstraintSupport.NOT_SUPPORTED,
         ConstraintType.not_null: ConstraintSupport.ENFORCED,
         ConstraintType.unique: ConstraintSupport.NOT_SUPPORTED,
-        ConstraintType.primary_key: ConstraintSupport.ENFORCED,
-        ConstraintType.foreign_key: ConstraintSupport.ENFORCED,
+        ConstraintType.primary_key: ConstraintSupport.NOT_ENFORCED,
+        ConstraintType.foreign_key: ConstraintSupport.NOT_ENFORCED,
     }
 
     def __init__(self, config) -> None:

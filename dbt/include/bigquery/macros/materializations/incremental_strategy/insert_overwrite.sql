@@ -70,7 +70,7 @@
             {{ wrap_with_time_ingestion_partitioning_sql(partition_by, sql, True) }}
           {%- else -%}
             {{sql}}
-          {%- endif -%}
+          {%- endif %}
 
         )
       {%- endset -%}

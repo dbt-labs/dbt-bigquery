@@ -141,7 +141,11 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
             "enable_refresh": table.mview_enable_refresh,
             "refresh_interval_minutes": table.mview_refresh_interval.seconds / 60,
             "expiration_timestamp": table.expires,
-            "max_staleness": None,
+            "max_staleness": (
+                f"INTERVAL '{table._properties.get('maxStaleness')}' YEAR TO SECOND"
+                if table._properties.get('maxStaleness')
+                else None
+            ),
             "allow_non_incremental_definition": table._properties.get("materializedView", {}).get("allowNonIncrementalDefinition"),
             "description": table.description,
         }

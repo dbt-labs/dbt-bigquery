@@ -17,8 +17,9 @@ import google.auth
 import google.auth.exceptions
 import google.cloud.bigquery as bigquery
 import google.cloud.exceptions
-from google.api_core import retry, client_info
+from google.api_core import retry, client_info, client_options
 from google.auth import impersonated_credentials
+from google.auth.credentials import AnonymousCredentials
 from google.oauth2 import (
     credentials as GoogleCredentials,
     service_account as GoogleServiceAccountCredentials,
@@ -98,6 +99,7 @@ class BigQueryConnectionMethod(StrEnum):
     SERVICE_ACCOUNT = "service-account"
     SERVICE_ACCOUNT_JSON = "service-account-json"
     OAUTH_SECRETS = "oauth-secrets"
+    ANONYMOUS = "anonymous"
 
 
 @dataclass
@@ -355,6 +357,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 token_uri=profile_credentials.token_uri,
                 scopes=profile_credentials.scopes,
             )
+        elif method == BigQueryConnectionMethod.ANONYMOUS:
+            return AnonymousCredentials()
 
         error = 'Invalid `method` in profile: "{}"'.format(method)
         raise FailedToConnectError(error)
@@ -383,11 +387,11 @@ class BigQueryConnectionManager(BaseConnectionManager):
         location = getattr(profile_credentials, "location", None)
 
         info = client_info.ClientInfo(user_agent=f"dbt-{dbt_version}")
+
+        api_endpoint = getattr(profile_credentials, "api_endpoint", None)
+        options = client_options.ClientOptions(api_endpoint=api_endpoint)
         return google.cloud.bigquery.Client(
-            execution_project,
-            creds,
-            location=location,
-            client_info=info,
+            execution_project, creds, location=location, client_info=info, client_options=options
         )
 
     @classmethod

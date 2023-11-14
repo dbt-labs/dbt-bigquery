@@ -329,6 +329,10 @@ class BigQueryAdapter(BaseAdapter):
         return "float64" if decimals else "int64"
 
     @classmethod
+    def convert_integer_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+        return "int64"
+
+    @classmethod
     def convert_boolean_type(cls, agate_table: agate.Table, col_idx: int) -> str:
         return "bool"
 

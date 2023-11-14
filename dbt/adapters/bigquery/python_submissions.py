@@ -1,4 +1,7 @@
+import uuid
 from typing import Dict, Union
+
+from dbt.events import AdapterLogger
 
 from dbt.adapters.base import PythonJobHelper
 from google.api_core.future.polling import POLLING_PREDICATE
@@ -17,6 +20,7 @@ from dbt.adapters.bigquery.dataproc.batch import (
 )
 
 OPERATION_RETRY_TIME = 10
+logger = AdapterLogger("BigQuery")
 
 
 class BaseDataProcHelper(PythonJobHelper):
@@ -122,10 +126,13 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         )
 
     def _get_batch_id(self) -> str:
-        return self.parsed_model["config"].get("batch_id")
+        model = self.parsed_model
+        default_batch_id = str(uuid.uuid4())
+        return model["config"].get("batch_id", default_batch_id)
 
     def _submit_dataproc_job(self) -> Batch:
         batch_id = self._get_batch_id()
+        logger.info(f"Submitting batch job with id: {batch_id}")
         request = create_batch_request(
             batch=self._configure_batch(),
             batch_id=batch_id,

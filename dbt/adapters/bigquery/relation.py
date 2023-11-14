@@ -84,9 +84,10 @@ class BigQueryRelation(BaseRelation):
             )
 
         if new_materialized_view.partition != existing_materialized_view.partition:
+            # the existing PartitionConfig is not hashable, but since we need to do
+            # a full refresh either way, we don't need to provide a context
             config_change_collection.partition = BigQueryPartitionConfigChange(
                 action=RelationConfigChangeAction.alter,
-                context=new_materialized_view.partition,
             )
 
         if new_materialized_view.cluster != existing_materialized_view.cluster:
@@ -95,7 +96,7 @@ class BigQueryRelation(BaseRelation):
                 context=new_materialized_view.cluster,
             )
 
-        if config_change_collection:
+        if config_change_collection.has_changes:
             return config_change_collection
         return None
 

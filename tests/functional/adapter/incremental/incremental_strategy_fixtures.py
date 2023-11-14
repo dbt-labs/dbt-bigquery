@@ -306,6 +306,7 @@ select * from data
 {% if is_incremental() %}
 where date_day in ({{ config.get("partitions") | join(",") }})
 {% endif %}
+-- Test comment to prevent recurrence of https://github.com/dbt-labs/dbt-bigquery/issues/896
 """.lstrip()
 
 overwrite_range_sql = """

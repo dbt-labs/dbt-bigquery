@@ -18,12 +18,12 @@ import google.auth.exceptions
 import google.cloud.bigquery as bigquery
 import google.cloud.exceptions
 from google.api_core import retry, client_info
-from google.auth import impersonated_credentials
-from google.oauth2 import (
-    credentials as GoogleCredentials,
-    service_account as GoogleServiceAccountCredentials,
+from google.auth import (
+    impersonated_credentials,
+    load_credentials_from_file,
+    load_credentials_from_dict,
 )
-
+from google.oauth2 import credentials as GoogleCredentials,
 from dbt.adapters.bigquery import gcloud
 from dbt.clients import agate_helper
 from dbt.config.profile import INVALID_PROFILE_MESSAGE
@@ -332,7 +332,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
     @classmethod
     def get_google_credentials(cls, profile_credentials) -> GoogleCredentials:
         method = profile_credentials.method
-        creds = GoogleServiceAccountCredentials.Credentials
 
         if method == BigQueryConnectionMethod.OAUTH:
             credentials, _ = get_bigquery_defaults(scopes=profile_credentials.scopes)
@@ -340,11 +339,13 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT:
             keyfile = profile_credentials.keyfile
-            return creds.from_service_account_file(keyfile, scopes=profile_credentials.scopes)
+            credentials, _ = load_credentials_from_file(keyfile, scopes=profile_credentials.scopes)
+            return credentials
 
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON:
             details = profile_credentials.keyfile_json
-            return creds.from_service_account_info(details, scopes=profile_credentials.scopes)
+            credentials, _ = load_credentials_from_dict(details, scopes=profile_credentials.scopes)
+            return credentials
 
         elif method == BigQueryConnectionMethod.OAUTH_SECRETS:
             return GoogleCredentials.Credentials(

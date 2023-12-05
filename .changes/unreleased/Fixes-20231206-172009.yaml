@@ -1,0 +1,6 @@
+kind: Fixes
+body: retry wait for result independently from job creation
+time: 2023-12-06T17:20:09.264805+01:00
+custom:
+  Author: Kayrnt
+  Issue: "1045"

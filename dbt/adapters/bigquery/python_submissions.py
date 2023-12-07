@@ -102,17 +102,11 @@ class ClusterDataprocHelper(BaseDataProcHelper):
         job = {
             "placement": {"cluster_name": self._get_cluster_name()},
             "pyspark_job": {
-                "main_python_file_uri": self.gcs_location,
-                "archive_uris": self.parsed_model["config"].get(
-                    "dataproc_archive_uris",
-                    [],
-                ),
-                "properties": self.parsed_model["config"].get(
-                    "dataproc_properties",
-                    {},
-                ),
+                "main_python_file_uri": self.gcs_location
             },
         }
+        job["pyspark_job"].update(self.parsed_model["config"].get("dataproc_pyspark_job", {}))
+        
         operation = self.job_client.submit_job_as_operation(  # type: ignore
             request={
                 "project_id": self.credential.execution_project,

@@ -1,3 +1,4 @@
+import uuid
 from typing import Dict, Union
 
 from dbt.events import AdapterLogger
@@ -126,8 +127,7 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
 
     def _get_batch_id(self) -> str:
         model = self.parsed_model
-        default_batch_id = model["unique_id"].replace(".", "-").replace("_", "-")
-        default_batch_id += str(int(model["created_at"]))
+        default_batch_id = str(uuid.uuid4())
         return model["config"].get("batch_id", default_batch_id)
 
     def _submit_dataproc_job(self) -> Batch:

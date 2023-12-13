@@ -187,8 +187,6 @@ models__python_array_batch_id_yaml = """
 models:
   - name: python_array_batch_id
     description: A random table with a calculated column defined in python.
-    config:
-      batch_id: '{{ run_started_at.strftime("%Y-%m-%d-%H-%M-%S") }}-python-array'
     columns:
       - name: A
         description: Column A
@@ -216,7 +214,6 @@ models:
 """
 
 
-@pytest.mark.skip(reason="Currently failing as run_started_at is the same across dbt runs")
 class TestPythonBatchIdModels:
     @pytest.fixture(scope="class")
     def models(self):

@@ -113,13 +113,14 @@ class TestBigQueryConnectionManager(unittest.TestCase):
             self.mock_client,
             "sql",
             {"job_param_1": "blah"},
+            job_id=1,
             job_creation_timeout=15,
             job_execution_timeout=3,
         )
 
         mock_bq.QueryJobConfig.assert_called_once()
         self.mock_client.query.assert_called_once_with(
-            query="sql", job_config=mock_bq.QueryJobConfig(), timeout=15
+            query="sql", job_config=mock_bq.QueryJobConfig(), job_id=1, timeout=15
         )
 
     @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")
@@ -127,18 +128,20 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.mock_client.query = Mock(
             return_value=Mock(result=lambda *args, **kwargs: time.sleep(4))
         )
+
         with pytest.raises(dbt.exceptions.DbtRuntimeError) as exc:
             self.connections._query_and_results(
                 self.mock_client,
                 "sql",
                 {"job_param_1": "blah"},
+                job_id=1,
                 job_creation_timeout=15,
                 job_execution_timeout=1,
             )
 
         mock_bq.QueryJobConfig.assert_called_once()
         self.mock_client.query.assert_called_once_with(
-            query="sql", job_config=mock_bq.QueryJobConfig(), timeout=15
+            query="sql", job_config=mock_bq.QueryJobConfig(), job_id=1, timeout=15
         )
         assert "Query exceeded configured timeout of 1s" in str(exc.value)
 

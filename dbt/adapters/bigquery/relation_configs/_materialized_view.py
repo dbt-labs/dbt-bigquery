@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-from dbt.contracts.graph.nodes import ModelNode
-from dbt.contracts.relation import ComponentName
+from dbt.adapters.contracts.relation import RelationConfig
+from dbt.adapters.contracts.relation import ComponentName
 from google.cloud.bigquery import Table as BigQueryTable
 
 from dbt.adapters.bigquery.relation_configs._base import BigQueryBaseRelationConfig
@@ -63,21 +63,23 @@ class BigQueryMaterializedViewConfig(BigQueryBaseRelationConfig):
         return materialized_view
 
     @classmethod
-    def parse_model_node(cls, model_node: ModelNode) -> Dict[str, Any]:
+    def parse_relation_config(cls, relation_config: RelationConfig) -> Dict[str, Any]:
         config_dict = {
-            "table_id": model_node.identifier,
-            "dataset_id": model_node.schema,
-            "project_id": model_node.database,
+            "table_id": relation_config.identifier,
+            "dataset_id": relation_config.schema,
+            "project_id": relation_config.database,
             # despite this being a foreign object, there will always be options because of defaults
-            "options": BigQueryOptionsConfig.parse_model_node(model_node),
+            "options": BigQueryOptionsConfig.parse_relation_config(relation_config),
         }
 
         # optional
-        if "partition_by" in model_node.config:
-            config_dict.update({"partition": PartitionConfig.parse_model_node(model_node)})
+        if "partition_by" in relation_config.config:
+            config_dict.update({"partition": PartitionConfig.parse_model_node(relation_config)})
 
-        if "cluster_by" in model_node.config:
-            config_dict.update({"cluster": BigQueryClusterConfig.parse_model_node(model_node)})
+        if "cluster_by" in relation_config.config:
+            config_dict.update(
+                {"cluster": BigQueryClusterConfig.parse_relation_config(relation_config)}
+            )
 
         return config_dict
 

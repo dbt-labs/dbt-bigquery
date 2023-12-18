@@ -1,3 +1,6 @@
+from multiprocessing import get_context
+from unittest import mock
+
 import agate
 import decimal
 import string
@@ -11,18 +14,24 @@ import dbt.common.dataclass_schema
 import dbt.common.exceptions.base
 from dbt.adapters.bigquery.relation_configs import PartitionConfig
 from dbt.adapters.bigquery import BigQueryAdapter, BigQueryRelation
-from dbt.adapters.bigquery import Plugin as BigQueryPlugin
 from google.cloud.bigquery.table import Table
 from dbt.adapters.bigquery.connections import _sanitize_label, _VALIDATE_LABEL_LENGTH_LIMIT
-from dbt.adapters.base.query_headers import MacroQueryStringSetter
 from dbt.common.clients import agate_helper
-import dbt.exceptions
+import dbt.common.exceptions
+from dbt.context.manifest import generate_query_header_context
+from dbt.contracts.files import FileHash
+from dbt.contracts.graph.manifest import ManifestStateCheck
 from dbt.logger import GLOBAL_LOGGER as logger  # noqa
-from dbt.context.providers import RuntimeConfigObject
+from dbt.context.providers import RuntimeConfigObject, generate_runtime_macro_context
 
 from google.cloud.bigquery import AccessEntry
 
-from .utils import config_from_parts_or_dicts, inject_adapter, TestAdapterConversions
+from .utils import (
+    config_from_parts_or_dicts,
+    inject_adapter,
+    TestAdapterConversions,
+    load_internal_manifest_macros,
+)
 
 
 def _bq_conn():
@@ -147,6 +156,21 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
         }
         self.qh_patch = None
 
+        @mock.patch("dbt.parser.manifest.ManifestLoader.build_manifest_state_check")
+        def _mock_state_check(self):
+            all_projects = self.all_projects
+            return ManifestStateCheck(
+                vars_hash=FileHash.from_contents("vars"),
+                project_hashes={name: FileHash.from_contents(name) for name in all_projects},
+                profile_hash=FileHash.from_contents("profile"),
+            )
+
+        self.load_state_check = mock.patch(
+            "dbt.parser.manifest.ManifestLoader.build_manifest_state_check"
+        )
+        self.mock_state_check = self.load_state_check.start()
+        self.mock_state_check.side_effect = _mock_state_check
+
     def tearDown(self):
         if self.qh_patch:
             self.qh_patch.stop()
@@ -156,20 +180,22 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
         project = self.project_cfg.copy()
         profile = self.raw_profile.copy()
         profile["target"] = target
-
         config = config_from_parts_or_dicts(
             project=project,
             profile=profile,
         )
-        adapter = BigQueryAdapter(config)
-
-        adapter.connections.query_header = MacroQueryStringSetter(config, MagicMock(macros={}))
+        adapter = BigQueryAdapter(config, get_context("spawn"))
+        adapter.set_macro_resolver(load_internal_manifest_macros(config))
+        adapter.set_macro_context_generator(generate_runtime_macro_context)
+        adapter.connections.set_query_header(
+            generate_query_header_context(config, adapter.get_macro_resolver())
+        )
 
         self.qh_patch = patch.object(adapter.connections.query_header, "add")
         self.mock_query_header_add = self.qh_patch.start()
         self.mock_query_header_add.side_effect = lambda q: "/* dbt */\n{}".format(q)
 
-        inject_adapter(adapter, BigQueryPlugin)
+        inject_adapter(adapter)
         return adapter
 
 
@@ -229,7 +255,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             connection = adapter.acquire_connection("dummy")
             self.assertEqual(connection.type, "bigquery")
 
-        except dbt.exceptions.ValidationException as e:
+        except dbt.common.exceptions.ValidationException as e:
             self.fail("got ValidationException: {}".format(str(e)))
 
         except BaseException:
@@ -380,7 +406,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
 
 
 class HasUserAgent:
-    PAT = re.compile(r"dbt-\d+\.\d+\.\d+((a|b|rc)\d+)?")
+    PAT = re.compile(r"dbt-bigquery-\d+\.\d+\.\d+((a|b|rc)\d+)?")
 
     def __eq__(self, other):
         compare = getattr(other, "user_agent", "")
@@ -779,8 +805,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
 
 class TestBigQueryFilterCatalog(unittest.TestCase):
     def test__catalog_filter_table(self):
-        manifest = MagicMock()
-        manifest.get_used_schemas.return_value = [["a", "B"], ["a", "1234"]]
+        used_schemas = [["a", "B"], ["a", "1234"]]
         column_names = ["table_name", "table_database", "table_schema", "something"]
         rows = [
             ["foo", "a", "b", "1234"],  # include
@@ -790,7 +815,7 @@ class TestBigQueryFilterCatalog(unittest.TestCase):
         ]
         table = agate.Table(rows, column_names, agate_helper.DEFAULT_TYPE_TESTER)
 
-        result = BigQueryAdapter._catalog_filter_table(table, manifest)
+        result = BigQueryAdapter._catalog_filter_table(table, used_schemas)
         assert len(result) == 3
         for row in result.rows:
             assert isinstance(row["table_schema"], str)

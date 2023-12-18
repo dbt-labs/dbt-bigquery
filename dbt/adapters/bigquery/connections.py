@@ -5,6 +5,8 @@ import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
+from dbt.common.invocation import get_invocation_id
+
 from dbt.common.events.contextvars import get_node_info
 from mashumaro.helper import pass_through
 
@@ -26,20 +28,18 @@ from google.oauth2 import (
 
 from dbt.adapters.bigquery import gcloud
 from dbt.common.clients import agate_helper
-from dbt.config.profile import INVALID_PROFILE_MESSAGE
-from dbt.tracking import active_user
 from dbt.adapters.contracts.connection import ConnectionState, AdapterResponse
-from dbt.exceptions import (
+from dbt.common.exceptions import (
     DbtRuntimeError,
-    DbtProfileError,
+    DbtConfigError,
 )
 from dbt.common.exceptions import DbtDatabaseError
 from dbt.adapters.exceptions.connection import FailedToConnectError
 from dbt.adapters.base import BaseConnectionManager, Credentials
-from dbt.common.events import AdapterLogger
+from dbt.adapters.events.logging import AdapterLogger
+from dbt.adapters.events.types import SQLQuery
 from dbt.common.events.functions import fire_event
-from dbt.common.events.types import SQLQuery
-from dbt.version import __version__ as dbt_version
+from dbt.adapters.bigquery import __version__ as dbt_version
 
 from dbt.common.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
 
@@ -85,7 +85,7 @@ def get_bigquery_defaults(scopes=None) -> Tuple[Any, Optional[str]]:
         credentials, _ = google.auth.default(scopes=scopes)
         return credentials, _
     except google.auth.exceptions.DefaultCredentialsError as e:
-        raise DbtProfileError(INVALID_PROFILE_MESSAGE.format(error_string=e))
+        raise DbtConfigError(f"Failed to authenticate with supplied credentials\nerror:\n{e}")
 
 
 class Priority(StrEnum):
@@ -382,7 +382,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         execution_project = profile_credentials.execution_project
         location = getattr(profile_credentials, "location", None)
 
-        info = client_info.ClientInfo(user_agent=f"dbt-{dbt_version}")
+        info = client_info.ClientInfo(user_agent=f"dbt-bigquery-{dbt_version.version}")
         return google.cloud.bigquery.Client(
             execution_project,
             creds,
@@ -470,8 +470,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         labels = self.get_labels_from_query_comment()
 
-        if active_user:
-            labels["dbt_invocation_id"] = active_user.invocation_id
+        labels["dbt_invocation_id"] = get_invocation_id()
 
         job_params = {
             "use_legacy_sql": use_legacy_sql,

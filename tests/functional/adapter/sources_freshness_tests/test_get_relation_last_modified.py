@@ -23,7 +23,7 @@ class TestGetLastRelationModified:
         yield
         del os.environ["DBT_GET_LAST_RELATION_TEST_SCHEMA"]
 
-    def test_get_last_relation_modified(self, project, setup):
+    def test_get_last_relation_modified(self, project):
         results = run_dbt(["source", "freshness"])
         assert len(results) == 1
         result = results[0]

@@ -17,6 +17,7 @@ from dbt.adapters.base import (  # type: ignore
     available,
 )
 from dbt.adapters.cache import _make_ref_key_dict  # type: ignore
+from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
 import dbt.clients.agate_helper
 from dbt.contracts.connection import AdapterResponse
 from dbt.contracts.graph.manifest import Manifest
@@ -115,6 +116,10 @@ class BigQueryAdapter(BaseAdapter):
         ConstraintType.primary_key: ConstraintSupport.ENFORCED,
         ConstraintType.foreign_key: ConstraintSupport.ENFORCED,
     }
+
+    _capabilities = CapabilityDict(
+        {Capability.SchemaMetadataByRelations: CapabilitySupport(support=Support.Full)}
+    )
 
     def __init__(self, config) -> None:
         super().__init__(config)

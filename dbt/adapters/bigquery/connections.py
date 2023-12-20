@@ -15,6 +15,7 @@ from typing import Optional, Any, Dict, Tuple
 
 import google.auth
 import google.auth.exceptions
+import google.cloud.bigquery
 import google.cloud.exceptions
 from google.api_core import retry, client_info
 from google.auth import impersonated_credentials
@@ -39,7 +40,6 @@ from dbt.events import AdapterLogger
 from dbt.events.functions import fire_event
 from dbt.events.types import SQLQuery
 from dbt.version import __version__ as dbt_version
-
 from dbt.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
 
 logger = AdapterLogger("BigQuery")

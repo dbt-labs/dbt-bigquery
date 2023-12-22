@@ -150,7 +150,7 @@ class PartitionConfig(dbtClassMixin):
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
 class BigQueryPartitionConfigChange(RelationConfigChange):
-    context: Optional[PartitionConfig]
+    context: Optional[Any] = None
 
     @property
     def requires_full_refresh(self) -> bool:

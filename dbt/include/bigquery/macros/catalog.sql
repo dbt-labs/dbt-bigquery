@@ -7,30 +7,42 @@
   {%- else -%}
 
   {%- set query -%}
-    with tables as (
+    with materialized_views as (
         select
-            project_id as table_database,
-            dataset_id as table_schema,
-            table_id as original_table_name,
+            table_catalog as project_id,
+            table_schema as dataset_id,
+            table_name as table_id
+        from {{ information_schema.replace(information_schema_view='MATERIALIZED_VIEWS') }}
+    ),
+    tables as (
+        select
+            tables.project_id as table_database,
+            tables.dataset_id as table_schema,
+            tables.table_id as original_table_name,
 
-            concat(project_id, '.', dataset_id, '.', table_id) as relation_id,
+            concat(tables.project_id, '.', tables.dataset_id, '.', tables.table_id) as relation_id,
 
-            row_count,
-            size_bytes as size_bytes,
+            tables.row_count,
+            tables.size_bytes as size_bytes,
             case
-                when type = 1 then 'table'
-                when type = 2 then 'view'
+                when materialized_views.table_id is not null then 'materialized view'
+                when tables.type = 1 then 'table'
+                when tables.type = 2 then 'view'
                 else 'external'
             end as table_type,
 
-            REGEXP_CONTAINS(table_id, '^.+[0-9]{8}$') and coalesce(type, 0) = 1 as is_date_shard,
-            REGEXP_EXTRACT(table_id, '^(.+)[0-9]{8}$') as shard_base_name,
-            REGEXP_EXTRACT(table_id, '^.+([0-9]{8})$') as shard_name
+            REGEXP_CONTAINS(tables.table_id, '^.+[0-9]{8}$') and coalesce(type, 0) = 1 as is_date_shard,
+            REGEXP_EXTRACT(tables.table_id, '^(.+)[0-9]{8}$') as shard_base_name,
+            REGEXP_EXTRACT(tables.table_id, '^.+([0-9]{8})$') as shard_name
 
-        from {{ information_schema.replace(information_schema_view='__TABLES__') }}
+        from {{ information_schema.replace(information_schema_view='__TABLES__') }} tables
+        left join materialized_views
+            on materialized_views.project_id = tables.project_id
+            and materialized_views.dataset_id = tables.dataset_id
+            and materialized_views.table_id = tables.table_id
         where (
           {%- for schema in schemas -%}
-            upper(dataset_id) = upper('{{ schema }}'){%- if not loop.last %} or {% endif -%}
+            upper(tables.dataset_id) = upper('{{ schema }}'){%- if not loop.last %} or {% endif -%}
           {%- endfor -%}
         )
     ),

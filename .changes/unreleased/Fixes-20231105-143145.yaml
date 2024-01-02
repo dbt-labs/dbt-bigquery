@@ -1,5 +1,5 @@
 kind: Fixes
-body: Merge fails when partition is required
+body: In incremental models, add dummy merge condition on source partition column when partition is required
 time: 2023-11-05T14:31:45.869783+09:00
 custom:
   Author: tnk-ysk

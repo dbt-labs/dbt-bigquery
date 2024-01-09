@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-from dbt.adapters.contracts.relation import RelationConfig
-from dbt.adapters.contracts.relation import ComponentName
+from dbt.adapters.contracts.relation import (
+    RelationConfig,
+    ComponentName,
+)
 from google.cloud.bigquery import Table as BigQueryTable
 
 from dbt.adapters.bigquery.relation_configs._base import BigQueryBaseRelationConfig

@@ -128,6 +128,9 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
     def _get_batch_id(self) -> str:
         model = self.parsed_model
         default_batch_id = str(uuid.uuid4())
+        # this code breaks python models (see [ADAP-1016]); awaiting fix from dbt-labs
+        # default_batch_id = model["unique_id"].replace(".", "-").replace("_", "-")
+        # default_batch_id += str(int(model["created_at"]))
         return model["config"].get("batch_id", default_batch_id)
 
     def _submit_dataproc_job(self) -> Batch:

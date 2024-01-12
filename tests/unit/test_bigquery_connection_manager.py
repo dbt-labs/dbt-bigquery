@@ -6,12 +6,13 @@ from contextlib import contextmanager
 from requests.exceptions import ConnectionError
 from unittest.mock import patch, MagicMock, Mock, ANY
 
-import dbt.common.dataclass_schema
+import dbt.adapters
+import dbt_common.dataclass_schema
 
 from dbt.adapters.bigquery import BigQueryCredentials
 from dbt.adapters.bigquery import BigQueryRelation
 from dbt.adapters.bigquery.connections import BigQueryConnectionManager
-import dbt.common.exceptions
+import dbt_common.exceptions
 from dbt.logger import GLOBAL_LOGGER as logger  # noqa
 
 
@@ -127,7 +128,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.mock_client.query = Mock(
             return_value=Mock(result=lambda *args, **kwargs: time.sleep(4))
         )
-        with pytest.raises(dbt.common.exceptions.DbtRuntimeError) as exc:
+        with pytest.raises(dbt_common.exceptions.DbtRuntimeError) as exc:
             self.connections._query_and_results(
                 self.mock_client,
                 "sql",

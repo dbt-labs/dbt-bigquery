@@ -75,6 +75,7 @@ setup(
     include_package_data=True,
     install_requires=[
         "dbt-common @ git+https://github.com/dbt-labs/dbt-common.git#egg=dbt",
+        "dbt-adapters @ git+https://github.com/dbt-labs/dbt-adapters.git#egg=dbt",
         "google-cloud-bigquery~=3.0",
         "google-cloud-storage~=2.4",
         "google-cloud-dataproc~=5.0",

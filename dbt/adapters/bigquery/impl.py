@@ -19,7 +19,7 @@ from dbt.adapters.base import (  # type: ignore
 )
 from dbt.adapters.base.impl import FreshnessResponse
 from dbt.adapters.cache import _make_ref_key_dict  # type: ignore
-from dbt.adapters.capability import CapabilityDict, CapabilitySupport, Support, Capability
+from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
 import dbt.clients.agate_helper
 from dbt.contracts.connection import AdapterResponse
 from dbt.contracts.graph.manifest import Manifest
@@ -120,10 +120,8 @@ class BigQueryAdapter(BaseAdapter):
         ConstraintType.foreign_key: ConstraintSupport.ENFORCED,
     }
 
-    _capabilities: CapabilityDict = CapabilityDict(
-        {
-            Capability.TableLastModifiedMetadata: CapabilitySupport(support=Support.Full),
-        }
+    _capabilities = CapabilityDict(
+        {Capability.SchemaMetadataByRelations: CapabilitySupport(support=Support.Full)}
     )
 
     def __init__(self, config) -> None:

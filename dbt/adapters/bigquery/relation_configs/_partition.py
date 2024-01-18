@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+import dbt.common.exceptions
 from dbt.adapters.relation_configs import RelationConfigChange
-from dbt.contracts.graph.nodes import ModelNode
-from dbt.dataclass_schema import dbtClassMixin, ValidationError
-import dbt.exceptions
+from dbt.adapters.contracts.relation import RelationConfig
+from dbt.common.dataclass_schema import dbtClassMixin, ValidationError
 from google.cloud.bigquery.table import Table as BigQueryTable
 
 
@@ -92,16 +92,18 @@ class PartitionConfig(dbtClassMixin):
                 }
             )
         except ValidationError as exc:
-            raise dbt.exceptions.DbtValidationError("Could not parse partition config") from exc
+            raise dbt.common.exceptions.base.DbtValidationError(
+                "Could not parse partition config"
+            ) from exc
         except TypeError:
-            raise dbt.exceptions.CompilationError(
+            raise dbt.common.exceptions.CompilationError(
                 f"Invalid partition_by config:\n"
                 f"  Got: {raw_partition_by}\n"
                 f'  Expected a dictionary with "field" and "data_type" keys'
             )
 
     @classmethod
-    def parse_model_node(cls, model_node: ModelNode) -> Dict[str, Any]:
+    def parse_model_node(cls, relation_config: RelationConfig) -> Dict[str, Any]:
         """
         Parse model node into a raw config for `PartitionConfig.parse`
 
@@ -109,7 +111,7 @@ class PartitionConfig(dbtClassMixin):
             This doesn't currently collect `time_ingestion_partitioning` and `copy_partitions`
             because this was built for materialized views, which do not support those settings.
         """
-        config_dict = model_node.config.extra.get("partition_by")
+        config_dict = relation_config.config.extra.get("partition_by")  # type: ignore
         if "time_ingestion_partitioning" in config_dict:
             del config_dict["time_ingestion_partitioning"]
         if "copy_partitions" in config_dict:

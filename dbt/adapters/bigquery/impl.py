@@ -1,8 +1,9 @@
 from dataclasses import dataclass
+from datetime import datetime
 import json
 import threading
 import time
-from typing import Any, Dict, List, Optional, Type, Set, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Set, Union
 
 import agate
 from dbt import ui  # type: ignore
@@ -16,6 +17,7 @@ from dbt.adapters.base import (  # type: ignore
     SchemaSearchMap,
     available,
 )
+from dbt.adapters.base.impl import FreshnessResponse
 from dbt.adapters.cache import _make_ref_key_dict  # type: ignore
 from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
 import dbt.clients.agate_helper
@@ -35,6 +37,7 @@ import google.oauth2
 import google.cloud.bigquery
 from google.cloud.bigquery import AccessEntry, SchemaField, Table as BigQueryTable
 import google.cloud.exceptions
+import pytz
 
 from dbt.adapters.bigquery import BigQueryColumn, BigQueryConnectionManager
 from dbt.adapters.bigquery.column import get_nested_column_data_types
@@ -708,6 +711,26 @@ class BigQueryAdapter(BaseAdapter):
                     )
                 )
         return result
+
+    def calculate_freshness_from_metadata(
+        self,
+        source: BaseRelation,
+        manifest: Optional[Manifest] = None,
+    ) -> Tuple[Optional[AdapterResponse], FreshnessResponse]:
+        conn = self.connections.get_thread_connection()
+        client: google.cloud.bigquery.Client = conn.handle
+
+        table_ref = self.get_table_ref_from_relation(source)
+        table = client.get_table(table_ref)
+        snapshot = datetime.now(tz=pytz.UTC)
+
+        freshness = FreshnessResponse(
+            max_loaded_at=table.modified,
+            snapshotted_at=snapshot,
+            age=(snapshot - table.modified).total_seconds(),
+        )
+
+        return None, freshness
 
     @available.parse(lambda *a, **k: {})
     def get_common_options(

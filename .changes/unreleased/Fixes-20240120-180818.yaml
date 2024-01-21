@@ -1,0 +1,7 @@
+kind: Fixes
+body: Temp relations not being dropped in BigQuery for incremental models + ability
+  to provide target dataset for temp relations
+time: 2024-01-20T18:08:18.817915-06:00
+custom:
+  Author: vinit2107
+  Issue: "1036"

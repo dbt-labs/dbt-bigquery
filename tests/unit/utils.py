@@ -9,7 +9,8 @@ from unittest import TestCase
 
 import agate
 import pytest
-from dbt.dataclass_schema import ValidationError
+
+from dbt.common.dataclass_schema import ValidationError
 from dbt.config.project import PartialProject
 
 
@@ -123,7 +124,6 @@ def inject_plugin(plugin):
 
 
 def inject_plugin_for(config):
-    # from dbt.adapters.postgres import Plugin, PostgresAdapter
     from dbt.adapters.factory import FACTORY
 
     FACTORY.load_plugin(config.credentials.type)
@@ -131,11 +131,10 @@ def inject_plugin_for(config):
     return adapter
 
 
-def inject_adapter(value, plugin):
+def inject_adapter(value):
     """Inject the given adapter into the adapter factory, so your hand-crafted
     artisanal adapter will be available from get_adapter() as if dbt loaded it.
     """
-    inject_plugin(plugin)
     from dbt.adapters.factory import FACTORY
 
     key = value.type()
@@ -229,7 +228,7 @@ def assert_fails_validation(dct, cls):
 
 
 def generate_name_macros(package):
-    from dbt.contracts.graph.parsed import ParsedMacro
+    from dbt.contracts.graph.nodes import Macro
     from dbt.node_types import NodeType
 
     name_sql = {}
@@ -243,13 +242,12 @@ def generate_name_macros(package):
         name_sql[name] = sql
 
     for name, sql in name_sql.items():
-        pm = ParsedMacro(
+        pm = Macro(
             name=name,
             resource_type=NodeType.Macro,
             unique_id=f"macro.{package}.{name}",
             package_name=package,
             original_file_path=normalize("macros/macro.sql"),
-            root_path="./dbt_packages/root",
             path=normalize("macros/macro.sql"),
             macro_sql=sql,
         )
@@ -258,7 +256,7 @@ def generate_name_macros(package):
 
 class TestAdapterConversions(TestCase):
     def _get_tester_for(self, column_type):
-        from dbt.clients import agate_helper
+        from dbt.common.clients import agate_helper
 
         if column_type is agate.TimeDelta:  # dbt never makes this!
             return agate.TimeDelta()
@@ -280,7 +278,7 @@ class TestAdapterConversions(TestCase):
 
 
 def MockMacro(package, name="my_macro", **kwargs):
-    from dbt.contracts.graph.parsed import ParsedMacro
+    from dbt.contracts.graph.nodes import Macro
     from dbt.node_types import NodeType
 
     mock_kwargs = dict(
@@ -292,7 +290,7 @@ def MockMacro(package, name="my_macro", **kwargs):
 
     mock_kwargs.update(kwargs)
 
-    macro = mock.MagicMock(spec=ParsedMacro, **mock_kwargs)
+    macro = mock.MagicMock(spec=Macro, **mock_kwargs)
     macro.name = name
     return macro
 
@@ -311,10 +309,10 @@ def MockGenerateMacro(package, component="some_component", **kwargs):
 
 def MockSource(package, source_name, name, **kwargs):
     from dbt.node_types import NodeType
-    from dbt.contracts.graph.parsed import ParsedSourceDefinition
+    from dbt.contracts.graph.nodes import SourceDefinition
 
     src = mock.MagicMock(
-        __class__=ParsedSourceDefinition,
+        __class__=SourceDefinition,
         resource_type=NodeType.Source,
         source_name=source_name,
         package_name=package,
@@ -328,14 +326,14 @@ def MockSource(package, source_name, name, **kwargs):
 
 def MockNode(package, name, resource_type=None, **kwargs):
     from dbt.node_types import NodeType
-    from dbt.contracts.graph.parsed import ParsedModelNode, ParsedSeedNode
+    from dbt.contracts.graph.nodes import ModelNode, SeedNode
 
     if resource_type is None:
         resource_type = NodeType.Model
     if resource_type == NodeType.Model:
-        cls = ParsedModelNode
+        cls = ModelNode
     elif resource_type == NodeType.Seed:
-        cls = ParsedSeedNode
+        cls = SeedNode
     else:
         raise ValueError(f"I do not know how to handle {resource_type}")
     node = mock.MagicMock(
@@ -352,10 +350,10 @@ def MockNode(package, name, resource_type=None, **kwargs):
 
 def MockDocumentation(package, name, **kwargs):
     from dbt.node_types import NodeType
-    from dbt.contracts.graph.parsed import ParsedDocumentation
+    from dbt.contracts.graph.nodes import Documentation
 
     doc = mock.MagicMock(
-        __class__=ParsedDocumentation,
+        __class__=Documentation,
         resource_type=NodeType.Documentation,
         package_name=package,
         search_name=name,

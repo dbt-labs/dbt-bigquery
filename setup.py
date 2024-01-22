@@ -74,7 +74,8 @@ setup(
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
     install_requires=[
-        f"dbt-core~={_dbt_core_version(_dbt_bigquery_version())}",
+        "dbt-common<1.0",
+        "dbt-adapters~=0.1.0a1",
         "google-cloud-bigquery~=3.0",
         "google-cloud-storage~=2.4",
         "google-cloud-dataproc~=5.0",

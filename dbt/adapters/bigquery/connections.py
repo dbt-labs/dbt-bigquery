@@ -28,14 +28,14 @@ from google.oauth2 import (
 
 from dbt.adapters.bigquery import gcloud
 from dbt_common.clients import agate_helper
-from dbt.adapters.contracts.connection import ConnectionState, AdapterResponse
+from dbt.adapters.contracts.connection import ConnectionState, AdapterResponse, Credentials
 from dbt_common.exceptions import (
     DbtRuntimeError,
     DbtConfigError,
 )
 from dbt_common.exceptions import DbtDatabaseError
 from dbt.adapters.exceptions.connection import FailedToConnectError
-from dbt.adapters.base import BaseConnectionManager, Credentials
+from dbt.adapters.base import BaseConnectionManager
 from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery
 from dbt_common.events.functions import fire_event

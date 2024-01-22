@@ -32,12 +32,12 @@ MODELS_SCHEMA_YML = """
 version: 2
 models:
 - name: model_a
-  tests:
+  data_tests:
   - expect_value:
       field: tablename
       value: duped_alias
 - name: model_b
-  tests:
+  data_tests:
   - expect_value:
       field: tablename
       value: duped_alias

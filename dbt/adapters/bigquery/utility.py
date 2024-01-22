@@ -1,7 +1,7 @@
 import json
 from typing import Any, Optional
 
-import dbt.common.exceptions
+import dbt_common.exceptions
 
 
 def bool_setting(value: Optional[Any] = None) -> Optional[bool]:
@@ -41,5 +41,5 @@ def float_setting(value: Optional[Any] = None) -> Optional[float]:
 
 def sql_escape(string):
     if not isinstance(string, str):
-        raise dbt.common.exceptions.CompilationError(f"cannot escape a non-string: {string}")
+        raise dbt_common.exceptions.CompilationError(f"cannot escape a non-string: {string}")
     return json.dumps(string)[1:-1]

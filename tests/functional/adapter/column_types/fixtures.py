@@ -26,7 +26,7 @@ _SCHEMA_YML = """
 version: 2
 models:
   - name: model
-    tests:
+    data_tests:
       - is_type:
           column_map:
             int64_col: ['integer', 'number']
@@ -39,7 +39,7 @@ _ALT_SCHEMA_YML = """
 version: 2
 models:
   - name: model
-    tests:
+    data_tests:
       - is_type:
           column_map:
             int64_col: ['string', 'not number']

@@ -1,5 +1,5 @@
 import pytest
-from dbt.tests.adapter.unit_testing.test_unit_testing_types import BaseUnitTestingTypes
+from dbt.tests.adapter.unit_testing.test_unit_testing import BaseUnitTestingTypes
 
 
 class TestBigQueryUnitTestingTypes(BaseUnitTestingTypes):

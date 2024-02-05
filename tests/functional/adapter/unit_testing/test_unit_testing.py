@@ -1,5 +1,6 @@
 import pytest
 from dbt.tests.adapter.unit_testing.test_unit_testing import BaseUnitTestingTypes
+from dbt.tests.adapter.unit_testing.test_case_insensitivity import BaseUnitTestCaseInsensivity
 
 
 class TestBigQueryUnitTestingTypes(BaseUnitTestingTypes):
@@ -34,3 +35,7 @@ class TestBigQueryUnitTestingTypes(BaseUnitTestingTypes):
             ],
             ["""json '{"name": "Cooper", "forname": "Alice"}'""", "{}"],
         ]
+
+
+class TestBigQueryUnitTestCaseInsensitivity(BaseUnitTestCaseInsensivity):
+    pass

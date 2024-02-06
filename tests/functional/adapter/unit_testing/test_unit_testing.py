@@ -60,5 +60,5 @@ class TestBigQueryUnitTestCaseInsensitivity(BaseUnitTestCaseInsensivity):
     pass
 
 
-class TestBigqueryeUnitTestInvalidInput(BaseUnitTestInvalidInput):
+class TestBigQueryUnitTestInvalidInput(BaseUnitTestInvalidInput):
     pass

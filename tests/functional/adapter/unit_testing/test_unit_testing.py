@@ -34,6 +34,12 @@ class TestBigQueryUnitTestingTypes(BaseUnitTestingTypes):
                 """{"name": "Cooper", "forname": "Alice"}""",
             ],
             ["""json '{"name": "Cooper", "forname": "Alice"}'""", "{}"],
+            # structs
+            ["STRUCT('Isha' as name, 22 as age)", """'STRUCT("Isha" as name, 22 as age)'"""],
+            [
+                "STRUCT('Kipketer' AS name, [23.2, 26.1, 27.3, 29.4] AS laps)",
+                """'STRUCT("Kipketer" AS name, [23.2, 26.1, 27.3, 29.4] AS laps)'""",
+            ],
         ]
 
 

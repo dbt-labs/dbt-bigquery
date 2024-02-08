@@ -1,7 +1,7 @@
 import pytest
 
 from dbt.adapters.base.relation import BaseRelation
-from dbt.contracts.relation import RelationType
+from dbt.adapters.contracts.relation import RelationType
 from dbt.tests.util import get_connection, run_dbt
 
 from dbt.adapters.bigquery.relation_configs import BigQueryMaterializedViewConfig

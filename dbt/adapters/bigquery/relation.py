@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import FrozenSet, Optional, TypeVar
 
 from itertools import chain, islice
-from dbt.context.providers import RuntimeConfigObject
 from dbt.adapters.base.relation import BaseRelation, ComponentName, InformationSchema
 from dbt.adapters.relation_configs import RelationConfigChangeAction
 from dbt.adapters.bigquery.relation_configs import (
@@ -12,10 +11,9 @@ from dbt.adapters.bigquery.relation_configs import (
     BigQueryOptionsConfigChange,
     BigQueryPartitionConfigChange,
 )
-from dbt.contracts.graph.nodes import ModelNode
-from dbt.contracts.relation import RelationType
-from dbt.exceptions import CompilationError
-from dbt.utils import filter_null_values
+from dbt.adapters.contracts.relation import RelationType, RelationConfig
+from dbt_common.exceptions import CompilationError
+from dbt_common.utils.dict import filter_null_values
 
 
 Self = TypeVar("Self", bound="BigQueryRelation")
@@ -63,19 +61,19 @@ class BigQueryRelation(BaseRelation):
         return self.schema
 
     @classmethod
-    def materialized_view_from_model_node(
-        cls, model_node: ModelNode
+    def materialized_view_from_relation_config(
+        cls, relation_config: RelationConfig
     ) -> BigQueryMaterializedViewConfig:
-        return BigQueryMaterializedViewConfig.from_model_node(model_node)  # type: ignore
+        return BigQueryMaterializedViewConfig.from_relation_config(relation_config)  # type: ignore
 
     @classmethod
     def materialized_view_config_changeset(
         cls,
         existing_materialized_view: BigQueryMaterializedViewConfig,
-        runtime_config: RuntimeConfigObject,
+        relation_config: RelationConfig,
     ) -> Optional[BigQueryMaterializedViewConfigChangeset]:
         config_change_collection = BigQueryMaterializedViewConfigChangeset()
-        new_materialized_view = cls.materialized_view_from_model_node(runtime_config.model)
+        new_materialized_view = cls.materialized_view_from_relation_config(relation_config)
 
         if new_materialized_view.options != existing_materialized_view.options:
             config_change_collection.options = BigQueryOptionsConfigChange(

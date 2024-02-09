@@ -1,5 +1,5 @@
 kind: Features
-body: Support non-STRUCT types for unit testing in dbt-bigquery, expand coverage of
+body: Support all types for unit testing in dbt-bigquery, expand coverage of
   safe_cast macro
 time: 2024-02-05T17:46:14.505597-05:00
 custom:

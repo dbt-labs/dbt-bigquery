@@ -3,8 +3,9 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 from dbt.adapters.relation_configs import RelationConfigChange
-from dbt.contracts.graph.nodes import ModelNode
+from dbt.adapters.contracts.relation import RelationConfig
 from google.cloud.bigquery import Table as BigQueryTable
+from typing_extensions import Self
 
 from dbt.adapters.bigquery.relation_configs._base import BigQueryBaseRelationConfig
 from dbt.adapters.bigquery.utility import bool_setting, float_setting, sql_escape
@@ -81,7 +82,7 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
         return options
 
     @classmethod
-    def from_dict(cls, config_dict: Dict[str, Any]) -> "BigQueryOptionsConfig":
+    def from_dict(cls, config_dict: Dict[str, Any]) -> Self:
         setting_formatters = {
             "enable_refresh": bool_setting,
             "refresh_interval_minutes": float_setting,
@@ -106,13 +107,13 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
         if kwargs_dict["enable_refresh"] is False:
             kwargs_dict.update({"refresh_interval_minutes": None, "max_staleness": None})
 
-        options: "BigQueryOptionsConfig" = super().from_dict(kwargs_dict)  # type: ignore
+        options: Self = super().from_dict(kwargs_dict)  # type: ignore
         return options
 
     @classmethod
-    def parse_model_node(cls, model_node: ModelNode) -> Dict[str, Any]:
+    def parse_relation_config(cls, relation_config: RelationConfig) -> Dict[str, Any]:
         config_dict = {
-            option: model_node.config.extra.get(option)
+            option: relation_config.config.extra.get(option)  # type: ignore
             for option in [
                 "enable_refresh",
                 "refresh_interval_minutes",
@@ -126,11 +127,13 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
         }
 
         # update dbt-specific versions of these settings
-        if hours_to_expiration := model_node.config.extra.get("hours_to_expiration"):
+        if hours_to_expiration := relation_config.config.extra.get(  # type: ignore
+            "hours_to_expiration"
+        ):  # type: ignore
             config_dict.update(
                 {"expiration_timestamp": datetime.now() + timedelta(hours=hours_to_expiration)}
             )
-        if not model_node.config.persist_docs:
+        if not relation_config.config.persist_docs:  # type: ignore
             del config_dict["description"]
 
         return config_dict

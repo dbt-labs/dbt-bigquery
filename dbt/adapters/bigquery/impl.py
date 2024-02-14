@@ -23,7 +23,7 @@ from dbt.adapters.base import (  # type: ignore
 )
 from dbt.adapters.base.impl import FreshnessResponse
 from dbt.adapters.cache import _make_ref_key_dict  # type: ignore
-from dbt.adapters.capability import CapabilityDict, CapabilitySupport, Support, Capability
+from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
 import dbt_common.clients.agate_helper
 from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.adapters.contracts.macros import MacroResolverProtocol
@@ -126,6 +126,7 @@ class BigQueryAdapter(BaseAdapter):
     _capabilities: CapabilityDict = CapabilityDict(
         {
             Capability.TableLastModifiedMetadata: CapabilitySupport(support=Support.Full),
+            Capability.SchemaMetadataByRelations: CapabilitySupport(support=Support.Full),
         }
     )
 

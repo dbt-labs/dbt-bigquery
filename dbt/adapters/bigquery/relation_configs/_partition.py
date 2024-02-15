@@ -16,6 +16,7 @@ class PartitionConfig(dbtClassMixin):
     range: Optional[Dict[str, Any]] = None
     time_ingestion_partitioning: bool = False
     copy_partitions: bool = False
+    partition_information: str = "model"
 
     PARTITION_DATE = "_PARTITIONDATE"
     PARTITION_TIME = "_PARTITIONTIME"

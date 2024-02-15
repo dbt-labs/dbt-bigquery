@@ -620,14 +620,11 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return f"https://console.cloud.google.com/bigquery?project={project_id}&j=bq:{location}:{job_id}&page=queryresults"
 
     def get_partitions_metadata(self, table):
-        def standard_to_legacy(table):
-            return table.project + ":" + table.dataset + "." + table.identifier
+        query_sql = f"SELECT * FROM `{table.project}.{table.dataset}.INFORMATION_SCHEMA.PARTITIONS` WHERE TABLE_NAME = '{table.identifier}'"
 
-        legacy_sql = "SELECT * FROM [" + standard_to_legacy(table) + "$__PARTITIONS_SUMMARY__]"
-
-        sql = self._add_query_comment(legacy_sql)
+        sql = self._add_query_comment(query_sql)
         # auto_begin is ignored on bigquery, and only included for consistency
-        _, iterator = self.raw_execute(sql, use_legacy_sql=True)
+        _, iterator = self.raw_execute(sql)
         return self.get_table_from_response(iterator)
 
     def copy_bq_table(self, source, destination, write_disposition):

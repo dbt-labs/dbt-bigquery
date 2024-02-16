@@ -201,7 +201,6 @@ class BigQueryCredentials(Credentials):
             "job_execution_timeout_seconds",
             "keyfile",
             "timeout_seconds",
-            "refresh_token",
             "client_id",
             "token_uri",
             "dataproc_region",

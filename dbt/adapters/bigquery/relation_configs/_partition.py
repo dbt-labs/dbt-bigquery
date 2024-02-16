@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-import dbt.common.exceptions
+import dbt_common.exceptions
 from dbt.adapters.relation_configs import RelationConfigChange
 from dbt.adapters.contracts.relation import RelationConfig
-from dbt.common.dataclass_schema import dbtClassMixin, ValidationError
+from dbt_common.dataclass_schema import dbtClassMixin, ValidationError
 from google.cloud.bigquery.table import Table as BigQueryTable
 
 
@@ -92,11 +92,11 @@ class PartitionConfig(dbtClassMixin):
                 }
             )
         except ValidationError as exc:
-            raise dbt.common.exceptions.base.DbtValidationError(
+            raise dbt_common.exceptions.base.DbtValidationError(
                 "Could not parse partition config"
             ) from exc
         except TypeError:
-            raise dbt.common.exceptions.CompilationError(
+            raise dbt_common.exceptions.CompilationError(
                 f"Invalid partition_by config:\n"
                 f"  Got: {raw_partition_by}\n"
                 f'  Expected a dictionary with "field" and "data_type" keys'
@@ -111,7 +111,7 @@ class PartitionConfig(dbtClassMixin):
             This doesn't currently collect `time_ingestion_partitioning` and `copy_partitions`
             because this was built for materialized views, which do not support those settings.
         """
-        config_dict = relation_config.config.extra.get("partition_by")  # type: ignore
+        config_dict: Dict[str, Any] = relation_config.config.extra.get("partition_by")  # type: ignore
         if "time_ingestion_partitioning" in config_dict:
             del config_dict["time_ingestion_partitioning"]
         if "copy_partitions" in config_dict:

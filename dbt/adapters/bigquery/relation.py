@@ -12,8 +12,8 @@ from dbt.adapters.bigquery.relation_configs import (
     BigQueryPartitionConfigChange,
 )
 from dbt.adapters.contracts.relation import RelationType, RelationConfig
-from dbt.common.exceptions import CompilationError
-from dbt.common.utils.dict import filter_null_values
+from dbt_common.exceptions import CompilationError
+from dbt_common.utils.dict import filter_null_values
 
 
 Self = TypeVar("Self", bound="BigQueryRelation")

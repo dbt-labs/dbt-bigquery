@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import FrozenSet, Optional, TypeVar
 
 from itertools import chain, islice
-from dbt.context.providers import RuntimeConfigObject
 from dbt.adapters.base.relation import BaseRelation, ComponentName, InformationSchema
 from dbt.adapters.relation_configs import RelationConfigChangeAction
 from dbt.adapters.bigquery.relation_configs import (
@@ -12,10 +11,9 @@ from dbt.adapters.bigquery.relation_configs import (
     BigQueryOptionsConfigChange,
     BigQueryPartitionConfigChange,
 )
-from dbt.contracts.graph.nodes import ModelNode
-from dbt.contracts.relation import RelationType
-from dbt.exceptions import CompilationError
-from dbt.utils import filter_null_values
+from dbt.adapters.contracts.relation import RelationType, RelationConfig
+from dbt_common.exceptions import CompilationError
+from dbt_common.utils.dict import filter_null_values
 
 
 Self = TypeVar("Self", bound="BigQueryRelation")
@@ -63,19 +61,19 @@ class BigQueryRelation(BaseRelation):
         return self.schema
 
     @classmethod
-    def materialized_view_from_model_node(
-        cls, model_node: ModelNode
+    def materialized_view_from_relation_config(
+        cls, relation_config: RelationConfig
     ) -> BigQueryMaterializedViewConfig:
-        return BigQueryMaterializedViewConfig.from_model_node(model_node)  # type: ignore
+        return BigQueryMaterializedViewConfig.from_relation_config(relation_config)  # type: ignore
 
     @classmethod
     def materialized_view_config_changeset(
         cls,
         existing_materialized_view: BigQueryMaterializedViewConfig,
-        runtime_config: RuntimeConfigObject,
+        relation_config: RelationConfig,
     ) -> Optional[BigQueryMaterializedViewConfigChangeset]:
         config_change_collection = BigQueryMaterializedViewConfigChangeset()
-        new_materialized_view = cls.materialized_view_from_model_node(runtime_config.model)
+        new_materialized_view = cls.materialized_view_from_relation_config(relation_config)
 
         if new_materialized_view.options != existing_materialized_view.options:
             config_change_collection.options = BigQueryOptionsConfigChange(
@@ -84,9 +82,10 @@ class BigQueryRelation(BaseRelation):
             )
 
         if new_materialized_view.partition != existing_materialized_view.partition:
+            # the existing PartitionConfig is not hashable, but since we need to do
+            # a full refresh either way, we don't need to provide a context
             config_change_collection.partition = BigQueryPartitionConfigChange(
                 action=RelationConfigChangeAction.alter,
-                context=new_materialized_view.partition,
             )
 
         if new_materialized_view.cluster != existing_materialized_view.cluster:
@@ -95,7 +94,7 @@ class BigQueryRelation(BaseRelation):
                 context=new_materialized_view.cluster,
             )
 
-        if config_change_collection:
+        if config_change_collection.has_changes:
             return config_change_collection
         return None
 

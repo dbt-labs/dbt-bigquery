@@ -187,8 +187,6 @@ models__python_array_batch_id_yaml = """
 models:
   - name: python_array_batch_id
     description: A random table with a calculated column defined in python.
-    config:
-      batch_id: '{{ run_started_at.strftime("%Y-%m-%d-%H-%M-%S") }}-python-array'
     columns:
       - name: A
         description: Column A

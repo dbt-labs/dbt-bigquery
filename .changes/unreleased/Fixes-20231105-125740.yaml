@@ -1,0 +1,6 @@
+kind: Fixes
+body: Fix inline comments (--) on the last line of an incremental model
+time: 2023-11-05T12:57:40.289399+09:00
+custom:
+  Author: tnk-ysk
+  Issue: "896"

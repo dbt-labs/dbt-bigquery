@@ -1,11 +1,16 @@
 from dataclasses import dataclass
+from datetime import datetime
 import json
 import threading
+from multiprocessing.context import SpawnContext
+
 import time
-from typing import Any, Dict, List, Optional, Type, Set, Union
+from typing import Any, Dict, List, Optional, Type, Set, Union, FrozenSet, Tuple, Iterable
 
 import agate
-from dbt import ui  # type: ignore
+from dbt.adapters.contracts.relation import RelationConfig
+
+import dbt_common.exceptions.base
 from dbt.adapters.base import (  # type: ignore
     AdapterConfig,
     BaseAdapter,
@@ -16,24 +21,26 @@ from dbt.adapters.base import (  # type: ignore
     SchemaSearchMap,
     available,
 )
+from dbt.adapters.base.impl import FreshnessResponse
 from dbt.adapters.cache import _make_ref_key_dict  # type: ignore
-import dbt.clients.agate_helper
-from dbt.contracts.connection import AdapterResponse
-from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import ColumnLevelConstraint, ConstraintType, ModelLevelConstraint  # type: ignore
-from dbt.dataclass_schema import dbtClassMixin
-import dbt.deprecations
-from dbt.events import AdapterLogger
-from dbt.events.functions import fire_event
-from dbt.events.types import SchemaCreation, SchemaDrop
-import dbt.exceptions
-from dbt.utils import filter_null_values
+from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
+import dbt_common.clients.agate_helper
+from dbt.adapters.contracts.connection import AdapterResponse
+from dbt.adapters.contracts.macros import MacroResolverProtocol
+from dbt_common.contracts.constraints import ColumnLevelConstraint, ConstraintType, ModelLevelConstraint  # type: ignore
+from dbt_common.dataclass_schema import dbtClassMixin
+from dbt.adapters.events.logging import AdapterLogger
+from dbt_common.events.functions import fire_event
+from dbt.adapters.events.types import SchemaCreation, SchemaDrop
+import dbt_common.exceptions
+from dbt_common.utils import filter_null_values
 import google.api_core
 import google.auth
 import google.oauth2
 import google.cloud.bigquery
 from google.cloud.bigquery import AccessEntry, SchemaField, Table as BigQueryTable
 import google.cloud.exceptions
+import pytz
 
 from dbt.adapters.bigquery import BigQueryColumn, BigQueryConnectionManager
 from dbt.adapters.bigquery.column import get_nested_column_data_types
@@ -112,12 +119,19 @@ class BigQueryAdapter(BaseAdapter):
         ConstraintType.check: ConstraintSupport.NOT_SUPPORTED,
         ConstraintType.not_null: ConstraintSupport.ENFORCED,
         ConstraintType.unique: ConstraintSupport.NOT_SUPPORTED,
-        ConstraintType.primary_key: ConstraintSupport.ENFORCED,
-        ConstraintType.foreign_key: ConstraintSupport.ENFORCED,
+        ConstraintType.primary_key: ConstraintSupport.NOT_ENFORCED,
+        ConstraintType.foreign_key: ConstraintSupport.NOT_ENFORCED,
     }
 
-    def __init__(self, config) -> None:
-        super().__init__(config)
+    _capabilities: CapabilityDict = CapabilityDict(
+        {
+            Capability.TableLastModifiedMetadata: CapabilitySupport(support=Support.Full),
+            Capability.SchemaMetadataByRelations: CapabilitySupport(support=Support.Full),
+        }
+    )
+
+    def __init__(self, config, mp_context: SpawnContext) -> None:
+        super().__init__(config, mp_context)
         self.connections: BigQueryConnectionManager = self.connections
 
     ###
@@ -145,7 +159,9 @@ class BigQueryAdapter(BaseAdapter):
         conn.handle.delete_table(table_ref, not_found_ok=True)
 
     def truncate_relation(self, relation: BigQueryRelation) -> None:
-        raise dbt.exceptions.NotImplementedError("`truncate` is not implemented for this adapter!")
+        raise dbt_common.exceptions.base.NotImplementedError(
+            "`truncate` is not implemented for this adapter!"
+        )
 
     def rename_relation(
         self, from_relation: BigQueryRelation, to_relation: BigQueryRelation
@@ -160,7 +176,7 @@ class BigQueryAdapter(BaseAdapter):
             or from_relation.type == RelationType.View
             or to_relation.type == RelationType.View
         ):
-            raise dbt.exceptions.DbtRuntimeError(
+            raise dbt_common.exceptions.DbtRuntimeError(
                 "Renaming of views is not currently supported in BigQuery"
             )
 
@@ -325,6 +341,10 @@ class BigQueryAdapter(BaseAdapter):
         return "float64" if decimals else "int64"
 
     @classmethod
+    def convert_integer_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+        return "int64"
+
+    @classmethod
     def convert_boolean_type(cls, agate_table: agate.Table, col_idx: int) -> str:
         return "bool"
 
@@ -382,7 +402,7 @@ class BigQueryAdapter(BaseAdapter):
         elif materialization == "table":
             write_disposition = WRITE_TRUNCATE
         else:
-            raise dbt.exceptions.CompilationError(
+            raise dbt_common.exceptions.CompilationError(
                 'Copy table materialization must be "copy" or "table", but '
                 f"config.get('copy_materialization', 'table') was "
                 f"{materialization}"
@@ -429,11 +449,11 @@ class BigQueryAdapter(BaseAdapter):
             job.reload()
 
         if job.state != "DONE":
-            raise dbt.exceptions.DbtRuntimeError("BigQuery Timeout Exceeded")
+            raise dbt_common.exceptions.DbtRuntimeError("BigQuery Timeout Exceeded")
 
         elif job.error_result:
             message = "\n".join(error["message"].strip() for error in job.errors)
-            raise dbt.exceptions.DbtRuntimeError(message)
+            raise dbt_common.exceptions.DbtRuntimeError(message)
 
     def _bq_table_to_relation(self, bq_table) -> Union[BigQueryRelation, None]:
         if bq_table is None:
@@ -450,15 +470,14 @@ class BigQueryAdapter(BaseAdapter):
     @classmethod
     def warning_on_hooks(cls, hook_type):
         msg = "{} is not supported in bigquery and will be ignored"
-        warn_msg = dbt.ui.color(msg, ui.COLOR_FG_YELLOW)
-        logger.info(warn_msg)
+        logger.info(msg)
 
     @available
     def add_query(self, sql, auto_begin=True, bindings=None, abridge_sql_log=False):
         if self.nice_connection_name() in ["on-run-start", "on-run-end"]:
             self.warning_on_hooks(self.nice_connection_name())
         else:
-            raise dbt.exceptions.NotImplementedError(
+            raise dbt_common.exceptions.base.NotImplementedError(
                 "`add_query` is not implemented for this adapter!"
             )
 
@@ -675,14 +694,16 @@ class BigQueryAdapter(BaseAdapter):
             self.poll_until_job_completes(job, timeout)
 
     @classmethod
-    def _catalog_filter_table(cls, table: agate.Table, manifest: Manifest) -> agate.Table:
+    def _catalog_filter_table(
+        cls, table: agate.Table, used_schemas: FrozenSet[Tuple[str, str]]
+    ) -> agate.Table:
         table = table.rename(
             column_names={col.name: col.name.replace("__", ":") for col in table.columns}
         )
-        return super()._catalog_filter_table(table, manifest)
+        return super()._catalog_filter_table(table, used_schemas)
 
-    def _get_catalog_schemas(self, manifest: Manifest) -> SchemaSearchMap:
-        candidates = super()._get_catalog_schemas(manifest)
+    def _get_catalog_schemas(self, relation_config: Iterable[RelationConfig]) -> SchemaSearchMap:
+        candidates = super()._get_catalog_schemas(relation_config)
         db_schemas: Dict[str, Set[str]] = {}
         result = SchemaSearchMap()
 
@@ -699,6 +720,26 @@ class BigQueryAdapter(BaseAdapter):
                     )
                 )
         return result
+
+    def calculate_freshness_from_metadata(
+        self,
+        source: BaseRelation,
+        macro_resolver: Optional[MacroResolverProtocol] = None,
+    ) -> Tuple[Optional[AdapterResponse], FreshnessResponse]:
+        conn = self.connections.get_thread_connection()
+        client: google.cloud.bigquery.Client = conn.handle
+
+        table_ref = self.get_table_ref_from_relation(source)
+        table = client.get_table(table_ref)
+        snapshot = datetime.now(tz=pytz.UTC)
+
+        freshness = FreshnessResponse(
+            max_loaded_at=table.modified,
+            snapshotted_at=snapshot,
+            age=(snapshot - table.modified).total_seconds(),
+        )
+
+        return None, freshness
 
     @available.parse(lambda *a, **k: {})
     def get_common_options(
@@ -768,7 +809,7 @@ class BigQueryAdapter(BaseAdapter):
             bq_table = self.get_bq_table(relation)
             parser = BigQueryMaterializedViewConfig
         else:
-            raise dbt.exceptions.DbtRuntimeError(
+            raise dbt_common.exceptions.DbtRuntimeError(
                 f"The method `BigQueryAdapter.describe_relation` is not implemented "
                 f"for the relation type: {relation.type}"
             )
@@ -834,7 +875,7 @@ class BigQueryAdapter(BaseAdapter):
         elif location == "prepend":
             return f"concat('{value}', {add_to})"
         else:
-            raise dbt.exceptions.DbtRuntimeError(
+            raise dbt_common.exceptions.DbtRuntimeError(
                 f'Got an unexpected location value of "{location}"'
             )
 

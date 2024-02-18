@@ -1,0 +1,6 @@
+kind: Fixes
+body: Fix broken partition config granularity and batch_id being set to None
+time: 2023-11-08T17:11:28.819877-08:00
+custom:
+  Author: colin-rogers-dbt
+  Issue: "1006"

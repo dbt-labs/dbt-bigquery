@@ -2,8 +2,9 @@ from dataclasses import dataclass
 from typing import Any, Dict, FrozenSet, Optional
 
 from dbt.adapters.relation_configs import RelationConfigChange
-from dbt.contracts.graph.nodes import ModelNode
+from dbt.adapters.contracts.relation import RelationConfig
 from google.cloud.bigquery import Table as BigQueryTable
+from typing_extensions import Self
 
 from dbt.adapters.bigquery.relation_configs._base import BigQueryBaseRelationConfig
 
@@ -22,16 +23,15 @@ class BigQueryClusterConfig(BigQueryBaseRelationConfig):
     fields: FrozenSet[str]
 
     @classmethod
-    def from_dict(cls, config_dict: Dict[str, Any]) -> "BigQueryClusterConfig":
+    def from_dict(cls, config_dict: Dict[str, Any]) -> Self:
         kwargs_dict = {"fields": config_dict.get("fields")}
-        cluster: "BigQueryClusterConfig" = super().from_dict(kwargs_dict)  # type: ignore
-        return cluster
+        return super().from_dict(kwargs_dict)  # type: ignore
 
     @classmethod
-    def parse_model_node(cls, model_node: ModelNode) -> Dict[str, Any]:
+    def parse_relation_config(cls, relation_config: RelationConfig) -> Dict[str, Any]:
         config_dict = {}
 
-        if cluster_by := model_node.config.extra.get("cluster_by"):
+        if cluster_by := relation_config.config.extra.get("cluster_by"):  # type: ignore
             # users may input a single field as a string
             if isinstance(cluster_by, str):
                 cluster_by = [cluster_by]

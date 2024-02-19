@@ -75,10 +75,10 @@ class BigQueryMaterializedViewConfig(BigQueryBaseRelationConfig):
         }
 
         # optional
-        if "partition_by" in relation_config.config:
+        if relation_config.config and "partition_by" in relation_config.config:
             config_dict.update({"partition": PartitionConfig.parse_model_node(relation_config)})
 
-        if "cluster_by" in relation_config.config:
+        if relation_config.config and "cluster_by" in relation_config.config:
             config_dict.update(
                 {"cluster": BigQueryClusterConfig.parse_relation_config(relation_config)}
             )

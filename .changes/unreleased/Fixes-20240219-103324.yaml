@@ -1,0 +1,6 @@
+kind: Fixes
+body: Remove custom query job async timeout logic as it has been fixed in bigquery-python
+time: 2024-02-19T10:33:24.3385-08:00
+custom:
+  Author: colin-rogers-dbt
+  Issue: "1081"

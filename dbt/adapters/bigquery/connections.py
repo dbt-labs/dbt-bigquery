@@ -1,5 +1,3 @@
-import asyncio
-import functools
 import json
 import re
 from contextlib import contextmanager
@@ -740,25 +738,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
             )
 
-        # only use async logic if user specifies a timeout
-        if job_execution_timeout:
-            loop = asyncio.new_event_loop()
-            future_iterator = asyncio.wait_for(
-                loop.run_in_executor(None, functools.partial(query_job.result, max_results=limit)),
-                timeout=job_execution_timeout,
-            )
-
-            try:
-                iterator = loop.run_until_complete(future_iterator)
-            except asyncio.TimeoutError:
-                query_job.cancel()
-                raise DbtRuntimeError(
-                    f"Query exceeded configured timeout of {job_execution_timeout}s"
-                )
-            finally:
-                loop.close()
-        else:
-            iterator = query_job.result(max_results=limit)
+        iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
         return query_job, iterator
 
     def _retry_and_handle(self, msg, conn, fn):

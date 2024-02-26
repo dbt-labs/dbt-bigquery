@@ -280,7 +280,8 @@ class BigQueryAdapter(BaseAdapter):
         # the implementation of list_relations for other adapters
         try:
             return [self._bq_table_to_relation(table) for table in all_tables]  # type: ignore[misc]
-        except google.api_core.exceptions.NotFound:
+        except google.api_core.exceptions.NotFound as exc:
+            logger.debug("list_relations_without_caching error: {}".format(str(exc)))
             return []
         except google.api_core.exceptions.Forbidden as exc:
             logger.debug("list_relations_without_caching error: {}".format(str(exc)))
@@ -296,10 +297,10 @@ class BigQueryAdapter(BaseAdapter):
 
         try:
             table = self.connections.get_bq_table(database, schema, identifier)
-        except google.api_core.exceptions.NotFound as e:
+        except google.api_core.exceptions.NotFound as exc:
             logger.debug(
                 "Table not found for database: {}, schema: {}, identifier: {}: {}".format(
-                    database, schema, identifier, str(e)
+                    database, schema, identifier, str(exc)
                 )
             )
             table = None

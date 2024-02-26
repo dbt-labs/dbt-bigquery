@@ -10,8 +10,8 @@
 {% macro bigquery__load_csv_rows(model, agate_table) %}
 
   {%- set column_override = model['config'].get('column_types', {}) -%}
-  {{ adapter.load_dataframe(model['database'], model['schema'], model['alias'],
-  							agate_table, column_override) }}
+    {{ adapter.load_dataframe(model['database'], model['schema'], model['alias'],
+  							agate_table, column_override,model['config']['delimiter']) }}
 
   {% call statement() %}
     alter table {{ this.render() }} set {{ bigquery_table_options(config, model) }}

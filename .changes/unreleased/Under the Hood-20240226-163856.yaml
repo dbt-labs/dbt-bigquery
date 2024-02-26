@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: Show debug log in get_relation if table isn't found
+time: 2024-02-26T16:38:56.797462+09:00
+custom:
+  Author: yu-iksw
+  Issue: "1120"

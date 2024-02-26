@@ -296,7 +296,8 @@ class BigQueryAdapter(BaseAdapter):
 
         try:
             table = self.connections.get_bq_table(database, schema, identifier)
-        except google.api_core.exceptions.NotFound:
+        except google.api_core.exceptions.NotFound as e:
+            logger.debug("Table not found for database: {}, schema: {}, identifier: {}: {}".format(database, schema, identifier, str(e)))
             table = None
         return self._bq_table_to_relation(table)
 

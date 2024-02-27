@@ -59,4 +59,5 @@ class TestJobTimeout:
 
     def test_job_timeout(self, project):
         result = run_dbt(["run"], expect_pass=False)  # project setup will fail
-        assert f"Query exceeded configured timeout of {_SHORT_TIMEOUT}s" in result[0].message
+        expected_error = f"Operation did not complete within the designated timeout of {_SHORT_TIMEOUT} seconds."
+        assert expected_error in result[0].message

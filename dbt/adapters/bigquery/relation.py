@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import FrozenSet, Optional, TypeVar
 
 from itertools import chain, islice
@@ -26,18 +26,22 @@ class BigQueryRelation(BaseRelation):
     quote_character: str = "`"
     location: Optional[str] = None
 
-    renameable_relations: FrozenSet[RelationType] = field(default_factory=lambda: frozenset(
-        {
-            RelationType.Table,
-        }
-    ))
+    renameable_relations: FrozenSet[RelationType] = field(
+        default_factory=lambda: frozenset(
+            {
+                RelationType.Table,
+            }
+        )
+    )
 
-    replaceable_relations: FrozenSet[RelationType] = field(default_factory=lambda: frozenset(
-        {
-            RelationType.View,
-            RelationType.Table,
-        }
-    ))
+    replaceable_relations: FrozenSet[RelationType] = field(
+        default_factory=lambda: frozenset(
+            {
+                RelationType.View,
+                RelationType.Table,
+            }
+        )
+    )
 
     def matches(
         self,
@@ -109,7 +113,9 @@ class BigQueryRelation(BaseRelation):
             return config_change_collection
         return None
 
-    def information_schema(self, identifier: Optional[str] = None) -> "BigQueryInformationSchema":
+    def information_schema(
+        self, identifier: Optional[str] = None
+    ) -> "BigQueryInformationSchema":
         return BigQueryInformationSchema.from_relation(self, identifier)
 
 
@@ -151,9 +157,7 @@ class BigQueryInformationSchema(InformationSchema):
             # OBJECT_PRIVILEGES require a location.  If the location is blank there is nothing
             # the user can do about it.
             if not relation.location:
-                msg = (
-                    f'No location/region found when trying to retrieve "{information_schema_view}"'
-                )
+                msg = f'No location/region found when trying to retrieve "{information_schema_view}"'
                 raise CompilationError(msg)
             info_schema = info_schema.incorporate(location=relation.location)
         return info_schema

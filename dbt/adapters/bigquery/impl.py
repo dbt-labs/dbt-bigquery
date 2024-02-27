@@ -662,7 +662,7 @@ class BigQueryAdapter(BaseAdapter):
         load_config = google.cloud.bigquery.LoadJobConfig()
         load_config.skip_leading_rows = 1
         load_config.schema = bq_schema
-        load_config.field_delimiter=field_delimiter
+        load_config.field_delimiter = field_delimiter
         with open(agate_table.original_abspath, "rb") as f:
             job = client.load_table_from_file(f, table_ref, rewind=True, job_config=load_config)
 

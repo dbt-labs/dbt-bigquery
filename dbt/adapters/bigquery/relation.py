@@ -86,9 +86,7 @@ class BigQueryRelation(BaseRelation):
         relation_config: RelationConfig,
     ) -> Optional[BigQueryMaterializedViewConfigChangeset]:
         config_change_collection = BigQueryMaterializedViewConfigChangeset()
-        new_materialized_view = cls.materialized_view_from_relation_config(
-            relation_config
-        )
+        new_materialized_view = cls.materialized_view_from_relation_config(relation_config)
 
         if new_materialized_view.options != existing_materialized_view.options:
             config_change_collection.options = BigQueryOptionsConfigChange(
@@ -113,9 +111,7 @@ class BigQueryRelation(BaseRelation):
             return config_change_collection
         return None
 
-    def information_schema(
-        self, identifier: Optional[str] = None
-    ) -> "BigQueryInformationSchema":
+    def information_schema(self, identifier: Optional[str] = None) -> "BigQueryInformationSchema":
         return BigQueryInformationSchema.from_relation(self, identifier)
 
 
@@ -157,7 +153,9 @@ class BigQueryInformationSchema(InformationSchema):
             # OBJECT_PRIVILEGES require a location.  If the location is blank there is nothing
             # the user can do about it.
             if not relation.location:
-                msg = f'No location/region found when trying to retrieve "{information_schema_view}"'
+                msg = (
+                    f'No location/region found when trying to retrieve "{information_schema_view}"'
+                )
                 raise CompilationError(msg)
             info_schema = info_schema.incorporate(location=relation.location)
         return info_schema

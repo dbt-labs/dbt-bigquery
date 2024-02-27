@@ -80,7 +80,7 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
                     "location": "Luna Station",
                     "priority": "batch",
                     "maximum_bytes_billed": 0,
-                    "api_endpoint: "https://localhost:3001",
+                    "api_endpoint": "https://localhost:3001",
                 },
                 "impersonate": {
                     "type": "bigquery",
@@ -420,7 +420,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
     @patch("dbt.adapters.bigquery.impl.google.auth.default")
     @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")
     def test_api_endpoint_settable(self, mock_bq, mock_auth_default):
-        """Ensure that a user can pass an endpoint to the connector such as is needed for an emulator."""
+        """Ensure that a user can pass api_endpoint to the connector eg. for emulator."""
 
         creds = MagicMock()
         mock_auth_default.return_value = (creds, MagicMock())

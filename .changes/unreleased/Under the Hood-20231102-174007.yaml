@@ -1,0 +1,7 @@
+kind: Under the Hood
+body: Updated usage of deprecated `Table.time_partitioning` method to `Table.time_partitioning.type_`
+  as per BigQuery adapter recommendations.
+time: 2023-11-02T17:40:07.491202+01:00
+custom:
+  Author: jakuborlowski
+  Issue: N/A

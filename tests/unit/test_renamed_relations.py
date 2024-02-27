@@ -1,5 +1,5 @@
 from dbt.adapters.bigquery.relation import BigQueryRelation
-from dbt.adapters.contracts.relation import RelationType
+from dbt.contracts.relation import RelationType
 
 
 def test_renameable_relation():

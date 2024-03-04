@@ -24,6 +24,10 @@ model_with_json_struct = """
     limit 5
     """
 
+model_with_null_json_struct = """
+    select (struct<k json>(null)) as null_struct
+"""
+
 
 class TestBigQueryShowLimit(BaseShowLimit):
     pass
@@ -40,7 +44,11 @@ class TestBigQueryShowSqlWorksWithJSONStruct:
     def models(self):
         return {
             "json_struct_model.sql": model_with_json_struct,
+            "null_json_struct_model.sql": model_with_null_json_struct,
         }
 
     def test_sql_header(self, project):
         run_dbt(["show", "--select", "json_struct_model"])
+
+    def test_show_with_null_json_struct(self, project):
+        run_dbt(["show", "--select", "null_json_struct_model"])

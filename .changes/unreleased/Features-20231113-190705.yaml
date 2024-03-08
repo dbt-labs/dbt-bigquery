@@ -1,0 +1,6 @@
+kind: Features
+body: Add support for non-string types as dataproc batch runtime config properties
+time: 2023-11-13T19:07:05.995054-05:00
+custom:
+  Author: jimmyshah
+  Issue: "1001"

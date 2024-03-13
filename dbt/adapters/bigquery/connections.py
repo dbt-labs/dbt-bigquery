@@ -734,7 +734,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             and query_job.job_id is not None
             and query_job.project is not None
         ):
-            logger.debug(
+            logger.info(
                 self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
             )
 

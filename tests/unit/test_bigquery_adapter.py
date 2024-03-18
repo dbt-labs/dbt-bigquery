@@ -436,16 +436,16 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             creds,
             location="Luna Station",
             client_info=HasUserAgent(),
-            client_options=_CheckApiEndpointSet("https://localhost:3001")
+            client_options=_CheckApiEndpointSet("https://localhost:3001"),
         )
 
 
 class _CheckApiEndpointSet:
     value: str
-    
+
     def __init__(self, value: str) -> None:
         self.value = value
-        
+
     def __eq__(self, other) -> bool:
         return getattr(other, "api_endpoint") == self.value
 

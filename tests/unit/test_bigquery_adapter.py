@@ -415,6 +415,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             creds,
             location="Luna Station",
             client_info=HasUserAgent(),
+            client_options=None,
         )
 
     @patch("dbt.adapters.bigquery.impl.google.auth.default")

@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: Use execute instead of raw execute to add the query comment as query header
+time: 2023-07-27T22:38:48.258012+02:00
+custom:
+  Author: Kayrnt
+  Issue: "808"

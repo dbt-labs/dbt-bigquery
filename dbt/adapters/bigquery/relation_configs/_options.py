@@ -9,6 +9,7 @@ from typing_extensions import Self
 
 from dbt.adapters.bigquery.relation_configs._base import BigQueryBaseRelationConfig
 from dbt.adapters.bigquery.utility import bool_setting, float_setting, sql_escape
+from dbt.adapters.relation_configs import RelationConfigChangeAction
 
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
@@ -22,6 +23,7 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
     refresh_interval_minutes: Optional[float] = 30
     expiration_timestamp: Optional[datetime] = None
     max_staleness: Optional[str] = None
+    allow_non_incremental_definition: Optional[bool] = False
     kms_key_name: Optional[str] = None
     description: Optional[str] = None
     labels: Optional[Dict[str, str]] = None
@@ -58,6 +60,7 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
             "refresh_interval_minutes": numeric,
             "expiration_timestamp": interval,
             "max_staleness": interval,
+            "allow_non_incremental_definition": boolean,
             "kms_key_name": string,
             "description": escaped_string,
             "labels": array,
@@ -85,6 +88,7 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
             "refresh_interval_minutes": float_setting,
             "expiration_timestamp": None,
             "max_staleness": None,
+            "allow_non_incremental_definition": bool_setting,
             "kms_key_name": None,
             "description": None,
             "labels": None,
@@ -115,6 +119,7 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
                 "refresh_interval_minutes",
                 "expiration_timestamp",
                 "max_staleness",
+                "allow_non_incremental_definition",
                 "kms_key_name",
                 "description",
                 "labels",
@@ -139,7 +144,12 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
             "enable_refresh": table.mview_enable_refresh,
             "refresh_interval_minutes": table.mview_refresh_interval.seconds / 60,
             "expiration_timestamp": table.expires,
-            "max_staleness": None,
+            "max_staleness": (
+                f"INTERVAL '{table._properties.get('maxStaleness')}' YEAR TO SECOND"
+                if table._properties.get('maxStaleness')
+                else None
+            ),
+            "allow_non_incremental_definition": table._properties.get("materializedView", {}).get("allowNonIncrementalDefinition"),
             "description": table.description,
         }
 
@@ -158,4 +168,4 @@ class BigQueryOptionsConfigChange(RelationConfigChange):
 
     @property
     def requires_full_refresh(self) -> bool:
-        return False
+        return self.action != RelationConfigChangeAction.alter

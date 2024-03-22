@@ -1,4 +1,16 @@
-name: Release internal patch
+# What?
+#
+# Tag and release an arbitrary sha. Uploads to an internal archive for further processing.
+#
+# How?
+#
+# After checking out and testing the provided sha, the image is built and uploaded.
+#
+# When?
+#
+# Manual trigger.
+
+name: "Release internal patch"
 
 on:
   workflow_dispatch:
@@ -23,7 +35,7 @@ defaults:
     shell: bash
 
 env:
-  PYTHON_TARGET_VERSION: 3.11
+  PYTHON_TARGET_VERSION: 3.8
 
 jobs:
   invoke-reusable-workflow:

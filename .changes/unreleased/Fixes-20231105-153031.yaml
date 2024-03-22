@@ -1,0 +1,6 @@
+kind: Fixes
+body: Datetime incremental tables scanning more of table than expected
+time: 2023-11-05T15:30:31.230777+09:00
+custom:
+  Author: tnk-ysk
+  Issue: "717"

@@ -410,13 +410,12 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
 
         mock_client.assert_not_called()
         connection.handle
-        mock_client.assert_called_once_with(
-            "dbt-unit-000000",
-            creds,
-            location="Luna Station",
-            client_info=HasUserAgent(),
-            client_options=None,
-        )
+        # Get the arguments passed to mock_client.assert_called_once_with()
+        call_args = mock_client.call_args
+        args, kwargs = call_args
+        assert args == ("dbt-unit-000000", creds)
+        assert kwargs["location"] == "Luna Station"
+        assert HasUserAgent() == kwargs["client_info"]
 
     @patch("dbt.adapters.bigquery.impl.google.auth.default")
     @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")

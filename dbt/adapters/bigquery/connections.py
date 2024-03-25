@@ -195,7 +195,6 @@ class BigQueryCredentials(Credentials):
             "job_retries",
             "job_creation_timeout_seconds",
             "job_execution_timeout_seconds",
-            "keyfile",
             "timeout_seconds",
             "client_id",
             "token_uri",

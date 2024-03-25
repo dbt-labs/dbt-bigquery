@@ -17,7 +17,7 @@ import dbt.adapters
 from dbt.adapters.bigquery.relation_configs import PartitionConfig
 from dbt.adapters.bigquery import BigQueryAdapter, BigQueryRelation
 from google.cloud.bigquery.table import Table
-from dbt.adapters.bigquery.connections import _sanitize_label, _VALIDATE_LABEL_LENGTH_LIMIT
+from dbt.adapters.bigquery.connections import _sanitize_label, _VALIDATE_LABEL_LENGTH_LIMIT, get_bigquery_defaults
 from dbt_common.clients import agate_helper
 import dbt_common.exceptions
 from dbt.context.manifest import generate_query_header_context
@@ -401,6 +401,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
     @patch("dbt.adapters.bigquery.impl.google.auth.default")
     @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")
     def test_location_user_agent(self, mock_bq, mock_auth_default):
+        get_bigquery_defaults.cache_clear()
         creds = MagicMock()
         mock_auth_default.return_value = (creds, MagicMock())
         adapter = self.get_adapter("loc")
@@ -410,18 +411,20 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
 
         mock_client.assert_not_called()
         connection.handle
-        # Get the arguments passed to mock_client.assert_called_once_with()
-        call_args = mock_client.call_args
-        args, kwargs = call_args
-        assert args == ("dbt-unit-000000", creds)
-        assert kwargs["location"] == "Luna Station"
-        assert HasUserAgent() == kwargs["client_info"]
+        mock_client.assert_called_once_with(
+            "dbt-unit-000000",
+            creds,
+            location="Luna Station",
+            client_info=HasUserAgent(),
+            client_options=None,
+        )
 
     @patch("dbt.adapters.bigquery.impl.google.auth.default")
     @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")
     def test_api_endpoint_settable(self, mock_bq, mock_auth_default):
         """Ensure that a user can pass api_endpoint to the connector eg. for emulator."""
 
+        get_bigquery_defaults.cache_clear()
         creds = MagicMock()
         mock_auth_default.return_value = (creds, MagicMock())
         adapter = self.get_adapter("api_endpoint")

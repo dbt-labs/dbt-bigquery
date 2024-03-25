@@ -1,0 +1,6 @@
+kind: Fixes
+body: remove `keyfile` from `_connection_keys`
+time: 2024-03-22T11:37:20.989189-05:00
+custom:
+  Author: McKnight-42
+  Issue: "1146"

@@ -49,8 +49,6 @@
     {%- set old_relation = adapter.get_relation(database=relation.database, schema=relation.schema, identifier=relation.identifier) -%}
     {%- if (old_relation.is_table and (should_full_refresh())) -%}
       {% do adapter.drop_relation(relation) %}
-    {%- else -%}
-      {% do adapter.alter_table_comment(relation, model.description) %}
     {%- endif -%}
     {{ py_write_table(compiled_code=compiled_code, target_relation=relation.quote(database=False, schema=False, identifier=False)) }}
   {%- else -%}
@@ -101,6 +99,7 @@
 {% macro bigquery__persist_docs(relation, model, for_relation, for_columns) -%}
   {% if for_columns and config.persist_column_docs() and model.columns %}
     {% do alter_column_comment(relation, model.columns) %}
+    {% do adapter.update_table_description(relation, model.description) %}
   {% endif %}
 {% endmacro %}
 

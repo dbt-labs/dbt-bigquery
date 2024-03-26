@@ -158,14 +158,6 @@ class BigQueryAdapter(BaseAdapter):
         # mimic "drop if exists" functionality that's ubiquitous in most sql implementations
         conn.handle.delete_table(table_ref, not_found_ok=True)
 
-    def alter_table_comment(self, relation: BigQueryRelation, description) -> None:
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-        table_ref = self.get_table_ref_from_relation(relation)
-        table = client.get_table(table_ref)
-        table.description = description
-        client.update_table(table, ["description"])
-
     def truncate_relation(self, relation: BigQueryRelation) -> None:
         raise dbt_common.exceptions.base.NotImplementedError(
             "`truncate` is not implemented for this adapter!"
@@ -633,12 +625,11 @@ class BigQueryAdapter(BaseAdapter):
 
     @available.parse_none
     def update_table_description(
-        self, database: str, schema: str, identifier: str, description: str
+        self, relation: BigQueryRelation, description: str
     ):
         conn = self.connections.get_thread_connection()
         client = conn.handle
-
-        table_ref = self.connections.table_ref(database, schema, identifier)
+        table_ref = self.get_table_ref_from_relation(relation)
         table = client.get_table(table_ref)
         table.description = description
         client.update_table(table, ["description"])

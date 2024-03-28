@@ -53,7 +53,8 @@ setup(
     install_requires=[
         "dbt-common>=0.1.0a1,<2.0",
         "dbt-adapters>=0.1.0a1,<2.0",
-        "google-cloud-bigquery~=3.0",
+        # 3.20 introduced pyarrow>=3.0 under the `pandas` extra
+        "google-cloud-bigquery[pandas]>=3.0,<4.0",
         "google-cloud-storage~=2.4",
         "google-cloud-dataproc~=5.0",
         # ----

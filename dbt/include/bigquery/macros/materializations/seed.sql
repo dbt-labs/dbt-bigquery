@@ -11,7 +11,7 @@
 
   {%- set column_override = model['config'].get('column_types', {}) -%}
   {{ adapter.load_dataframe(model['database'], model['schema'], model['alias'],
-  							agate_table, column_override) }}
+  							agate_table, column_override, model['config']['delimiter']) }}
 
   {% call statement() %}
     alter table {{ this.render() }} set {{ bigquery_table_options(config, model) }}

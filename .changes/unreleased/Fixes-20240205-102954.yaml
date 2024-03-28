@@ -1,0 +1,6 @@
+kind: Fixes
+body: Fix dbt.string_literal for BQ when there are newlines
+time: 2024-02-05T10:29:54.145326+01:00
+custom:
+  Author: b-per
+  Issue: "1088"

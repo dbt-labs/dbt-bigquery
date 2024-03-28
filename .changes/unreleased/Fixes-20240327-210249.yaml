@@ -1,0 +1,7 @@
+kind: Fixes
+body: Add `pandas` extra for `google-cloud-bigquery` to pick up missing `pyarrow`
+  dependency
+time: 2024-03-27T21:02:49.619691-04:00
+custom:
+  Author: mikealfare
+  Issue: "1152"

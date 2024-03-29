@@ -625,11 +625,12 @@ class BigQueryAdapter(BaseAdapter):
 
     @available.parse_none
     def update_table_description(
-        self, relation: BigQueryRelation, description: str
+        self, database: str, schema: str, identifier: str, description: str
     ):
         conn = self.connections.get_thread_connection()
         client = conn.handle
-        table_ref = self.get_table_ref_from_relation(relation)
+
+        table_ref = self.connections.table_ref(database, schema, identifier)
         table = client.get_table(table_ref)
         table.description = description
         client.update_table(table, ["description"])

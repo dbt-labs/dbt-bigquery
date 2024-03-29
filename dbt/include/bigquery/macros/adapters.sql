@@ -99,7 +99,9 @@
 {% macro bigquery__persist_docs(relation, model, for_relation, for_columns) -%}
   {% if for_columns and config.persist_column_docs() and model.columns %}
     {% do alter_column_comment(relation, model.columns) %}
-    {% do adapter.update_table_description(relation, model.description) %}
+  {% endif %}
+  {% if config.persist_relation_docs() and 'description' in model %}
+    {{ adapter.update_table_description(model['database'], model['schema'], model['alias'], model['description']) }}
   {% endif %}
 {% endmacro %}
 

@@ -60,6 +60,7 @@ setup(
         # ----
         # Expect compatibility with all new versions of these packages, so lower bounds only.
         "google-api-core>=2.11.0",
+        "google-auth>=2.20.0",
     ],
     zip_safe=False,
     classifiers=[

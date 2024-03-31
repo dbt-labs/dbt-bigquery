@@ -5,9 +5,8 @@ import threading
 from multiprocessing.context import SpawnContext
 
 import time
-from typing import Any, Dict, List, Optional, Type, Set, Union, FrozenSet, Tuple, Iterable
+from typing import Any, Dict, List, Optional, Type, Set, Union, FrozenSet, Tuple, Iterable, TYPE_CHECKING
 
-import agate
 from dbt.adapters.contracts.relation import RelationConfig
 
 import dbt_common.exceptions.base
@@ -24,7 +23,6 @@ from dbt.adapters.base import (  # type: ignore
 from dbt.adapters.base.impl import FreshnessResponse
 from dbt.adapters.cache import _make_ref_key_dict  # type: ignore
 from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
-import dbt_common.clients.agate_helper
 from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.adapters.contracts.macros import MacroResolverProtocol
 from dbt_common.contracts.constraints import ColumnLevelConstraint, ConstraintType, ModelLevelConstraint  # type: ignore
@@ -58,6 +56,8 @@ from dbt.adapters.bigquery.relation_configs import (
 )
 from dbt.adapters.bigquery.utility import sql_escape
 
+if TYPE_CHECKING:
+    import agate
 
 logger = AdapterLogger("BigQuery")
 
@@ -332,32 +332,34 @@ class BigQueryAdapter(BaseAdapter):
         return "`{}`".format(identifier)
 
     @classmethod
-    def convert_text_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_text_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return "string"
 
     @classmethod
-    def convert_number_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_number_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
+        import agate
+
         decimals = agate_table.aggregate(agate.MaxPrecision(col_idx))  # type: ignore[attr-defined]
         return "float64" if decimals else "int64"
 
     @classmethod
-    def convert_integer_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_integer_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return "int64"
 
     @classmethod
-    def convert_boolean_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_boolean_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return "bool"
 
     @classmethod
-    def convert_datetime_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_datetime_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return "datetime"
 
     @classmethod
-    def convert_date_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_date_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return "date"
 
     @classmethod
-    def convert_time_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_time_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return "time"
 
     ###
@@ -385,7 +387,7 @@ class BigQueryAdapter(BaseAdapter):
         return columns
 
     def _agate_to_schema(
-        self, agate_table: agate.Table, column_override: Dict[str, str]
+        self, agate_table: "agate.Table", column_override: Dict[str, str]
     ) -> List[SchemaField]:
         """Convert agate.Table with column names to a list of bigquery schemas."""
         bq_schema = []
@@ -652,7 +654,7 @@ class BigQueryAdapter(BaseAdapter):
         client.update_table(new_table, ["schema"])
 
     @available.parse_none
-    def load_dataframe(self, database, schema, table_name, agate_table, column_override):
+    def load_dataframe(self, database, schema, table_name, agate_table: "agate.Table", column_override):
         bq_schema = self._agate_to_schema(agate_table, column_override)
         conn = self.connections.get_thread_connection()
         client = conn.handle
@@ -695,8 +697,8 @@ class BigQueryAdapter(BaseAdapter):
 
     @classmethod
     def _catalog_filter_table(
-        cls, table: agate.Table, used_schemas: FrozenSet[Tuple[str, str]]
-    ) -> agate.Table:
+        cls, table: "agate.Table", used_schemas: FrozenSet[Tuple[str, str]]
+    ) -> "agate.Table":
         table = table.rename(
             column_names={col.name: col.name.replace("__", ":") for col in table.columns}
         )

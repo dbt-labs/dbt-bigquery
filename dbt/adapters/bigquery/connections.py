@@ -9,9 +9,8 @@ from dbt_common.events.contextvars import get_node_info
 from mashumaro.helper import pass_through
 
 from functools import lru_cache
-import agate
 from requests.exceptions import ConnectionError
-from typing import Optional, Any, Dict, Tuple
+from typing import Optional, Any, Dict, Tuple, TYPE_CHECKING
 
 import google.auth
 import google.auth.exceptions
@@ -25,7 +24,6 @@ from google.oauth2 import (
 )
 
 from dbt.adapters.bigquery import gcloud
-from dbt_common.clients import agate_helper
 from dbt.adapters.contracts.connection import ConnectionState, AdapterResponse, Credentials
 from dbt_common.exceptions import (
     DbtRuntimeError,
@@ -41,6 +39,10 @@ from dbt_common.events.functions import fire_event
 from dbt.adapters.bigquery import __version__ as dbt_version
 
 from dbt_common.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
+
+if TYPE_CHECKING:
+    import agate
+
 
 logger = AdapterLogger("BigQuery")
 
@@ -427,7 +429,9 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return credentials.job_retry_deadline_seconds
 
     @classmethod
-    def get_table_from_response(cls, resp):
+    def get_table_from_response(cls, resp) -> "agate.Table":
+        from dbt_common.clients import agate_helper
+
         column_names = [field.name for field in resp.schema]
         return agate_helper.table_from_data_flat(resp, column_names)
 
@@ -494,7 +498,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
     def execute(
         self, sql, auto_begin=False, fetch=None, limit: Optional[int] = None
-    ) -> Tuple[BigQueryAdapterResponse, agate.Table]:
+    ) -> Tuple[BigQueryAdapterResponse, "agate.Table"]:
         sql = self._add_query_comment(sql)
         # auto_begin is ignored on bigquery, and only included for consistency
         query_job, iterator = self.raw_execute(sql, limit=limit)
@@ -502,6 +506,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
         if fetch:
             table = self.get_table_from_response(iterator)
         else:
+            from dbt_common.clients import agate_helper
+
             table = agate_helper.empty_table()
 
         message = "OK"

@@ -10,7 +10,7 @@
     
     {% if not adapter.is_replaceable(defer_relation, partition_by, cluster_by) %}
         {% do log("Hard refreshing " ~ this_relation ~ " because it is not replaceable") %}
-        {{ adapter.drop_relation(this_relation) }}
+        {% do adapter.drop_relation(this_relation) %}
     {% endif %}
 
     create or replace

@@ -8,7 +8,7 @@
     {%- set partitions = config.get('partitions', none) -%}
     {%- set cluster_by = config.get('cluster_by', none) -%}
     
-    {% if not adapter.is_replaceable(this_relation, partition_by, cluster_by) %}
+    {% if not adapter.is_replaceable(defer_relation, partition_by, cluster_by) %}
         {% do log("Hard refreshing " ~ this_relation ~ " because it is not replaceable") %}
         {{ adapter.drop_relation(this_relation) }}
     {% endif %}

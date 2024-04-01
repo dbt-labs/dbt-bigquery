@@ -36,7 +36,7 @@ def _dbt_bigquery_version() -> str:
 
 
 package_name = "dbt-bigquery"
-package_version = "1.8.0a1"
+package_version = "1.8.0b1"
 description = """The BigQuery adapter plugin for dbt"""
 
 setup(
@@ -51,9 +51,10 @@ setup(
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
     install_requires=[
-        "dbt-common<1.0",
-        "dbt-adapters~=0.1.0a1",
-        "google-cloud-bigquery~=3.0",
+        "dbt-common>=0.1.0a1,<2.0",
+        "dbt-adapters>=0.1.0a1,<2.0",
+        # 3.20 introduced pyarrow>=3.0 under the `pandas` extra
+        "google-cloud-bigquery[pandas]>=3.0,<4.0",
         "google-cloud-storage~=2.4",
         "google-cloud-dataproc~=5.0",
         # ----

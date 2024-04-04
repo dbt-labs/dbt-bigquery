@@ -1,11 +1,11 @@
-import asyncio
-import functools
 import json
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
-from dbt.events.contextvars import get_node_info
+from dbt_common.invocation import get_invocation_id
+
+from dbt_common.events.contextvars import get_node_info
 from mashumaro.helper import pass_through
 
 from functools import lru_cache
@@ -15,7 +15,7 @@ from typing import Optional, Any, Dict, Tuple
 
 import google.auth
 import google.auth.exceptions
-import google.cloud.bigquery as bigquery
+import google.cloud.bigquery
 import google.cloud.exceptions
 from google.api_core import retry, client_info
 from google.auth import impersonated_credentials
@@ -25,23 +25,22 @@ from google.oauth2 import (
 )
 
 from dbt.adapters.bigquery import gcloud
-from dbt.clients import agate_helper
-from dbt.config.profile import INVALID_PROFILE_MESSAGE
-from dbt.tracking import active_user
-from dbt.contracts.connection import ConnectionState, AdapterResponse
-from dbt.exceptions import (
-    FailedToConnectError,
+from dbt_common.clients import agate_helper
+from dbt.adapters.contracts.connection import ConnectionState, AdapterResponse, Credentials
+from dbt_common.exceptions import (
     DbtRuntimeError,
-    DbtDatabaseError,
-    DbtProfileError,
+    DbtConfigError,
 )
-from dbt.adapters.base import BaseConnectionManager, Credentials
-from dbt.events import AdapterLogger
-from dbt.events.functions import fire_event
-from dbt.events.types import SQLQuery
-from dbt.version import __version__ as dbt_version
 
-from dbt.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
+from dbt_common.exceptions import DbtDatabaseError
+from dbt.adapters.exceptions.connection import FailedToConnectError
+from dbt.adapters.base import BaseConnectionManager
+from dbt.adapters.events.logging import AdapterLogger
+from dbt.adapters.events.types import SQLQuery
+from dbt_common.events.functions import fire_event
+from dbt.adapters.bigquery import __version__ as dbt_version
+
+from dbt_common.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
 
 logger = AdapterLogger("BigQuery")
 
@@ -63,16 +62,6 @@ RETRYABLE_ERRORS = (
 )
 
 
-# Override broken json deserializer for dbt show --inline
-# can remove once this is fixed: https://github.com/googleapis/python-bigquery/issues/1500
-def _json_from_json(value, _):
-    """NOOP string -> string coercion"""
-    return json.loads(value)
-
-
-bigquery._helpers._CELLDATA_FROM_JSON["JSON"] = _json_from_json
-
-
 @lru_cache()
 def get_bigquery_defaults(scopes=None) -> Tuple[Any, Optional[str]]:
     """
@@ -85,7 +74,7 @@ def get_bigquery_defaults(scopes=None) -> Tuple[Any, Optional[str]]:
         credentials, _ = google.auth.default(scopes=scopes)
         return credentials, _
     except google.auth.exceptions.DefaultCredentialsError as e:
-        raise DbtProfileError(INVALID_PROFILE_MESSAGE.format(error_string=e))
+        raise DbtConfigError(f"Failed to authenticate with supplied credentials\nerror:\n{e}")
 
 
 class Priority(StrEnum):
@@ -206,9 +195,7 @@ class BigQueryCredentials(Credentials):
             "job_retries",
             "job_creation_timeout_seconds",
             "job_execution_timeout_seconds",
-            "keyfile",
             "timeout_seconds",
-            "refresh_token",
             "client_id",
             "token_uri",
             "dataproc_region",
@@ -382,7 +369,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         execution_project = profile_credentials.execution_project
         location = getattr(profile_credentials, "location", None)
 
-        info = client_info.ClientInfo(user_agent=f"dbt-{dbt_version}")
+        info = client_info.ClientInfo(user_agent=f"dbt-bigquery-{dbt_version.version}")
         return google.cloud.bigquery.Client(
             execution_project,
             creds,
@@ -470,8 +457,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         labels = self.get_labels_from_query_comment()
 
-        if active_user:
-            labels["dbt_invocation_id"] = active_user.invocation_id
+        labels["dbt_invocation_id"] = get_invocation_id()
 
         job_params = {
             "use_legacy_sql": use_legacy_sql,
@@ -751,25 +737,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
             )
 
-        # only use async logic if user specifies a timeout
-        if job_execution_timeout:
-            loop = asyncio.new_event_loop()
-            future_iterator = asyncio.wait_for(
-                loop.run_in_executor(None, functools.partial(query_job.result, max_results=limit)),
-                timeout=job_execution_timeout,
-            )
-
-            try:
-                iterator = loop.run_until_complete(future_iterator)
-            except asyncio.TimeoutError:
-                query_job.cancel()
-                raise DbtRuntimeError(
-                    f"Query exceeded configured timeout of {job_execution_timeout}s"
-                )
-            finally:
-                loop.close()
-        else:
-            iterator = query_job.result(max_results=limit)
+        iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
         return query_job, iterator
 
     def _retry_and_handle(self, msg, conn, fn):

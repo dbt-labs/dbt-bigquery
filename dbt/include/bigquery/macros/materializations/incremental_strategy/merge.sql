@@ -21,7 +21,13 @@
         {%- endif -%}
     {%- endset -%}
 
-    {% set build_sql = get_merge_sql(target_relation, source_sql, unique_key, dest_columns, incremental_predicates) %}
+    {%- set predicates = [] if incremental_predicates is none else [] + incremental_predicates -%}
+    {%- set avoid_require_partition_filter = predicate_for_avoid_require_partition_filter() -%}
+    {%- if avoid_require_partition_filter is not none -%}
+        {% do predicates.append(avoid_require_partition_filter) %}
+    {%- endif -%}
+
+    {% set build_sql = get_merge_sql(target_relation, source_sql, unique_key, dest_columns, predicates) %}
 
     {{ return(build_sql) }}
 

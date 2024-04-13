@@ -17,6 +17,6 @@ clear \
 "#########################################\n"\
 && docker build --tag dbt-bigquery-1.0.0b1 \
   --target dbt-bigquery \
-  --build-arg dbt_bigquery_ref=dbt-bigquery@v1.0.0b1 \
+  --build-arg commit_ref=v1.0.0b1 \
   docker \
 && docker run dbt-bigquery-1.0.0b1 --version

@@ -25,3 +25,7 @@ ubuntu-py39: ## Builds and runs an Ubuntu Python 3.9 development container
 ubuntu-py38: ## Builds and runs an Ubuntu Python 3.8 development container
 	docker build -f docker_dev/ubuntu.Dockerfile -t dbt-bigquery-ubuntu-py38 . --build-arg version=3.8
 	docker run --rm -it --name dbt-bigquery-ubuntu-py38 -v $(shell pwd):/opt/code dbt-bigquery-ubuntu-py38
+
+.PHONY: docker-prod
+docker-prod:
+	docker build -f docker/Dockerfile -t dbt-bigquery .

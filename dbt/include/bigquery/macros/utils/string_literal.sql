@@ -1,3 +1,3 @@
-{% macro bigquery__string_literal(value) %}
+{%- macro bigquery__string_literal(value) -%}
     '''{{ value }}'''
 {%- endmacro -%}

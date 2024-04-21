@@ -1,3 +1,4 @@
+from concurrent.futures import TimeoutError
 import json
 import re
 from contextlib import contextmanager
@@ -743,9 +744,12 @@ class BigQueryConnectionManager(BaseConnectionManager):
             logger.debug(
                 self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
             )
-
-        iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
-        return query_job, iterator
+        try:
+            iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
+            return query_job, iterator
+        except TimeoutError:
+            exc = f"Operation did not complete within the designated timeout of {job_execution_timeout} seconds."
+            raise TimeoutError(exc)
 
     def _retry_and_handle(self, msg, conn, fn):
         """retry a function call within the context of exception_handler."""

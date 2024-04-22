@@ -45,7 +45,7 @@ import pytz
 from dbt.adapters.bigquery import BigQueryColumn, BigQueryConnectionManager
 from dbt.adapters.bigquery.column import get_nested_column_data_types
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse
-from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset, is_access_entry_in_dataset
+from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset, is_access_entry_in_dataset, delete_access_entry_to_dataset
 from dbt.adapters.bigquery.python_submissions import (
     ClusterDataprocHelper,
     ServerlessDataProcHelper,
@@ -817,10 +817,12 @@ class BigQueryAdapter(BaseAdapter):
             return parser.from_bq_table(bq_table)
         return None
 
+
+    
     @available.parse_none
-    def grant_access_to(self, entity, entity_type, role, grant_target_dict):
+    def grant_access_to(self, entity, entity_type, role, grant_target_dict,full_refresh=False):
         """
-        Given an entity, grants it access to a dataset.
+        Given an entity, grants access to a dataset.
         """
         conn: BigQueryConnectionManager = self.connections.get_thread_connection()
         client = conn.handle
@@ -832,12 +834,52 @@ class BigQueryAdapter(BaseAdapter):
             dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
             dataset = client.get_dataset(dataset_ref)
             access_entry = AccessEntry(role, entity_type, entity)
-            # only perform update if access entry not in dataset
+            # only perform update if access entry in dataset but if full_refresh remove it first
             if is_access_entry_in_dataset(dataset, access_entry):
-                logger.warning(f"Access entry {access_entry} " f"already exists in dataset")
+                if not full_refresh:
+                    logger.warning(f"Access entry {access_entry} " f"already exists in dataset")
+                    return
+                else:
+                    dataset = delete_access_entry_to_dataset(dataset,access_entry)
+                    dataset = client.update_dataset(
+                        dataset,
+                        ["access_entries"],
+                    )  # Make an API request.
+                    full_dataset_id = f"{dataset.project}.{dataset.dataset_id}"
+                    print(f"Revoked dataset access for '{access_entry.entity_id}' to ' dataset '{full_dataset_id}.'")
+            dataset = add_access_entry_to_dataset(dataset, access_entry)
+            dataset = client.update_dataset(dataset, ["access_entries"])
+            full_dataset_id = f"{dataset.project}.{dataset.dataset_id}"            
+            print(f"allowed dataset access for '{access_entry.entity_id}' to ' dataset '{full_dataset_id}.'")
+
+
+    @available.parse_none
+    def remove_grant_access_to(self, entity, entity_type, role, grant_target_dict):
+        """
+        Given an entity, grants access to a dataset.
+        """
+        conn: BigQueryConnectionManager = self.connections.get_thread_connection()
+        client = conn.handle
+        GrantTarget.validate(grant_target_dict)
+        grant_target = GrantTarget.from_dict(grant_target_dict)
+        if entity_type == "view":
+            entity = self.get_table_ref_from_relation(entity).to_api_repr()
+        with _dataset_lock:
+            dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
+            dataset = client.get_dataset(dataset_ref)
+            access_entry = AccessEntry(role, entity_type, entity)
+            # only perform removing if access entry in dataset 
+            if is_access_entry_in_dataset(dataset, access_entry):
+                dataset = delete_access_entry_to_dataset(dataset,access_entry)
+                dataset = client.update_dataset(
+                    dataset,
+                    ["access_entries"],
+                )  # Make an API request.
+
+                full_dataset_id = f"{dataset.project}.{dataset.dataset_id}"
+                print(f"Revoked dataset access for '{access_entry.entity_id}' to ' dataset '{full_dataset_id}.'")
             else:
-                dataset = add_access_entry_to_dataset(dataset, access_entry)
-                client.update_dataset(dataset, ["access_entries"])
+                logger.warning(f"Access entry {access_entry} not in the dataset {full_dataset_id} no need to remove it")
 
     @available.parse_none
     def get_dataset_location(self, relation):

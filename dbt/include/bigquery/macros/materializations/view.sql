@@ -20,7 +20,7 @@
 
     {% if config.get('grant_access_to') %}
       {% for grant_target_dict in config.get('grant_access_to') %}
-        {% do adapter.grant_access_to(this, 'view', None, grant_target_dict) %}
+        {% do adapter.grant_access_to(this, 'view', None, grant_target_dict,should_full_refresh()) %}
       {% endfor %}
     {% endif %}
 

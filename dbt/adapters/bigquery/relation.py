@@ -23,6 +23,7 @@ Self = TypeVar("Self", bound="BigQueryRelation")
 class BigQueryRelation(BaseRelation):
     quote_character: str = "`"
     location: Optional[str] = None
+    require_alias: bool = False
 
     renameable_relations: FrozenSet[RelationType] = field(
         default_factory=lambda: frozenset(

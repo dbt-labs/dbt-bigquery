@@ -100,7 +100,7 @@ jobs:
 
       - name: Generate integration test matrix
         id: generate-matrix
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         env:
           CHANGES: ${{ steps.get-changes.outputs.changes }}
         with:

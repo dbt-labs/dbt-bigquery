@@ -1,7 +1,14 @@
+from concurrent.futures import TimeoutError
 import json
 import re
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from dbt_common.invocation import get_invocation_id
+
+from dbt_common.events.contextvars import get_node_info
+from mashumaro.helper import pass_through
+
 from functools import lru_cache
 import agate
 from requests.exceptions import ConnectionError
@@ -19,23 +26,22 @@ from google.oauth2 import (
 )
 
 from dbt.adapters.bigquery import gcloud
-from dbt.clients import agate_helper
-from dbt.config.profile import INVALID_PROFILE_MESSAGE
-from dbt.tracking import active_user
-from dbt.contracts.connection import ConnectionState, AdapterResponse
-from dbt.exceptions import (
-    FailedToConnectException,
-    RuntimeException,
-    DatabaseException,
-    DbtProfileError,
+from dbt_common.clients import agate_helper
+from dbt.adapters.contracts.connection import ConnectionState, AdapterResponse, Credentials
+from dbt_common.exceptions import (
+    DbtRuntimeError,
+    DbtConfigError,
 )
-from dbt.adapters.base import BaseConnectionManager, Credentials
-from dbt.events import AdapterLogger
-from dbt.events.functions import fire_event
-from dbt.events.types import SQLQuery
-from dbt.version import __version__ as dbt_version
 
-from dbt.dataclass_schema import StrEnum
+from dbt_common.exceptions import DbtDatabaseError
+from dbt.adapters.exceptions.connection import FailedToConnectError
+from dbt.adapters.base import BaseConnectionManager
+from dbt.adapters.events.logging import AdapterLogger
+from dbt.adapters.events.types import SQLQuery
+from dbt_common.events.functions import fire_event
+from dbt.adapters.bigquery import __version__ as dbt_version
+
+from dbt_common.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
 
 logger = AdapterLogger("BigQuery")
 
@@ -51,6 +57,7 @@ REOPENABLE_ERRORS = (
 RETRYABLE_ERRORS = (
     google.cloud.exceptions.ServerError,
     google.cloud.exceptions.BadRequest,
+    google.cloud.exceptions.BadGateway,
     ConnectionResetError,
     ConnectionError,
 )
@@ -68,7 +75,7 @@ def get_bigquery_defaults(scopes=None) -> Tuple[Any, Optional[str]]:
         credentials, _ = google.auth.default(scopes=scopes)
         return credentials, _
     except google.auth.exceptions.DefaultCredentialsError as e:
-        raise DbtProfileError(INVALID_PROFILE_MESSAGE.format(error_string=e))
+        raise DbtConfigError(f"Failed to authenticate with supplied credentials\nerror:\n{e}")
 
 
 class Priority(StrEnum):
@@ -86,6 +93,7 @@ class BigQueryConnectionMethod(StrEnum):
 @dataclass
 class BigQueryAdapterResponse(AdapterResponse):
     bytes_processed: Optional[int] = None
+    bytes_billed: Optional[int] = None
     location: Optional[str] = None
     project_id: Optional[str] = None
     job_id: Optional[str] = None
@@ -93,11 +101,19 @@ class BigQueryAdapterResponse(AdapterResponse):
 
 
 @dataclass
+class DataprocBatchConfig(ExtensibleDbtClassMixin):
+    def __init__(self, batch_config):
+        self.batch_config = batch_config
+
+
+@dataclass
 class BigQueryCredentials(Credentials):
-    method: BigQueryConnectionMethod
+    method: BigQueryConnectionMethod = None  # type: ignore
+
     # BigQuery allows an empty database / project, where it defers to the
     # environment for the project
-    database: Optional[str]  # type: ignore
+    database: Optional[str] = None  # type: ignore
+    schema: Optional[str] = None  # type: ignore
     execution_project: Optional[str] = None
     location: Optional[str] = None
     priority: Optional[Priority] = None
@@ -124,6 +140,13 @@ class BigQueryCredentials(Credentials):
     dataproc_cluster_name: Optional[str] = None
     gcs_bucket: Optional[str] = None
 
+    dataproc_batch: Optional[DataprocBatchConfig] = field(
+        metadata={
+            "serialization_strategy": pass_through,
+        },
+        default=None,
+    )
+
     scopes: Optional[Tuple[str, ...]] = (
         "https://www.googleapis.com/auth/bigquery",
         "https://www.googleapis.com/auth/cloud-platform",
@@ -140,6 +163,17 @@ class BigQueryCredentials(Credentials):
         "timeout_seconds": "job_execution_timeout_seconds",
     }
 
+    def __post_init__(self):
+        if self.keyfile_json and "private_key" in self.keyfile_json:
+            self.keyfile_json["private_key"] = self.keyfile_json["private_key"].replace(
+                "\\n", "\n"
+            )
+        if not self.method:
+            raise DbtRuntimeError("Must specify authentication method")
+
+        if not self.schema:
+            raise DbtRuntimeError("Must specify schema")
+
     @property
     def type(self):
         return "bigquery"
@@ -152,17 +186,23 @@ class BigQueryCredentials(Credentials):
         return (
             "method",
             "database",
+            "execution_project",
             "schema",
             "location",
             "priority",
-            "timeout_seconds",
             "maximum_bytes_billed",
-            "execution_project",
+            "impersonate_service_account",
             "job_retry_deadline_seconds",
             "job_retries",
             "job_creation_timeout_seconds",
             "job_execution_timeout_seconds",
+            "timeout_seconds",
+            "client_id",
+            "token_uri",
+            "dataproc_region",
+            "dataproc_cluster_name",
             "gcs_bucket",
+            "dataproc_batch",
         )
 
     @classmethod
@@ -196,7 +236,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                     error.query_job.location, error.query_job.project, error.query_job.job_id
                 )
             )
-        raise DatabaseException(error_msg)
+        raise DbtDatabaseError(error_msg)
 
     def clear_transaction(self):
         pass
@@ -223,12 +263,12 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 "account you are trying to impersonate.\n\n"
                 f"{str(e)}"
             )
-            raise RuntimeException(message)
+            raise DbtRuntimeError(message)
 
         except Exception as e:
             logger.debug("Unhandled error while running:\n{}".format(sql))
             logger.debug(e)
-            if isinstance(e, RuntimeException):
+            if isinstance(e, DbtRuntimeError):
                 # during a sql query, an internal to dbt exception was raised.
                 # this sounds a lot like a signal handler and probably has
                 # useful information, so raise it without modification.
@@ -238,7 +278,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             # don't want to log. Hopefully they never change this!
             if BQ_QUERY_JOB_SPLIT in exc_message:
                 exc_message = exc_message.split(BQ_QUERY_JOB_SPLIT)[0].strip()
-            raise RuntimeException(exc_message)
+            raise DbtRuntimeError(exc_message)
 
     def cancel_open(self) -> None:
         pass
@@ -257,7 +297,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
     def format_bytes(self, num_bytes):
         if num_bytes:
-            for unit in ["Bytes", "KB", "MB", "GB", "TB", "PB"]:
+            for unit in ["Bytes", "KiB", "MiB", "GiB", "TiB", "PiB"]:
                 if abs(num_bytes) < 1024.0:
                     return f"{num_bytes:3.1f} {unit}"
                 num_bytes /= 1024.0
@@ -305,7 +345,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             )
 
         error = 'Invalid `method` in profile: "{}"'.format(method)
-        raise FailedToConnectException(error)
+        raise FailedToConnectError(error)
 
     @classmethod
     def get_impersonated_credentials(cls, profile_credentials):
@@ -314,7 +354,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
             source_credentials=source_credentials,
             target_principal=profile_credentials.impersonate_service_account,
             target_scopes=list(profile_credentials.scopes),
-            lifetime=(profile_credentials.job_execution_timeout_seconds or 300),
         )
 
     @classmethod
@@ -325,12 +364,13 @@ class BigQueryConnectionManager(BaseConnectionManager):
             return cls.get_google_credentials(profile_credentials)
 
     @classmethod
+    @retry.Retry()  # google decorator. retries on transient errors with exponential backoff
     def get_bigquery_client(cls, profile_credentials):
         creds = cls.get_credentials(profile_credentials)
         execution_project = profile_credentials.execution_project
         location = getattr(profile_credentials, "location", None)
 
-        info = client_info.ClientInfo(user_agent=f"dbt-{dbt_version}")
+        info = client_info.ClientInfo(user_agent=f"dbt-bigquery-{dbt_version.version}")
         return google.cloud.bigquery.Client(
             execution_project,
             creds,
@@ -361,7 +401,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             connection.handle = None
             connection.state = "fail"
 
-            raise FailedToConnectException(str(e))
+            raise FailedToConnectError(str(e))
 
         connection.handle = handle
         connection.state = "open"
@@ -392,25 +432,39 @@ class BigQueryConnectionManager(BaseConnectionManager):
         column_names = [field.name for field in resp.schema]
         return agate_helper.table_from_data_flat(resp, column_names)
 
-    def raw_execute(self, sql, fetch=False, *, use_legacy_sql=False):
+    def get_labels_from_query_comment(cls):
+        if (
+            hasattr(cls.profile, "query_comment")
+            and cls.profile.query_comment
+            and cls.profile.query_comment.job_label
+            and cls.query_header
+        ):
+            query_comment = cls.query_header.comment.query_comment
+            return cls._labels_from_query_comment(query_comment)
+
+        return {}
+
+    def raw_execute(
+        self,
+        sql,
+        use_legacy_sql=False,
+        limit: Optional[int] = None,
+        dry_run: bool = False,
+    ):
         conn = self.get_thread_connection()
         client = conn.handle
 
-        fire_event(SQLQuery(conn_name=conn.name, sql=sql))
-        if (
-            hasattr(self.profile, "query_comment")
-            and self.profile.query_comment
-            and self.profile.query_comment.job_label
-        ):
-            query_comment = self.query_header.comment.query_comment
-            labels = self._labels_from_query_comment(query_comment)
-        else:
-            labels = {}
+        fire_event(SQLQuery(conn_name=conn.name, sql=sql, node_info=get_node_info()))
 
-        if active_user:
-            labels["dbt_invocation_id"] = active_user.invocation_id
+        labels = self.get_labels_from_query_comment()
 
-        job_params = {"use_legacy_sql": use_legacy_sql, "labels": labels}
+        labels["dbt_invocation_id"] = get_invocation_id()
+
+        job_params = {
+            "use_legacy_sql": use_legacy_sql,
+            "labels": labels,
+            "dry_run": dry_run,
+        }
 
         priority = conn.credentials.priority
         if priority == Priority.Batch:
@@ -432,6 +486,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 job_params,
                 job_creation_timeout=job_creation_timeout,
                 job_execution_timeout=job_execution_timeout,
+                limit=limit,
             )
 
         query_job, iterator = self._retry_and_handle(msg=sql, conn=conn, fn=fn)
@@ -439,11 +494,11 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return query_job, iterator
 
     def execute(
-        self, sql, auto_begin=False, fetch=None
+        self, sql, auto_begin=False, fetch=None, limit: Optional[int] = None
     ) -> Tuple[BigQueryAdapterResponse, agate.Table]:
         sql = self._add_query_comment(sql)
         # auto_begin is ignored on bigquery, and only included for consistency
-        query_job, iterator = self.raw_execute(sql, fetch=fetch)
+        query_job, iterator = self.raw_execute(sql, limit=limit)
 
         if fetch:
             table = self.get_table_from_response(iterator)
@@ -454,6 +509,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         code = None
         num_rows = None
         bytes_processed = None
+        bytes_billed = None
         location = None
         job_id = None
         project_id = None
@@ -488,6 +544,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         # set common attributes
         bytes_processed = query_job.total_bytes_processed
+        bytes_billed = query_job.total_bytes_billed
         slot_ms = query_job.slot_millis
         processed_bytes = self.format_bytes(bytes_processed)
         location = query_job.location
@@ -501,14 +558,12 @@ class BigQueryConnectionManager(BaseConnectionManager):
         else:
             message = f"{code}"
 
-        if location is not None and job_id is not None and project_id is not None:
-            logger.debug(self._bq_job_link(location, project_id, job_id))
-
         response = BigQueryAdapterResponse(  # type: ignore[call-arg]
             _message=message,
             rows_affected=num_rows,
             code=code,
             bytes_processed=bytes_processed,
+            bytes_billed=bytes_billed,
             location=location,
             project_id=project_id,
             job_id=job_id,
@@ -516,6 +571,37 @@ class BigQueryConnectionManager(BaseConnectionManager):
         )
 
         return response, table
+
+    def dry_run(self, sql: str) -> BigQueryAdapterResponse:
+        """Run the given sql statement with the `dry_run` job parameter set.
+
+        This will allow BigQuery to validate the SQL and immediately return job cost
+        estimates, which we capture in the BigQueryAdapterResponse. Invalid SQL
+        will result in an exception.
+        """
+        sql = self._add_query_comment(sql)
+        query_job, _ = self.raw_execute(sql, dry_run=True)
+
+        # TODO: Factor this repetitive block out into a factory method on
+        # BigQueryAdapterResponse
+        message = f"Ran dry run query for statement of type {query_job.statement_type}"
+        bytes_billed = query_job.total_bytes_billed
+        processed_bytes = self.format_bytes(query_job.total_bytes_processed)
+        location = query_job.location
+        project_id = query_job.project
+        job_id = query_job.job_id
+        slot_ms = query_job.slot_millis
+
+        return BigQueryAdapterResponse(
+            _message=message,
+            code="DRY RUN",
+            bytes_billed=bytes_billed,
+            bytes_processed=processed_bytes,
+            location=location,
+            project_id=project_id,
+            job_id=job_id,
+            slot_ms=slot_ms,
+        )
 
     @staticmethod
     def _bq_job_link(location, project_id, job_id) -> str:
@@ -529,7 +615,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         sql = self._add_query_comment(legacy_sql)
         # auto_begin is ignored on bigquery, and only included for consistency
-        _, iterator = self.raw_execute(sql, fetch="fetch_result", use_legacy_sql=True)
+        _, iterator = self.raw_execute(sql, use_legacy_sql=True)
         return self.get_table_from_response(iterator)
 
     def copy_bq_table(self, source, destination, write_disposition):
@@ -616,6 +702,20 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         self._retry_and_handle(msg="create dataset", conn=conn, fn=fn)
 
+    def list_dataset(self, database: str):
+        # the database string we get here is potentially quoted. Strip that off
+        # for the API call.
+        database = database.strip("`")
+        conn = self.get_thread_connection()
+        client = conn.handle
+
+        def query_schemas():
+            # this is similar to how we have to deal with listing tables
+            all_datasets = client.list_datasets(project=database, max_results=10000)
+            return [ds.dataset_id for ds in all_datasets]
+
+        return self._retry_and_handle(msg="list dataset", conn=conn, fn=query_schemas)
+
     def _query_and_results(
         self,
         client,
@@ -623,14 +723,26 @@ class BigQueryConnectionManager(BaseConnectionManager):
         job_params,
         job_creation_timeout=None,
         job_execution_timeout=None,
+        limit: Optional[int] = None,
     ):
         """Query the client and wait for results."""
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
         query_job = client.query(query=sql, job_config=job_config, timeout=job_creation_timeout)
-        iterator = query_job.result(timeout=job_execution_timeout)
-
-        return query_job, iterator
+        if (
+            query_job.location is not None
+            and query_job.job_id is not None
+            and query_job.project is not None
+        ):
+            logger.debug(
+                self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
+            )
+        try:
+            iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
+            return query_job, iterator
+        except TimeoutError:
+            exc = f"Operation did not complete within the designated timeout of {job_execution_timeout} seconds."
+            raise TimeoutError(exc)
 
     def _retry_and_handle(self, msg, conn, fn):
         """retry a function call within the context of exception_handler."""
@@ -710,13 +822,4 @@ def _sanitize_label(value: str) -> str:
     """Return a legal value for a BigQuery label."""
     value = value.strip().lower()
     value = _SANITIZE_LABEL_PATTERN.sub("_", value)
-    value_length = len(value)
-    if value_length > _VALIDATE_LABEL_LENGTH_LIMIT:
-        error_msg = (
-            f"Job label length {value_length} is greater than length limit: "
-            f"{_VALIDATE_LABEL_LENGTH_LIMIT}\n"
-            f"Current sanitized label: {value}"
-        )
-        raise RuntimeException(error_msg)
-    else:
-        return value
+    return value[:_VALIDATE_LABEL_LENGTH_LIMIT]

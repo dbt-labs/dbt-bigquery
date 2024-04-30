@@ -67,14 +67,14 @@ $EDITOR test.env
 There are a few methods for running tests locally.
 
 #### `tox`
-`tox` takes care of managing Python virtualenvs and installing dependencies in order to run tests. You can also run tests in parallel, for example you can run unit tests for Python 3.7, Python 3.8, Python 3.9, and `flake8` checks in parallel with `tox -p`. Also, you can run unit tests for specific python versions with `tox -e py37`. The configuration of these tests are located in `tox.ini`.
+`tox` takes care of managing Python virtualenvs and installing dependencies in order to run tests. You can also run tests in parallel, for example you can run unit tests for Python 3.8, Python 3.9, and `flake8` checks in parallel with `tox -p`. Also, you can run unit tests for specific python versions with `tox -e py38`. The configuration of these tests are located in `tox.ini`.
 
 #### `pytest`
 Finally, you can also run a specific test or group of tests using `pytest` directly. With a Python virtualenv active and dev dependencies installed you can do things like:
 
 ```sh
-# run specific bigquery integration tests
-python -m pytest -m profile_bigquery tests/integration/simple_copy_test
+# run specific bigquery functional tests
+python -m pytest -m profile_bigquery tests/functional/adapter/test_aliases.py::TestSameTestSameAliasDifferentDatabasesBigQuery
 # run all unit tests in a file
 python -m pytest tests/unit/test_bigquery_adapter.py
 # run a specific unit test

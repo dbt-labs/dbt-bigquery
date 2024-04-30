@@ -45,11 +45,11 @@
 
 {% endmaterialization %}
 
--- TODO dataproc requires a temp bucket to perform BQ write
--- this is hard coded to internal testing ATM. need to adjust to render
--- or find another way around
 {% macro py_write_table(compiled_code, target_relation) %}
 from pyspark.sql import SparkSession
+{%- set raw_partition_by = config.get('partition_by', none) -%}
+{%- set raw_cluster_by = config.get('cluster_by', none) -%}
+{%- set partition_config = adapter.parse_partition_by(raw_partition_by) %}
 
 spark = SparkSession.builder.appName('smallTest').getOrCreate()
 
@@ -109,6 +109,17 @@ else:
 df.write \
   .mode("overwrite") \
   .format("bigquery") \
-  .option("writeMethod", "direct").option("writeDisposition", 'WRITE_TRUNCATE') \
+  .option("writeMethod", "indirect").option("writeDisposition", 'WRITE_TRUNCATE') \
+  {%- if partition_config is not none %}
+  {%- if partition_config.data_type | lower in ('date','timestamp','datetime') %}
+  .option("partitionField", "{{- partition_config.field -}}") \
+  {%- if partition_config.granularity is not none %}
+  .option("partitionType", "{{- partition_config.granularity| upper -}}") \
+  {%- endif %}
+  {%- endif %}
+  {%- endif %}
+  {%- if raw_cluster_by is not none %}
+  .option("clusteredFields", "{{- raw_cluster_by | join(',') -}}") \
+  {%- endif %}
   .save("{{target_relation}}")
 {% endmacro %}

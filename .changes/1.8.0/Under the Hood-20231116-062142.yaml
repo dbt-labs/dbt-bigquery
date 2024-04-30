@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: Primary and foreign key constraints are not enforced in BigQuery
+time: 2023-11-16T06:21:42.935367-08:00
+custom:
+  Author: dbeatty10
+  Issue: "1018"

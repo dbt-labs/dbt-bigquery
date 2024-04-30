@@ -6,11 +6,11 @@ from contextlib import contextmanager
 
 def adapter_factory():
     class MockAdapter(BaseAdapter):
-        ConnectionManager = mock.MagicMock(TYPE='mock')
+        ConnectionManager = mock.MagicMock(TYPE="mock")
         responder = mock.MagicMock()
         # some convenient defaults
         responder.quote.side_effect = lambda identifier: '"{}"'.format(identifier)
-        responder.date_function.side_effect = lambda: 'unitdate()'
+        responder.date_function.side_effect = lambda: "unitdate()"
         responder.is_cancelable.side_effect = lambda: False
 
         @contextmanager
@@ -54,6 +54,9 @@ def adapter_factory():
 
         def convert_number_type(self, *args, **kwargs):
             return self.responder.convert_number_type(*args, **kwargs)
+
+        def convert_integer_type(self, *args, **kwargs):
+            return self.responder.convert_integer_type(*args, **kwargs)
 
         def convert_boolean_type(self, *args, **kwargs):
             return self.responder.convert_boolean_type(*args, **kwargs)

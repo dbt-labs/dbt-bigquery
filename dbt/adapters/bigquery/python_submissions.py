@@ -1,13 +1,26 @@
+import uuid
 from typing import Dict, Union
-import time
+
+from dbt.adapters.events.logging import AdapterLogger
 
 from dbt.adapters.base import PythonJobHelper
+from google.api_core.future.polling import POLLING_PREDICATE
+
 from dbt.adapters.bigquery import BigQueryConnectionManager, BigQueryCredentials
 from google.api_core import retry
 from google.api_core.client_options import ClientOptions
 from google.cloud import storage, dataproc_v1  # type: ignore
+from google.cloud.dataproc_v1.types.batches import Batch
+
+from dbt.adapters.bigquery.dataproc.batch import (
+    create_batch_request,
+    poll_batch_job,
+    DEFAULT_JAR_FILE_URI,
+    update_batch_from_config,
+)
 
 OPERATION_RETRY_TIME = 10
+logger = AdapterLogger("BigQuery")
 
 
 class BaseDataProcHelper(PythonJobHelper):
@@ -42,7 +55,9 @@ class BaseDataProcHelper(PythonJobHelper):
         self.timeout = self.parsed_model["config"].get(
             "timeout", self.credential.job_execution_timeout_seconds or 60 * 60 * 24
         )
-        self.retry = retry.Retry(maximum=10.0, deadline=self.timeout)
+        self.result_polling_policy = retry.Retry(
+            predicate=POLLING_PREDICATE, maximum=10.0, timeout=self.timeout
+        )
         self.client_options = ClientOptions(
             api_endpoint="{}-dataproc.googleapis.com:443".format(self.credential.dataproc_region)
         )
@@ -66,14 +81,6 @@ class BaseDataProcHelper(PythonJobHelper):
 
     def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
         raise NotImplementedError("_submit_dataproc_job not implemented")
-
-    def _wait_operation(self, operation):
-        # can't use due to https://github.com/googleapis/python-api-core/issues/458
-        # response = operation.result(retry=self.retry)
-        # Temp solution to wait for the job to finish
-        start = time.time()
-        while not operation.done(retry=None) and time.time() - start < self.timeout:
-            time.sleep(OPERATION_RETRY_TIME)
 
 
 class ClusterDataprocHelper(BaseDataProcHelper):
@@ -105,9 +112,8 @@ class ClusterDataprocHelper(BaseDataProcHelper):
                 "job": job,
             }
         )
-        self._wait_operation(operation)
-        response = operation.metadata
         # check if job failed
+        response = operation.result(polling=self.result_polling_policy)
         if response.status.state == 6:
             raise ValueError(response.status.details)
         return response
@@ -119,33 +125,28 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
             client_options=self.client_options, credentials=self.GoogleCredentials
         )
 
-    def _submit_dataproc_job(self) -> dataproc_v1.types.jobs.Job:
-        # create the Dataproc Serverless job config
-        batch = dataproc_v1.Batch()
-        batch.pyspark_batch.main_python_file_uri = self.gcs_location
-        # how to keep this up to date?
-        # we should probably also open this up to be configurable
-        jar_file_uri = self.parsed_model["config"].get(
-            "jar_file_uri",
-            "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-0.21.1.jar",
-        )
-        batch.pyspark_batch.jar_file_uris = [jar_file_uri]
-        # should we make all of these spark/dataproc properties configurable?
-        # https://cloud.google.com/dataproc-serverless/docs/concepts/properties
-        # https://cloud.google.com/dataproc-serverless/docs/reference/rest/v1/projects.locations.batches#runtimeconfig
-        batch.runtime_config.properties = {
-            "spark.executor.instances": "2",
-        }
-        parent = f"projects/{self.credential.execution_project}/locations/{self.credential.dataproc_region}"
-        request = dataproc_v1.CreateBatchRequest(
-            parent=parent,
-            batch=batch,
-        )
+    def _get_batch_id(self) -> str:
+        model = self.parsed_model
+        default_batch_id = str(uuid.uuid4())
+        return model["config"].get("batch_id", default_batch_id)
+
+    def _submit_dataproc_job(self) -> Batch:
+        batch_id = self._get_batch_id()
+        logger.info(f"Submitting batch job with id: {batch_id}")
+        request = create_batch_request(
+            batch=self._configure_batch(),
+            batch_id=batch_id,
+            region=self.credential.dataproc_region,  # type: ignore
+            project=self.credential.execution_project,  # type: ignore
+        )  # type: ignore
         # make the request
-        operation = self.job_client.create_batch(request=request)  # type: ignore
-        # this takes quite a while, waiting on GCP response to resolve
-        response = operation.result(retry=self.retry)
-        return response
+        self.job_client.create_batch(request=request)  # type: ignore
+        return poll_batch_job(
+            parent=request.parent,
+            batch_id=batch_id,
+            job_client=self.job_client,  # type: ignore
+            timeout=self.timeout,
+        )
         # there might be useful results here that we can parse and return
         # Dataproc job output is saved to the Cloud Storage bucket
         # allocated to the job. Use regex to obtain the bucket and blob info.
@@ -156,3 +157,31 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         #     .blob(f"{matches.group(2)}.000000000")
         #     .download_as_string()
         # )
+
+    def _configure_batch(self):
+        # create the Dataproc Serverless job config
+        # need to pin dataproc version to 1.1 as it now defaults to 2.0
+        # https://cloud.google.com/dataproc-serverless/docs/concepts/properties
+        # https://cloud.google.com/dataproc-serverless/docs/reference/rest/v1/projects.locations.batches#runtimeconfig
+        batch = dataproc_v1.Batch(
+            {
+                "runtime_config": dataproc_v1.RuntimeConfig(
+                    version="1.1",
+                    properties={
+                        "spark.executor.instances": "2",
+                    },
+                )
+            }
+        )
+        # Apply defaults
+        batch.pyspark_batch.main_python_file_uri = self.gcs_location
+        jar_file_uri = self.parsed_model["config"].get(
+            "jar_file_uri",
+            DEFAULT_JAR_FILE_URI,
+        )
+        batch.pyspark_batch.jar_file_uris = [jar_file_uri]
+
+        # Apply configuration from dataproc_batch key, possibly overriding defaults.
+        if self.credential.dataproc_batch:
+            batch = update_batch_from_config(self.credential.dataproc_batch, batch)
+        return batch

@@ -127,10 +127,6 @@ class BigQueryInformationSchema(InformationSchema):
         if information_schema_view in ("SCHEMATA", "SCHEMATA_OPTIONS", None):
             schema = False
 
-        identifier = True
-        if information_schema_view in ("TABLES", "PARTITIONS", "TABLE_OPTIONS"):
-            identifier = False
-
         # In the future, let's refactor so that location/region can also be a
         # ComponentName, so that we can have logic like:
         #
@@ -140,7 +136,7 @@ class BigQueryInformationSchema(InformationSchema):
 
         return relation.include_policy.replace(
             schema=schema,
-            identifier=identifier,
+            identifier=True,
         )
 
     def get_region_identifier(self) -> str:

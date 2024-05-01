@@ -7,7 +7,7 @@
         REGEXP_EXTRACT(tables.table_name, '^.+([0-9]{8})$') as shard_index,
         REGEXP_CONTAINS(tables.table_name, '^.+[0-9]{8}$') and tables.table_type = 'BASE TABLE' as is_date_shard,
         case tables.table_type
-            when 'TABLE' then 'table'
+            when 'BASE TABLE' then 'table'
             when 'VIEW' then 'view'
             when 'MATERIALIZED VIEW' then 'materialized view'
             else 'external'
@@ -23,9 +23,9 @@
         and table_description.table_name = tables.table_name
         and table_description.option_name = 'description'
     left join {{ information_schema.replace(information_schema_view='PARTITIONS') }} partitions
-        on table_description.table_catalog = tables.table_catalog
-        and table_description.table_schema = tables.table_schema
-        and table_description.table_name = tables.table_name
+        on partitions.table_catalog = tables.table_catalog
+        and partitions.table_schema = tables.table_schema
+        and partitions.table_name = tables.table_name
 {% endmacro %}
 
 

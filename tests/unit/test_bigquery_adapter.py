@@ -535,16 +535,6 @@ class TestBigQueryInformationSchema(unittest.TestCase):
         relation = BigQueryRelation.from_dict(kwargs)
         info_schema = relation.information_schema()
 
-        for view in ["TABLES", "PARTITIONS", "TABLE_OPTIONS"]:
-            tables_schema = info_schema.replace(information_schema_view=view)
-            assert tables_schema.information_schema_view == view
-            assert tables_schema.include_policy.database is True
-            assert tables_schema.include_policy.schema is True
-            assert tables_schema.include_policy.identifier is False
-            assert tables_schema.quote_policy.database is False
-            assert tables_schema.quote_policy.schema is True
-            assert tables_schema.quote_policy.identifier is False
-
         schemata_schema = info_schema.replace(information_schema_view="SCHEMATA")
         assert schemata_schema.information_schema_view == "SCHEMATA"
         assert schemata_schema.include_policy.schema is False

@@ -134,10 +134,7 @@ class BigQueryInformationSchema(InformationSchema):
         # if information_schema_view == "OBJECT_PRIVILEGES":
         #     region = True
 
-        return relation.include_policy.replace(
-            schema=schema,
-            identifier=True,
-        )
+        return relation.include_policy.replace(schema=schema)
 
     def get_region_identifier(self) -> str:
         region_id = f"region-{self.location}"

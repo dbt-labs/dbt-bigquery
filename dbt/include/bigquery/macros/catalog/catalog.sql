@@ -1,31 +1,31 @@
 {% macro _bigquery__get_table_shards_sql(information_schema) %}
     select
-        tables.project_id as table_catalog,
-        tables.dataset_id as table_schema,
-        coalesce(REGEXP_EXTRACT(tables.table_id, '^(.+)[0-9]{8}$'), tables.table_id) as table_name,
-        tables.table_id as shard_name,
-        REGEXP_EXTRACT(tables.table_id, '^.+([0-9]{8})$') as shard_index,
-        REGEXP_CONTAINS(tables.table_id, '^.+[0-9]{8}$') and tables.type = 1 as is_date_shard,
-        case
-            when materialized_views.table_name is not null then 'materialized view'
-            when tables.type = 1 then 'table'
-            when tables.type = 2 then 'view'
+        tables.table_catalog,
+        tables.table_schema,
+        coalesce(REGEXP_EXTRACT(tables.table_name, '^(.+)[0-9]{8}$'), tables.table_name) as table_name,
+        tables.table_name as shard_name,
+        REGEXP_EXTRACT(tables.table_name, '^.+([0-9]{8})$') as shard_index,
+        REGEXP_CONTAINS(tables.table_name, '^.+[0-9]{8}$') and tables.table_type = 'BASE TABLE' as is_date_shard,
+        case tables.table_type
+            when 'TABLE' then 'table'
+            when 'VIEW' then 'view'
+            when 'MATERIALIZED VIEW' then 'materialized view'
             else 'external'
         end as table_type,
-        tables.type = 1 as is_table,
+        tables.table_type = 'BASE TABLE' as is_table,
         JSON_VALUE(table_description.option_value) as table_comment,
-        tables.size_bytes,
-        tables.row_count
-    from {{ information_schema.replace(information_schema_view='__TABLES__') }} tables
-    left join {{ information_schema.replace(information_schema_view='MATERIALIZED_VIEWS') }} materialized_views
-        on materialized_views.table_catalog = tables.project_id
-        and materialized_views.table_schema = tables.dataset_id
-        and materialized_views.table_name = tables.table_id
+        partitions.total_logical_bytes as size_bytes,
+        partitions.total_rows as row_count
+    from {{ information_schema.replace(information_schema_view='TABLES') }} tables
     left join {{ information_schema.replace(information_schema_view='TABLE_OPTIONS') }} table_description
-        on table_description.table_catalog = tables.project_id
-        and table_description.table_schema = tables.dataset_id
-        and table_description.table_name = tables.table_id
+        on table_description.table_catalog = tables.table_catalog
+        and table_description.table_schema = tables.table_schema
+        and table_description.table_name = tables.table_name
         and table_description.option_name = 'description'
+    left join {{ information_schema.replace(information_schema_view='PARTITIONS') }} partitions
+        on table_description.table_catalog = tables.table_catalog
+        and table_description.table_schema = tables.table_schema
+        and table_description.table_name = tables.table_name
 {% endmacro %}
 
 

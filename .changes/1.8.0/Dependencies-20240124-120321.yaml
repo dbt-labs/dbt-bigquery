@@ -1,6 +1,0 @@
-kind: Dependencies
-body: get dbt-tests-adapters from dbt-adapters repo
-time: 2024-01-24T12:03:21.523295-08:00
-custom:
-  Author: colin-rogers-dbt
-  PR: "1077"

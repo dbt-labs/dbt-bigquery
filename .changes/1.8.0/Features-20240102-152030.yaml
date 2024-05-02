@@ -1,6 +1,0 @@
-kind: Features
-body: Update base adapter references as part of decoupling migration
-time: 2024-01-02T15:20:30.038221-08:00
-custom:
-  Author: colin-rogers-dbt
-  Issue: "1067"

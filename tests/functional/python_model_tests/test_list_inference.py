@@ -23,20 +23,20 @@ class ListInference:
         assert len(result) == 1
 
 
-class TestSingleRecord(ListInference):
+class TestPythonSingleRecord(ListInference):
     @pytest.fixture(scope="class")
     def models(self):
         return {"model.py": models.SINGLE_RECORD}
 
 
-class TestMultiRecordDefault(ListInference):
+class TestPythonMultiRecordDefault(ListInference):
     @pytest.fixture(scope="class")
     def models(self):
         # this is the model that initially failed for this issue
         return {"model.py": models.MULTI_RECORD_DEFAULT}
 
 
-class TestDisableListInference(ListInference):
+class TestPythonDisableListInference(ListInference):
     expect_pass = False
 
     @pytest.fixture(scope="class")
@@ -45,25 +45,25 @@ class TestDisableListInference(ListInference):
         return {"model.py": models.DISABLE_LIST_INFERENCE}
 
 
-class TestEnableListInference(ListInference):
+class TestPythonEnableListInference(ListInference):
     @pytest.fixture(scope="class")
     def models(self):
         return {"model.py": models.ENABLE_LIST_INFERENCE}
 
 
-class TestOrcFormat(ListInference):
+class TestPythonOrcFormat(ListInference):
     @pytest.fixture(scope="class")
     def models(self):
         return {"model.py": models.ORC_FORMAT}
 
 
-class TestDisableListInferenceOrcFormat(ListInference):
+class TestPythonDisableListInferenceOrcFormat(ListInference):
     @pytest.fixture(scope="class")
     def models(self):
         return {"model.py": models.DISABLE_LIST_INFERENCE_ORC_FORMAT}
 
 
-class TestEnableListInferenceParquetFormat(ListInference):
+class TestPythonEnableListInferenceParquetFormat(ListInference):
     @pytest.fixture(scope="class")
     def models(self):
         # this is the model that initially failed for this issue

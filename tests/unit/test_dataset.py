@@ -1,4 +1,4 @@
-from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset, is_access_entry_in_dataset, delete_access_entry_to_dataset
+from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset, is_access_entry_in_dataset, delete_access_entry_from_dataset
 from dbt.adapters.bigquery import BigQueryRelation
 
 from google.cloud.bigquery import Dataset, AccessEntry, DatasetReference
@@ -114,5 +114,5 @@ def test_delete_access_to_dataset_updates_dataset():
     access_entry = AccessEntry(None, "table", entity)
     dataset = add_access_entry_to_dataset(dataset, access_entry)
     assert is_access_entry_in_dataset(dataset, access_entry)    
-    dataset = delete_access_entry_to_dataset(dataset, access_entry)
+    dataset = delete_access_entry_from_dataset(dataset, access_entry)
     assert not is_access_entry_in_dataset(dataset, access_entry)

@@ -46,14 +46,14 @@ def add_access_entry_to_dataset(dataset: Dataset, access_entry: AccessEntry) -> 
 
 
 
-def delete_access_entry_to_dataset(dataset: Dataset, access_entry: AccessEntry) -> Dataset:
+def delete_access_entry_from_dataset(dataset: Dataset, access_entry: AccessEntry) -> Dataset:
     """Remove an access entry from a dataset, always use.
 
     Args:
         dataset (Dataset): the dataset to be updated
         access_entry (AccessEntry): the access entry to be removed from the dataset
     """
-    access_entries = list(dataset.access_entries)
+    access_entries = dataset.access_entries
     access_entries_id = [entity.entity_id for entity in access_entries]
     
     full_dataset_id = f"{dataset.project}.{dataset.dataset_id}"

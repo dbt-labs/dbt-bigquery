@@ -45,7 +45,7 @@ import pytz
 from dbt.adapters.bigquery import BigQueryColumn, BigQueryConnectionManager
 from dbt.adapters.bigquery.column import get_nested_column_data_types
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse
-from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset, is_access_entry_in_dataset, delete_access_entry_to_dataset
+from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset, is_access_entry_in_dataset, delete_access_entry_from_dataset
 from dbt.adapters.bigquery.python_submissions import (
     ClusterDataprocHelper,
     ServerlessDataProcHelper,
@@ -840,17 +840,17 @@ class BigQueryAdapter(BaseAdapter):
                     logger.warning(f"Access entry {access_entry} " f"already exists in dataset")
                     return
                 else:
-                    dataset = delete_access_entry_to_dataset(dataset,access_entry)
+                    dataset = delete_access_entry_from_dataset(dataset,access_entry)
                     dataset = client.update_dataset(
                         dataset,
                         ["access_entries"],
                     )  # Make an API request.
                     full_dataset_id = f"{dataset.project}.{dataset.dataset_id}"
-                    print(f"Revoked dataset access for '{access_entry.entity_id}' to ' dataset '{full_dataset_id}.'")
+                    logger.info(f"Revoked dataset access for '{access_entry.entity_id}' to ' dataset '{full_dataset_id}.'")
             dataset = add_access_entry_to_dataset(dataset, access_entry)
             dataset = client.update_dataset(dataset, ["access_entries"])
             full_dataset_id = f"{dataset.project}.{dataset.dataset_id}"            
-            print(f"allowed dataset access for '{access_entry.entity_id}' to ' dataset '{full_dataset_id}.'")
+            logger.info(f"allowed dataset access for '{access_entry.entity_id}' to ' dataset '{full_dataset_id}.'")
 
 
     @available.parse_none
@@ -869,15 +869,15 @@ class BigQueryAdapter(BaseAdapter):
             dataset = client.get_dataset(dataset_ref)
             access_entry = AccessEntry(role, entity_type, entity)
             # only perform removing if access entry in dataset 
+            full_dataset_id = f"{dataset.project}.{dataset.dataset_id}"
             if is_access_entry_in_dataset(dataset, access_entry):
-                dataset = delete_access_entry_to_dataset(dataset,access_entry)
+                dataset = delete_access_entry_from_dataset(dataset,access_entry)
                 dataset = client.update_dataset(
                     dataset,
                     ["access_entries"],
                 )  # Make an API request.
 
-                full_dataset_id = f"{dataset.project}.{dataset.dataset_id}"
-                print(f"Revoked dataset access for '{access_entry.entity_id}' to ' dataset '{full_dataset_id}.'")
+                logger.info(f"Revoked dataset access for '{access_entry.entity_id}' to ' dataset '{full_dataset_id}.'")
             else:
                 logger.warning(f"Access entry {access_entry} not in the dataset {full_dataset_id} no need to remove it")
 

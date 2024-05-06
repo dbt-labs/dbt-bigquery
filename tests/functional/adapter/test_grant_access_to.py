@@ -3,7 +3,7 @@ import time
 import pytest
 
 from dbt.tests.util import run_dbt
-
+import re
 
 def select_1(dataset: str, materialized: str):
     config = f"""config(
@@ -87,51 +87,17 @@ class TestAccessGrantSucceeds:
 
 
 
-class TestAccessGrantSucceedsWithFullRefresh:
-    @pytest.fixture(scope="class")
-    def setup_grant_schema(
-        self,
-        project,
-        unique_schema,
-    ):
-        with project.adapter.connection_named("__test_grants"):
-            relation = project.adapter.Relation.create(
-                database=project.database,
-                schema=get_schema_name(unique_schema),
-                identifier="grant_access",
-            )
-            project.adapter.create_schema(relation)
-            yield relation
-
-    @pytest.fixture(scope="class")
-    def teardown_grant_schema(
-        self,
-        project,
-        unique_schema,
-    ):
-        yield
-        with project.adapter.connection_named("__test_grants"):
-            relation = project.adapter.Relation.create(
-                database=project.database, schema=get_schema_name(unique_schema)
-            )
-            project.adapter.drop_schema(relation)
-
-    @pytest.fixture(scope="class")
-    def models(self, unique_schema):
-        dataset = get_schema_name(unique_schema)
-        return {
-            "select_1.sql": select_1(dataset=dataset, materialized="view"),
-            "select_1_table.sql": select_1(dataset=dataset, materialized="table"),
-        }
-
-    def test_grant_access_succeeds(self, project, setup_grant_schema, teardown_grant_schema):
+class TestAccessGrantSucceedsWithFullRefresh(TestAccessGrantSucceeds):
+    def test_grant_access_succeeds(self, project, setup_grant_schema, teardown_grant_schema,capsys):
         # Need to run twice to validate idempotency
         results = run_dbt(["run"])
         assert len(results) == 2
         time.sleep(10)
         results = run_dbt(["run","--full-refresh"])
         assert len(results) == 2
-        
+        captured = capsys.readouterr()
+        assert not re.search(r"BigQuery adapter: Access entry <AccessEntry: .* already exists in dataset",captured[0])
+
 
 
 

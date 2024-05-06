@@ -12,59 +12,25 @@ When the regression was first reported, `models.MULTI_RECORD` failed while the o
 from dbt.tests.util import run_dbt_and_capture
 import pytest
 
-from tests.functional.python_model_tests import models
+from tests.functional.python_model_tests import files
 
 
-class ListInference:
-    expect_pass = True
-
-    def test_model(self, project):
-        result, output = run_dbt_and_capture(["run"], expect_pass=self.expect_pass)
-        assert len(result) == 1
-
-
-class TestPythonSingleRecord(ListInference):
+class TestListInference:
     @pytest.fixture(scope="class")
     def models(self):
-        return {"model.py": models.SINGLE_RECORD}
+        return {
+            # this is what worked prior to this issue
+            "single_record.py": files.SINGLE_RECORD,
+            # this is the model that initially failed for this issue
+            "multi_record.py": files.MULTI_RECORD_DEFAULT,
+            # these are explicit versions of the default settings
+            "enable_list_inference.py": files.ENABLE_LIST_INFERENCE,
+            "enable_list_inference_parquet_format.py": files.ENABLE_LIST_INFERENCE_PARQUET_FORMAT,
+            # orc format also resolves the issue, regardless of list inference
+            "orc_format.py": files.ORC_FORMAT,
+            "disable_list_inference_orc_format.py": files.DISABLE_LIST_INFERENCE_ORC_FORMAT,
+        }
 
-
-class TestPythonMultiRecordDefault(ListInference):
-    @pytest.fixture(scope="class")
-    def models(self):
-        # this is the model that initially failed for this issue
-        return {"model.py": models.MULTI_RECORD_DEFAULT}
-
-
-class TestPythonDisableListInference(ListInference):
-    expect_pass = False
-
-    @pytest.fixture(scope="class")
-    def models(self):
-        # this model mimics what was happening before defaulting enable_list_inference=True
-        return {"model.py": models.DISABLE_LIST_INFERENCE}
-
-
-class TestPythonEnableListInference(ListInference):
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {"model.py": models.ENABLE_LIST_INFERENCE}
-
-
-class TestPythonOrcFormat(ListInference):
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {"model.py": models.ORC_FORMAT}
-
-
-class TestPythonDisableListInferenceOrcFormat(ListInference):
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {"model.py": models.DISABLE_LIST_INFERENCE_ORC_FORMAT}
-
-
-class TestPythonEnableListInferenceParquetFormat(ListInference):
-    @pytest.fixture(scope="class")
-    def models(self):
-        # this is the model that initially failed for this issue
-        return {"model.py": models.ENABLE_LIST_INFERENCE_PARQUET_FORMAT}
+    def test_models_success(self, project, models):
+        result, output = run_dbt_and_capture(["run"])
+        assert len(result) == len(models)

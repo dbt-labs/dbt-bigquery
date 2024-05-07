@@ -1,13 +1,13 @@
 """
 This test case addresses this regression: https://github.com/dbt-labs/dbt-bigquery/issues/1047
 
-As the comments point out, the issue appears to be that the default settings are:
+As the comments point out, the issue appears when the settings are:
     - list inference: off
     - intermediate format: parquet
 
 Adjusting either of these alleviates the issue.
 
-When the regression was first reported, `models.MULTI_RECORD` failed while the other three models passed.
+When the regression was first reported, `files.MULTI_RECORD` failed while the other models passed.
 """
 from dbt.tests.util import run_dbt_and_capture
 import pytest
@@ -22,7 +22,7 @@ class TestListInference:
             # this is what worked prior to this issue
             "single_record.py": files.SINGLE_RECORD,
             # this is the model that initially failed for this issue
-            "multi_record.py": files.MULTI_RECORD_DEFAULT,
+            "multi_record.py": files.MULTI_RECORD,
             # these are explicit versions of the default settings
             "enable_list_inference.py": files.ENABLE_LIST_INFERENCE,
             "enable_list_inference_parquet_format.py": files.ENABLE_LIST_INFERENCE_PARQUET_FORMAT,

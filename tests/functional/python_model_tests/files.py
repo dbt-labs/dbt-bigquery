@@ -18,7 +18,7 @@ def model(dbt, session):
 """
 
 
-MULTI_RECORD_DEFAULT = """
+MULTI_RECORD = """
 import pandas as pd
 
 def model(dbt, session):
@@ -77,29 +77,6 @@ def model(dbt, session):
     )
 
     return df
-"""
-
-
-# this should fail
-DISABLE_LIST_INFERENCE = """
-import pandas as pd
-
-def model(dbt, session):
-
-    dbt.config(
-        submission_method="serverless",
-        materialized="table",
-        enable_list_inference="false",
-    )
-
-    df = pd.DataFrame(
-        [
-            {"column_name": [{"name": "hello", "my_list": ["h", "e", "l", "l", "o"]}]},
-        ]
-    )
-
-    return df
-
 """
 
 

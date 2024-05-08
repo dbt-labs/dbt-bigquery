@@ -15,7 +15,7 @@ import pytest
 from tests.functional.python_model_tests import files
 
 
-class TestListInference:
+class TestPythonListInference:
     @pytest.fixture(scope="class")
     def models(self):
         return {

@@ -1,0 +1,7 @@
+kind: Fixes
+body: Default `enableListInference` to `True` for python models to support nested
+  lists
+time: 2024-04-26T10:52:24.827314-04:00
+custom:
+  Author: mikealfare
+  Issue: 1047 1114

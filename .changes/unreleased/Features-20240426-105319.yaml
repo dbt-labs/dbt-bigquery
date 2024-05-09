@@ -1,0 +1,7 @@
+kind: Features
+body: Add configuration options `enable_list_inference` and `intermediate_format` for python
+  models
+time: 2024-04-26T10:53:19.874239-04:00
+custom:
+  Author: mikealfare
+  Issue: 1047 1114

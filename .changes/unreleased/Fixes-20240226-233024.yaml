@@ -1,5 +1,5 @@
 kind: Fixes
-body: chose seed delimiter
+body: make seed delimiter configurable via `field_delimeter` in model config
 time: 2024-02-26T23:30:24.141213+01:00
 custom:
   Author: salimmoulouel

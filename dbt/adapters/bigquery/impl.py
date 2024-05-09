@@ -856,7 +856,7 @@ class BigQueryAdapter(BaseAdapter):
     @available.parse_none
     def remove_grant_access_to(self, entity, entity_type, role, grant_target_dict):
         """
-        Given an entity, grants access to a dataset.
+        Given an entity, removes grants associated with a dataset.
         """
         conn: BigQueryConnectionManager = self.connections.get_thread_connection()
         client = conn.handle

@@ -1,6 +1,0 @@
-kind: Fixes
-body: Stop adding aliases to render_limited output
-time: 2024-04-23T13:17:52.059553-07:00
-custom:
-  Author: colin-rogers-dbt
-  Issue: "1190"

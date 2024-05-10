@@ -654,7 +654,9 @@ class BigQueryAdapter(BaseAdapter):
         client.update_table(new_table, ["schema"])
 
     @available.parse_none
-    def load_dataframe(self, database, schema, table_name, agate_table, column_override):
+    def load_dataframe(
+        self, database, schema, table_name, agate_table, column_override, field_delimiter
+    ):
         bq_schema = self._agate_to_schema(agate_table, column_override)
         conn = self.connections.get_thread_connection()
         client = conn.handle
@@ -664,7 +666,7 @@ class BigQueryAdapter(BaseAdapter):
         load_config = google.cloud.bigquery.LoadJobConfig()
         load_config.skip_leading_rows = 1
         load_config.schema = bq_schema
-
+        load_config.field_delimiter = field_delimiter
         with open(agate_table.original_abspath, "rb") as f:
             job = client.load_table_from_file(f, table_ref, rewind=True, job_config=load_config)
 

@@ -654,7 +654,9 @@ class BigQueryAdapter(BaseAdapter):
         client.update_table(new_table, ["schema"])
 
     @available.parse_none
-    def load_dataframe(self, database, schema, table_name, agate_table, column_override, field_delimiter):
+    def load_dataframe(
+        self, database, schema, table_name, agate_table, column_override, field_delimiter
+    ):
         bq_schema = self._agate_to_schema(agate_table, column_override)
         conn = self.connections.get_thread_connection()
         client = conn.handle

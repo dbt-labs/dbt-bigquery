@@ -36,7 +36,7 @@ def _dbt_bigquery_version() -> str:
 
 
 package_name = "dbt-bigquery"
-package_version = "1.8.0b2"
+package_version = "1.9.0a1"
 description = """The BigQuery adapter plugin for dbt"""
 
 setup(

@@ -23,7 +23,6 @@ import dbt_common.exceptions
 from dbt.context.query_header import generate_query_header_context
 from dbt.contracts.files import FileHash
 from dbt.contracts.graph.manifest import ManifestStateCheck
-from dbt.logger import GLOBAL_LOGGER as logger  # noqa
 from dbt.context.providers import RuntimeConfigObject, generate_runtime_macro_context
 
 from google.cloud.bigquery import AccessEntry

@@ -49,12 +49,19 @@
 from pyspark.sql import SparkSession
 {%- set raw_partition_by = config.get('partition_by', none) -%}
 {%- set raw_cluster_by = config.get('cluster_by', none) -%}
+{%- set enable_list_inference = config.get('enable_list_inference', true) -%}
+{%- set intermediate_format = config.get('intermediate_format', none) -%}
+
 {%- set partition_config = adapter.parse_partition_by(raw_partition_by) %}
 
 spark = SparkSession.builder.appName('smallTest').getOrCreate()
 
 spark.conf.set("viewsEnabled","true")
 spark.conf.set("temporaryGcsBucket","{{target.gcs_bucket}}")
+spark.conf.set("enableListInference", "{{ enable_list_inference }}")
+{% if intermediate_format %}
+spark.conf.set("intermediateFormat", "{{ intermediate_format }}")
+{% endif %}
 
 {{ compiled_code }}
 dbt = dbtObj(spark.read.format("bigquery").load)

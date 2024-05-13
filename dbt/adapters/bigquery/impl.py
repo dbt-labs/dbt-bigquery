@@ -1,7 +1,9 @@
 from dataclasses import dataclass
+from datetime import datetime
 import json
 import threading
 from multiprocessing.context import SpawnContext
+import pytz
 
 import time
 from typing import Any, Dict, List, Optional, Type, Set, Union, FrozenSet, Tuple, Iterable
@@ -10,6 +12,7 @@ import agate
 from dbt.adapters.contracts.relation import RelationConfig
 
 import dbt_common.exceptions.base
+from dbt.adapters.contracts.macros import MacroResolverProtocol
 from dbt.adapters.base import (  # type: ignore
     AdapterConfig,
     BaseAdapter,
@@ -20,6 +23,8 @@ from dbt.adapters.base import (  # type: ignore
     SchemaSearchMap,
     available,
 )
+from dbt.adapters.base.relation import ComponentName
+from dbt.adapters.base.impl import FreshnessResponse, GET_RELATION_LAST_MODIFIED_MACRO_NAME
 from dbt.adapters.cache import _make_ref_key_dict  # type: ignore
 from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
 import dbt_common.clients.agate_helper
@@ -717,6 +722,76 @@ class BigQueryAdapter(BaseAdapter):
                     )
                 )
         return result
+
+    def calculate_freshness_from_metadata(
+        self,
+        source: BaseRelation,
+        macro_resolver: Optional[MacroResolverProtocol] = None,
+    ) -> Tuple[Optional[AdapterResponse], FreshnessResponse]:
+        conn = self.connections.get_thread_connection()
+        client: google.cloud.bigquery.Client = conn.handle
+
+        table_ref = self.get_table_ref_from_relation(source)
+        table = client.get_table(table_ref)
+        snapshot = datetime.now(tz=pytz.UTC)
+
+        freshness = FreshnessResponse(
+            max_loaded_at=table.modified,
+            snapshotted_at=snapshot,
+            age=(snapshot - table.modified).total_seconds(),
+        )
+
+        return None, freshness
+
+    def calculate_freshness_from_metadata_batch(
+        self,
+        sources: List[BaseRelation],
+        macro_resolver: Optional[MacroResolverProtocol] = None,
+    ) -> Tuple[List[Optional[AdapterResponse]], Dict[BaseRelation, FreshnessResponse]]:
+        """
+        Given a list of sources (BaseRelations), calculate the metadata-based freshness in batch.
+        This method should _not_ execute a warehouse query per source, but rather batch up
+        the sources into as few requests as possible to minimize the number of roundtrips required
+        to compute metadata-based freshness for each input source.
+
+        :param sources: The list of sources to calculate metadata-based freshness for
+        :param macro_resolver: An optional macro_resolver to use for get_relation_last_modified
+        :return: a tuple where:
+            * the first element is a list of optional AdapterResponses indicating the response
+              for each request the method made to compute the freshness for the provided sources.
+            * the second element is a dictionary mapping an input source BaseRelation to a FreshnessResponse,
+              if it was possible to calculate a FreshnessResponse for the source.
+        """
+        # Track schema, identifiers of sources for lookup from batch query
+        schema_identifier_to_source = {
+            (
+                source.path.get_lowered_part(ComponentName.Schema),
+                source.path.get_lowered_part(ComponentName.Identifier),
+            ): source
+            for source in sources
+        }
+
+        freshness_responses: Dict[BaseRelation, FreshnessResponse] = {}
+        adapter_responses: List[Optional[AdapterResponse]] = []
+
+        result = self.execute_macro(
+            GET_RELATION_LAST_MODIFIED_MACRO_NAME,
+            kwargs={
+                "information_schema": None,
+                "relations": sources,
+            },
+            macro_resolver=macro_resolver,
+            needs_conn=True,
+        )
+        adapter_response, table = result.response, result.table  # type: ignore[attr-defined]
+        adapter_responses.append(adapter_response)
+
+        for row in table:
+            raw_relation, freshness_response = self._parse_freshness_row(row, table)
+            source_relation_for_result = schema_identifier_to_source[raw_relation]
+            freshness_responses[source_relation_for_result] = freshness_response
+
+        return adapter_responses, freshness_responses
 
     @available.parse(lambda *a, **k: {})
     def get_common_options(

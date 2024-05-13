@@ -732,18 +732,36 @@ class BigQueryAdapter(BaseAdapter):
 
         conn = self.connections.get_thread_connection()
         client: google.cloud.bigquery.Client = conn.handle
+
+        table_ref_to_source = {}
         for source in sources:
             table_ref = self.get_table_ref_from_relation(source)
-            table = client.get_table(table_ref)
-            snapshot = datetime.now(tz=pytz.UTC)
+            table_ref_to_source[table_ref] = source
 
-            freshness = FreshnessResponse(
-                max_loaded_at=table.modified,
-                snapshotted_at=snapshot,
-                age=(snapshot - table.modified).total_seconds(),
-            )
-            freshness_responses[source] = freshness
-            adapter_responses.append(None)
+        datasets: List[google.cloud.bigquery.dataset.DatasetListItem] = list(
+            client.list_datasets()
+        )
+        # No clear way to filter datasets by sources since DatasetListItem doesn't have a dataset name (only numeric ID), and the opposite is true of table_refs
+        # Iterating over every dataset is slow!
+        for dataset in datasets:
+            tables: List[google.cloud.bigquery.table.TableListItem] = client.list_tables(
+                dataset.dataset_id
+            )  # type: ignore
+            tables = [table for table in tables if table.reference in table_ref_to_source.keys()]
+            for table_item in tables:
+                # table_item.modified -> 'TableListItem' object has no attribute 'modified'
+                # need to fetch a full table -- this part is slow
+                table = client.get_table(table_item.reference)
+
+                snapshot = datetime.now(tz=pytz.UTC)
+                freshness = FreshnessResponse(
+                    max_loaded_at=table.modified,
+                    snapshotted_at=snapshot,
+                    age=(snapshot - table.modified).total_seconds(),
+                )
+
+                freshness_responses[source] = freshness
+                adapter_responses.append(None)
 
         return adapter_responses, freshness_responses
 

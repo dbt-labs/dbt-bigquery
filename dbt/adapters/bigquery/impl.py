@@ -127,6 +127,7 @@ class BigQueryAdapter(BaseAdapter):
         {
             Capability.TableLastModifiedMetadata: CapabilitySupport(support=Support.Full),
             Capability.SchemaMetadataByRelations: CapabilitySupport(support=Support.Full),
+            Capability.TableLastModifiedMetadataBatch: CapabilitySupport(support=Support.Full),
         }
     )
 
@@ -720,6 +721,31 @@ class BigQueryAdapter(BaseAdapter):
                     )
                 )
         return result
+
+    def calculate_freshness_from_metadata_batch(
+        self,
+        sources: List[BaseRelation],
+        macro_resolver: Optional[MacroResolverProtocol] = None,
+    ) -> Tuple[List[Optional[AdapterResponse]], Dict[BaseRelation, FreshnessResponse]]:
+        freshness_responses: Dict[BaseRelation, FreshnessResponse] = {}
+        adapter_responses: List[Optional[AdapterResponse]] = []
+
+        conn = self.connections.get_thread_connection()
+        client: google.cloud.bigquery.Client = conn.handle
+        for source in sources:
+            table_ref = self.get_table_ref_from_relation(source)
+            table = client.get_table(table_ref)
+            snapshot = datetime.now(tz=pytz.UTC)
+
+            freshness = FreshnessResponse(
+                max_loaded_at=table.modified,
+                snapshotted_at=snapshot,
+                age=(snapshot - table.modified).total_seconds(),
+            )
+            freshness_responses[source] = freshness
+            adapter_responses.append(None)
+
+        return adapter_responses, freshness_responses
 
     def calculate_freshness_from_metadata(
         self,

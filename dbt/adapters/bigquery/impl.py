@@ -100,6 +100,8 @@ class BigqueryConfig(AdapterConfig):
     enable_refresh: Optional[bool] = None
     refresh_interval_minutes: Optional[int] = None
     max_staleness: Optional[str] = None
+    enable_list_inference: Optional[bool] = None
+    intermediate_format: Optional[str] = None
 
 
 class BigQueryAdapter(BaseAdapter):

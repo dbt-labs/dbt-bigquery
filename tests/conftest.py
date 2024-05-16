@@ -1,6 +1,7 @@
 import pytest
 import os
 import json
+from dbt.adapters.bigquery.utility import is_base64, base64ToString
 
 # Import the fuctional fixtures as a plugin
 # Note: fixtures with session scope need to be local
@@ -38,6 +39,8 @@ def oauth_target():
 
 def service_account_target():
     credentials_json_str = os.getenv("BIGQUERY_TEST_SERVICE_ACCOUNT_JSON").replace("'", "")
+    if is_base64(credentials_json_str):
+        credentials_json_str = base64ToString(credentials_json_str)
     credentials = json.loads(credentials_json_str)
     project_id = credentials.get("project_id")
     return {

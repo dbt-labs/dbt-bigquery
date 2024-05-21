@@ -5,7 +5,6 @@ from dbt.tests.adapter.simple_seed.test_seed import SeedConfigBase
 from dbt.tests.adapter.simple_seed.test_seed import BaseTestEmptySeed
 from dbt.tests.adapter.utils.base_utils import run_dbt
 
-
 _SEED_CONFIGS_CSV = """
 seed_id,stuff
 1,a
@@ -156,3 +155,38 @@ class TestSimpleSeedConfigs(SeedConfigBase):
 
 class TestBigQueryEmptySeed(BaseTestEmptySeed):
     pass
+
+
+class TestBigQuerySeedWithUniqueDelimiter(TestSimpleSeedConfigs):
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "seed_enabled.csv": seeds__enabled_in_config_csv.replace(",", "|"),
+            "seed_tricky.csv": seeds__tricky_csv.replace(",", "\t"),
+            "seed_configs.csv": _SEED_CONFIGS_CSV,
+        }
+
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            "config-version": 2,
+            "seeds": {
+                "test": {
+                    "enabled": False,
+                    "quote_columns": True,
+                    "seed_enabled": {
+                        "enabled": True,
+                        "+column_types": self.seed_enabled_types(),
+                        "delimiter": "|",
+                    },
+                    "seed_tricky": {
+                        "enabled": True,
+                        "+column_types": self.seed_tricky_types(),
+                        "delimiter": "\t",
+                    },
+                    "seed_configs": {
+                        "enabled": True,
+                    },
+                },
+            },
+        }

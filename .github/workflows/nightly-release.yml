@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: write # this is the permission that allows creating a new release
+  packages: write # allows creating a Docker release as a GitHub package on GHCR
 
 defaults:
   run:

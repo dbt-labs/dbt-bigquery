@@ -9,7 +9,6 @@ import dbt.adapters
 from dbt.adapters.bigquery import BigQueryCredentials
 from dbt.adapters.bigquery import BigQueryRelation
 from dbt.adapters.bigquery.connections import BigQueryConnectionManager
-from dbt.logger import GLOBAL_LOGGER as logger  # noqa
 
 
 class TestBigQueryConnectionManager(unittest.TestCase):

@@ -4,7 +4,7 @@ import sys
 
 @pytest.fixture
 def remove_agate_from_path():
-    original_sys_path = sys.modules.copy()
+    original_sys_modules = sys.modules.copy()
 
     # conftest loads agate modules so we need to remove them
     # and this file
@@ -13,7 +13,7 @@ def remove_agate_from_path():
         del sys.modules[m]
 
     yield
-    sys.path = original_sys_path
+    sys.modules = original_sys_modules
 
 
 def test_lazy_loading_agate(remove_agate_from_path):

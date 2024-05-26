@@ -5,7 +5,19 @@ import threading
 from multiprocessing.context import SpawnContext
 
 import time
-from typing import Any, Dict, List, Optional, Type, Set, Union, FrozenSet, Tuple, Iterable, TYPE_CHECKING
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Type,
+    Set,
+    Union,
+    FrozenSet,
+    Tuple,
+    Iterable,
+    TYPE_CHECKING,
+)
 
 from dbt.adapters.contracts.relation import RelationConfig
 
@@ -57,6 +69,8 @@ from dbt.adapters.bigquery.relation_configs import (
 from dbt.adapters.bigquery.utility import sql_escape
 
 if TYPE_CHECKING:
+    # Indirectly imported via agate_helper, which is lazy loaded further downfile.
+    # Used by mypy for earlier type hints.
     import agate
 
 logger = AdapterLogger("BigQuery")
@@ -657,7 +671,13 @@ class BigQueryAdapter(BaseAdapter):
 
     @available.parse_none
     def load_dataframe(
-        self, database, schema, table_name, agate_table: "agate.Table", column_override, field_delimiter
+        self,
+        database,
+        schema,
+        table_name,
+        agate_table: "agate.Table",
+        column_override,
+        field_delimiter,
     ):
         bq_schema = self._agate_to_schema(agate_table, column_override)
         conn = self.connections.get_thread_connection()
@@ -669,7 +689,7 @@ class BigQueryAdapter(BaseAdapter):
         load_config.skip_leading_rows = 1
         load_config.schema = bq_schema
         load_config.field_delimiter = field_delimiter
-        with open(agate_table.original_abspath, "rb") as f:
+        with open(agate_table.original_abspath, "rb") as f:  # type: ignore
             job = client.load_table_from_file(f, table_ref, rewind=True, job_config=load_config)
 
         timeout = self.connections.get_job_execution_timeout_seconds(conn) or 300

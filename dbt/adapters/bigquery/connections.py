@@ -42,6 +42,8 @@ from dbt.adapters.bigquery import __version__ as dbt_version
 from dbt_common.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
 
 if TYPE_CHECKING:
+    # Indirectly imported via agate_helper, which is lazy loaded further downfile.
+    # Used by mypy for earlier type hints.
     import agate
 
 

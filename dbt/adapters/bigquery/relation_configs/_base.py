@@ -13,6 +13,8 @@ from dbt.adapters.bigquery.relation_configs._policies import (
 from dbt.adapters.contracts.relation import ComponentName, RelationConfig
 
 if TYPE_CHECKING:
+    # Indirectly imported via agate_helper, which is lazy loaded further downfile.
+    # Used by mypy for earlier type hints.
     import agate
 
 

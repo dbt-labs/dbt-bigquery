@@ -9,7 +9,8 @@ from mashumaro.helper import pass_through
 from functools import lru_cache
 import agate
 from requests.exceptions import ConnectionError
-from typing import Optional, Any, Dict, Tuple
+from multiprocessing.context import SpawnContext
+from typing import Optional, Any, Dict, Tuple, Hashable, List
 
 import google.auth
 import google.auth.exceptions
@@ -28,14 +29,15 @@ from dbt_common.events.functions import fire_event
 from dbt_common.exceptions import (
     DbtRuntimeError,
     DbtConfigError,
+    DbtDatabaseError,
 )
 from dbt_common.invocation import get_invocation_id
 from dbt.adapters.bigquery import gcloud
 from dbt.adapters.contracts.connection import (
-  ConnectionState,
-  AdapterResponse,
-  Credentials,
-  AdapterRequiredConfig
+    ConnectionState,
+    AdapterResponse,
+    Credentials,
+    AdapterRequiredConfig,
 )
 from dbt.adapters.exceptions.connection import FailedToConnectError
 from dbt.adapters.base import BaseConnectionManager
@@ -229,10 +231,9 @@ class BigQueryConnectionManager(BaseConnectionManager):
     DEFAULT_INITIAL_DELAY = 1.0  # Seconds
     DEFAULT_MAXIMUM_DELAY = 3.0  # Seconds
 
-
-    def __init__(self, profile: AdapterRequiredConfig):
-        super().__init__(profile)
-        self.jobs_by_thread = {}
+    def __init__(self, profile: AdapterRequiredConfig, mp_context: SpawnContext):
+        super().__init__(profile, mp_context)
+        self.jobs_by_thread: Dict[Hashable, List[str]] = {}
 
     @classmethod
     def handle_error(cls, error, message):
@@ -297,8 +298,10 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 if connection.handle is not None and connection.state == ConnectionState.OPEN:
                     client = connection.handle
                     for job_id in self.jobs_by_thread.get(thread_id, []):
+
                         def fn():
                             return client.cancel_job(job_id)
+
                         self._retry_and_handle(msg=f"Cancel job: {job_id}", conn=connection, fn=fn)
 
                     self.close(connection)
@@ -758,8 +761,9 @@ class BigQueryConnectionManager(BaseConnectionManager):
         """Query the client and wait for results."""
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
-        query_job = client.query(query=sql, job_config=job_config, job_id=job_id, timeout=job_creation_timeout)
-        query_job = client.query(query=sql, job_config=job_config, timeout=job_creation_timeout)
+        query_job = client.query(
+            query=sql, job_config=job_config, job_id=job_id, timeout=job_creation_timeout
+        )
         if (
             query_job.location is not None
             and query_job.job_id is not None

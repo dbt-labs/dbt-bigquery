@@ -15,7 +15,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
     def setUp(self):
         credentials = Mock(BigQueryCredentials)
         profile = Mock(query_comment=None, credentials=credentials)
-        self.connections = BigQueryConnectionManager(profile=profile, mp_context=Mock())
+        self.connections = BigQueryConnectionManager(profile=profile)
 
         self.mock_client = Mock(dbt.adapters.bigquery.impl.google.cloud.bigquery.Client)
         self.mock_connection = MagicMock()
@@ -104,18 +104,18 @@ class TestBigQueryConnectionManager(unittest.TestCase):
 
     @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")
     def test_query_and_results(self, mock_bq):
-        self.mock_client.query = Mock(return_value=Mock(state="DONE"))
         self.connections._query_and_results(
             self.mock_client,
             "sql",
             {"job_param_1": "blah"},
+            job_id=1,
             job_creation_timeout=15,
-            job_execution_timeout=3,
+            job_execution_timeout=100,
         )
 
         mock_bq.QueryJobConfig.assert_called_once()
         self.mock_client.query.assert_called_once_with(
-            query="sql", job_config=mock_bq.QueryJobConfig(), timeout=15
+            query="sql", job_config=mock_bq.QueryJobConfig(), job_id=1, timeout=15
         )
 
     def test_copy_bq_table_appends(self):

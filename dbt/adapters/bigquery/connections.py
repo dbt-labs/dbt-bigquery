@@ -1,3 +1,4 @@
+from concurrent.futures import TimeoutError
 import json
 import re
 from contextlib import contextmanager
@@ -21,24 +22,28 @@ from google.oauth2 import (
     service_account as GoogleServiceAccountCredentials,
 )
 
-from dbt.adapters.bigquery import gcloud
-from dbt.clients import agate_helper
-from dbt.config.profile import INVALID_PROFILE_MESSAGE
-from dbt.tracking import active_user
-from dbt.contracts.connection import ConnectionState, AdapterResponse, AdapterRequiredConfig
-from dbt.exceptions import (
-    FailedToConnectError,
+from dbt_common.clients import agate_helper
+from dbt_common.events.contextvars import get_node_info
+from dbt_common.events.functions import fire_event
+from dbt_common.exceptions import (
     DbtRuntimeError,
-    DbtDatabaseError,
-    DbtProfileError,
+    DbtConfigError,
 )
-from dbt.adapters.base import BaseConnectionManager, Credentials
-from dbt.events import AdapterLogger
-from dbt.events.functions import fire_event
-from dbt.events.types import SQLQuery
-from dbt.version import __version__ as dbt_version
+from dbt_common.invocation import get_invocation_id
+from dbt.adapters.bigquery import gcloud
+from dbt.adapters.contracts.connection import (
+  ConnectionState,
+  AdapterResponse,
+  Credentials,
+  AdapterRequiredConfig
+)
+from dbt.adapters.exceptions.connection import FailedToConnectError
+from dbt.adapters.base import BaseConnectionManager
+from dbt.adapters.events.logging import AdapterLogger
+from dbt.adapters.events.types import SQLQuery
+from dbt.adapters.bigquery import __version__ as dbt_version
 
-from dbt.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
+from dbt_common.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
 
 logger = AdapterLogger("BigQuery")
 
@@ -72,7 +77,7 @@ def get_bigquery_defaults(scopes=None) -> Tuple[Any, Optional[str]]:
         credentials, _ = google.auth.default(scopes=scopes)
         return credentials, _
     except google.auth.exceptions.DefaultCredentialsError as e:
-        raise DbtProfileError(INVALID_PROFILE_MESSAGE.format(error_string=e))
+        raise DbtConfigError(f"Failed to authenticate with supplied credentials\nerror:\n{e}")
 
 
 class Priority(StrEnum):
@@ -105,10 +110,12 @@ class DataprocBatchConfig(ExtensibleDbtClassMixin):
 
 @dataclass
 class BigQueryCredentials(Credentials):
-    method: BigQueryConnectionMethod
+    method: BigQueryConnectionMethod = None  # type: ignore
+
     # BigQuery allows an empty database / project, where it defers to the
     # environment for the project
-    database: Optional[str]  # type: ignore
+    database: Optional[str] = None  # type: ignore
+    schema: Optional[str] = None  # type: ignore
     execution_project: Optional[str] = None
     location: Optional[str] = None
     priority: Optional[Priority] = None
@@ -163,6 +170,11 @@ class BigQueryCredentials(Credentials):
             self.keyfile_json["private_key"] = self.keyfile_json["private_key"].replace(
                 "\\n", "\n"
             )
+        if not self.method:
+            raise DbtRuntimeError("Must specify authentication method")
+
+        if not self.schema:
+            raise DbtRuntimeError("Must specify schema")
 
     @property
     def type(self):
@@ -186,13 +198,8 @@ class BigQueryCredentials(Credentials):
             "job_retries",
             "job_creation_timeout_seconds",
             "job_execution_timeout_seconds",
-            "keyfile",
-            "keyfile_json",
             "timeout_seconds",
-            "token",
-            "refresh_token",
             "client_id",
-            "client_secret",
             "token_uri",
             "dataproc_region",
             "dataproc_cluster_name",
@@ -372,7 +379,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
             source_credentials=source_credentials,
             target_principal=profile_credentials.impersonate_service_account,
             target_scopes=list(profile_credentials.scopes),
-            lifetime=(profile_credentials.job_execution_timeout_seconds or 300),
         )
 
     @classmethod
@@ -389,7 +395,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         execution_project = profile_credentials.execution_project
         location = getattr(profile_credentials, "location", None)
 
-        info = client_info.ClientInfo(user_agent=f"dbt-{dbt_version}")
+        info = client_info.ClientInfo(user_agent=f"dbt-bigquery-{dbt_version.version}")
         return google.cloud.bigquery.Client(
             execution_project,
             creds,
@@ -451,6 +457,18 @@ class BigQueryConnectionManager(BaseConnectionManager):
         column_names = [field.name for field in resp.schema]
         return agate_helper.table_from_data_flat(resp, column_names)
 
+    def get_labels_from_query_comment(cls):
+        if (
+            hasattr(cls.profile, "query_comment")
+            and cls.profile.query_comment
+            and cls.profile.query_comment.job_label
+            and cls.query_header
+        ):
+            query_comment = cls.query_header.comment.query_comment
+            return cls._labels_from_query_comment(query_comment)
+
+        return {}
+
     def raw_execute(
         self,
         sql,
@@ -461,19 +479,11 @@ class BigQueryConnectionManager(BaseConnectionManager):
         conn = self.get_thread_connection()
         client = conn.handle
 
-        fire_event(SQLQuery(conn_name=conn.name, sql=sql))
-        if (
-            hasattr(self.profile, "query_comment")
-            and self.profile.query_comment
-            and self.profile.query_comment.job_label
-        ):
-            query_comment = self.profile.query_comment
-            labels = self._labels_from_query_comment(query_comment.comment)
-        else:
-            labels = {}
+        fire_event(SQLQuery(conn_name=conn.name, sql=sql, node_info=get_node_info()))
 
-        if active_user:
-            labels["dbt_invocation_id"] = active_user.invocation_id
+        labels = self.get_labels_from_query_comment()
+
+        labels["dbt_invocation_id"] = get_invocation_id()
 
         job_params = {
             "use_legacy_sql": use_legacy_sql,
@@ -721,6 +731,20 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         self._retry_and_handle(msg="create dataset", conn=conn, fn=fn)
 
+    def list_dataset(self, database: str):
+        # the database string we get here is potentially quoted. Strip that off
+        # for the API call.
+        database = database.strip("`")
+        conn = self.get_thread_connection()
+        client = conn.handle
+
+        def query_schemas():
+            # this is similar to how we have to deal with listing tables
+            all_datasets = client.list_datasets(project=database, max_results=10000)
+            return [ds.dataset_id for ds in all_datasets]
+
+        return self._retry_and_handle(msg="list dataset", conn=conn, fn=query_schemas)
+
     def _query_and_results(
         self,
         client,
@@ -735,7 +759,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # Cannot reuse job_config if destination is set and ddl is used
         job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
         query_job = client.query(query=sql, job_config=job_config, job_id=job_id, timeout=job_creation_timeout)
-
+        query_job = client.query(query=sql, job_config=job_config, timeout=job_creation_timeout)
         if (
             query_job.location is not None
             and query_job.job_id is not None
@@ -744,10 +768,12 @@ class BigQueryConnectionManager(BaseConnectionManager):
             logger.debug(
                 self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
             )
-
-        iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
-
-        return query_job, iterator
+        try:
+            iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
+            return query_job, iterator
+        except TimeoutError:
+            exc = f"Operation did not complete within the designated timeout of {job_execution_timeout} seconds."
+            raise TimeoutError(exc)
 
     def _retry_and_handle(self, msg, conn, fn):
         """retry a function call within the context of exception_handler."""

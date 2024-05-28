@@ -13,12 +13,9 @@ Self = TypeVar("Self", bound="BigQueryColumn")
 @dataclass(init=False)
 class BigQueryColumn(Column):
     TYPE_LABELS = {
-        "STRING": "STRING",
-        "TIMESTAMP": "TIMESTAMP",
+        "TEXT": "STRING",
         "FLOAT": "FLOAT64",
         "INTEGER": "INT64",
-        "BOOLEAN": "BOOLEAN",
-        "RECORD": "RECORD",
     }
     fields: List[Self]  # type: ignore
     mode: str  # type: ignore
@@ -82,7 +79,7 @@ class BigQueryColumn(Column):
     def data_type(self) -> str:
         if self.dtype.upper() == "RECORD":
             subcols = [
-                "{} {}".format(col.name, col.data_type) for col in self.fields  # type: ignore[attr-defined]
+                "{} {}".format(col.quoted, col.data_type) for col in self.fields  # type: ignore[attr-defined]
             ]
             field_type = "STRUCT<{}>".format(", ".join(subcols))
 

@@ -15,7 +15,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
     def setUp(self):
         credentials = Mock(BigQueryCredentials)
         profile = Mock(query_comment=None, credentials=credentials)
-        self.connections = BigQueryConnectionManager(profile=profile)
+        self.connections = BigQueryConnectionManager(profile=profile, mp_context=Mock())
 
         self.mock_client = Mock(dbt.adapters.bigquery.impl.google.cloud.bigquery.Client)
         self.mock_connection = MagicMock()

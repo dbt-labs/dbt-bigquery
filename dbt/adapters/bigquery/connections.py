@@ -40,7 +40,7 @@ from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery
 from dbt_common.events.functions import fire_event
 from dbt.adapters.bigquery import __version__ as dbt_version
-from dbt.adapters.bigquery.utility import is_base64, base64ToString
+from dbt.adapters.bigquery.utility import is_base64, base64_to_string
 
 from dbt_common.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
 
@@ -335,7 +335,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON:
             details = profile_credentials.keyfile_json
             if is_base64(profile_credentials.keyfile_json):
-                details = base64ToString(details)
+                details = base64_to_string(details)
             return creds.from_service_account_info(details, scopes=profile_credentials.scopes)
 
         elif method == BigQueryConnectionMethod.OAUTH_SECRETS:

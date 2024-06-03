@@ -1,7 +1,7 @@
 import base64
 import binascii
 import json
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import dbt_common.exceptions
 
@@ -47,7 +47,7 @@ def sql_escape(string):
     return json.dumps(string)[1:-1]
 
 
-def is_base64(s: str | bytes) -> bool:
+def is_base64(s: Union[str, bytes]) -> bool:
     """
     Checks if the given string or bytes object is valid Base64 encoded.
 

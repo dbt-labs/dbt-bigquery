@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import FrozenSet, Optional, TypeVar
 
 from itertools import chain, islice
@@ -23,9 +23,23 @@ Self = TypeVar("Self", bound="BigQueryRelation")
 class BigQueryRelation(BaseRelation):
     quote_character: str = "`"
     location: Optional[str] = None
-    renameable_relations: FrozenSet[RelationType] = frozenset({RelationType.Table})
-    replaceable_relations: FrozenSet[RelationType] = frozenset(
-        {RelationType.Table, RelationType.View}
+    require_alias: bool = False
+
+    renameable_relations: FrozenSet[RelationType] = field(
+        default_factory=lambda: frozenset(
+            {
+                RelationType.Table,
+            }
+        )
+    )
+
+    replaceable_relations: FrozenSet[RelationType] = field(
+        default_factory=lambda: frozenset(
+            {
+                RelationType.View,
+                RelationType.Table,
+            }
+        )
     )
 
     def matches(

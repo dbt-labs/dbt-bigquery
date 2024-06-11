@@ -278,7 +278,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return f"{rows_number:3.1f}{unit}".strip()
 
     @classmethod
-    def get_google_credentials(cls, profile_credentials) -> GoogleCredentials:
+    def get_google_credentials(cls, profile_credentials) -> GoogleCredentials:  # type: ignore
         method = profile_credentials.method
         creds = GoogleServiceAccountCredentials.Credentials
 

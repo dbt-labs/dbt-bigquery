@@ -2,27 +2,12 @@ import pytest
 
 from dbt.tests.util import run_dbt
 from dbt.tests.adapter.materialized_view.basic import MaterializedViewBasic
-from dbt.tests.util import get_model_file, set_model_file
 
 from tests.functional.adapter.materialized_view_tests._mixin import BigQueryMaterializedViewMixin
 from tests.functional.adapter.materialized_view_tests import _files
 
 
 class TestBigqueryMaterializedViewsBasic(BigQueryMaterializedViewMixin, MaterializedViewBasic):
-    @pytest.fixture(scope="function", autouse=True)
-    def setup(self, project, my_materialized_view):  # type: ignore
-        run_dbt(["seed"])
-        run_dbt(["run", "--full-refresh"])
-
-        # the tests touch these files, store their contents in memory
-        initial_model = get_model_file(project, my_materialized_view)
-
-        yield
-
-        # and then reset them after the test runs
-        set_model_file(project, my_materialized_view, initial_model)
-        project.run_sql(f"drop schema if exists {project.test_schema} cascade")
-
     def test_view_replaces_materialized_view(self, project, my_materialized_view):
         """
         We don't support replacing a view with another object in dbt-bigquery unless we use --full-refresh

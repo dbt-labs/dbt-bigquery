@@ -54,20 +54,6 @@ class TestMaterializedViewRerun:
     and cause unexpected scenarios.
     """
 
-    @pytest.fixture(scope="function", autouse=True)
-    def setup(self, project, my_materialized_view):  # type: ignore
-        run_dbt(["seed"])
-        run_dbt(["run", "--full-refresh"])
-
-        # the tests touch these files, store their contents in memory
-        initial_model = get_model_file(project, my_materialized_view)
-
-        yield
-
-        # and then reset them after the test runs
-        set_model_file(project, my_materialized_view, initial_model)
-        project.run_sql(f"drop schema if exists {project.test_schema} cascade")
-
     @pytest.fixture(scope="class", autouse=True)
     def models(self):
         return {"my_minimal_materialized_view.sql": _files.MY_MINIMAL_MATERIALIZED_VIEW}

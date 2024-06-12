@@ -5,12 +5,7 @@ import pytest
 from dbt.adapters.base.relation import BaseRelation
 from dbt.adapters.contracts.relation import RelationType
 from dbt.tests.adapter.materialized_view.files import MY_TABLE, MY_VIEW
-from dbt.tests.util import (
-    get_connection,
-    get_model_file,
-    run_dbt,
-    set_model_file,
-)
+from dbt.tests.util import get_connection
 
 from tests.functional.adapter.materialized_view_tests import _files
 
@@ -44,20 +39,6 @@ class BigQueryMaterializedViewMixin:
             database=project.database,
             type=RelationType.Table,
         )
-
-    @pytest.fixture(scope="function", autouse=True)
-    def setup(self, project, my_base_table, my_other_base_table, my_materialized_view):  # type: ignore
-        run_dbt(["seed"])
-        run_dbt(["run", "--full-refresh"])
-
-        # the tests touch these files, store their contents in memory
-        initial_model = get_model_file(project, my_materialized_view)
-
-        yield
-
-        # and then reset them after the test runs
-        set_model_file(project, my_materialized_view, initial_model)
-        project.run_sql(f"drop schema if exists {project.test_schema} cascade")
 
     @pytest.fixture(scope="class", autouse=True)
     def seeds(self):

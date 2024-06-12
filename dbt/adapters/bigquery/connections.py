@@ -38,6 +38,7 @@ from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery
 from dbt_common.events.functions import fire_event
 from dbt.adapters.bigquery import __version__ as dbt_version
+from dbt.adapters.bigquery.utility import is_base64, base64_to_string
 
 from dbt_common.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
 
@@ -45,7 +46,6 @@ if TYPE_CHECKING:
     # Indirectly imported via agate_helper, which is lazy loaded further downfile.
     # Used by mypy for earlier type hints.
     import agate
-
 
 logger = AdapterLogger("BigQuery")
 
@@ -129,7 +129,7 @@ class BigQueryCredentials(Credentials):
     job_creation_timeout_seconds: Optional[int] = None
     job_execution_timeout_seconds: Optional[int] = None
 
-    # Keyfile json creds
+    # Keyfile json creds (unicode or base 64 encoded)
     keyfile: Optional[str] = None
     keyfile_json: Optional[Dict[str, Any]] = None
 
@@ -336,6 +336,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON:
             details = profile_credentials.keyfile_json
+            if is_base64(profile_credentials.keyfile_json):
+                details = base64_to_string(details)
             return creds.from_service_account_info(details, scopes=profile_credentials.scopes)
 
         elif method == BigQueryConnectionMethod.OAUTH_SECRETS:

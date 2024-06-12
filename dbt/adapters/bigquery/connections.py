@@ -44,8 +44,10 @@ from dbt.adapters.base import BaseConnectionManager
 from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery
 from dbt.adapters.bigquery import __version__ as dbt_version
+from dbt.adapters.bigquery.utility import is_base64, base64_to_string
 
 from dbt_common.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
+
 
 logger = AdapterLogger("BigQuery")
 
@@ -129,7 +131,7 @@ class BigQueryCredentials(Credentials):
     job_creation_timeout_seconds: Optional[int] = None
     job_execution_timeout_seconds: Optional[int] = None
 
-    # Keyfile json creds
+    # Keyfile json creds (unicode or base 64 encoded)
     keyfile: Optional[str] = None
     keyfile_json: Optional[Dict[str, Any]] = None
 
@@ -360,6 +362,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON:
             details = profile_credentials.keyfile_json
+            if is_base64(profile_credentials.keyfile_json):
+                details = base64_to_string(details)
             return creds.from_service_account_info(details, scopes=profile_credentials.scopes)
 
         elif method == BigQueryConnectionMethod.OAUTH_SECRETS:

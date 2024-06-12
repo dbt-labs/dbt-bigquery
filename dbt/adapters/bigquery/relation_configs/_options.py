@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
@@ -170,4 +170,19 @@ class BigQueryOptionsConfigChange(RelationConfigChange):
 
     @property
     def requires_full_refresh(self) -> bool:
-        return self.action == RelationConfigChangeAction.create
+        # allow_non_incremental_definition cannot be changed via an ALTER statement
+        return self.context.allow_non_incremental_definition is not None
+
+    @classmethod
+    def from_options_configs(
+        cls, new_options: BigQueryOptionsConfig, existing_options: BigQueryOptionsConfig
+    ) -> Self:
+        new_options_dict = asdict(new_options)
+        existing_options_dict = asdict(existing_options)
+        option_diffs_dict = {
+            k: v
+            for k, v in new_options_dict.items()
+            if new_options_dict[k] != existing_options_dict[k]
+        }
+        option_diffs = BigQueryOptionsConfig.from_dict(option_diffs_dict)
+        return cls(action=RelationConfigChangeAction.alter, context=option_diffs)

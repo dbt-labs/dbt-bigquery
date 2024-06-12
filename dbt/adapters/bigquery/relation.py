@@ -90,17 +90,10 @@ class BigQueryRelation(BaseRelation):
         new_materialized_view = cls.materialized_view_from_relation_config(relation_config)
 
         if new_materialized_view.options != existing_materialized_view.options:
-            # allow_non_incremental_definition cannot be changed via an ALTER statement
-            if (
-                new_materialized_view.options.allow_non_incremental_definition
-                != existing_materialized_view.options.allow_non_incremental_definition
-            ):
-                action = RelationConfigChangeAction.create
-            else:
-                action = RelationConfigChangeAction.alter
-            config_change_collection.options = BigQueryOptionsConfigChange(
-                action=action,
-                context=new_materialized_view.options,
+            # get an options change object with only the options that have changed
+            config_change_collection.options = BigQueryOptionsConfigChange.from_options_configs(
+                new_materialized_view.options,
+                existing_materialized_view.options,
             )
 
         if new_materialized_view.partition != existing_materialized_view.partition:

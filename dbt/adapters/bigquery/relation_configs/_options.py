@@ -105,7 +105,13 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
         # avoid picking up defaults on dependent options
         # e.g. don't set `refresh_interval_minutes` = 30 when the user has `enable_refresh` = False
         if kwargs_dict["enable_refresh"] is False:
-            kwargs_dict.update({"refresh_interval_minutes": None, "max_staleness": None})
+            kwargs_dict.update(
+                {
+                    "refresh_interval_minutes": None,
+                    "max_staleness": None,
+                    "allow_non_incremental_definition": None,
+                }
+            )
 
         options: Self = super().from_dict(kwargs_dict)  # type: ignore
         return options

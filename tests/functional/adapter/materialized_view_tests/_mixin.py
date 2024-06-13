@@ -11,6 +11,7 @@ from dbt.tests.util import (
     run_dbt,
     set_model_file,
 )
+
 from tests.functional.adapter.materialized_view_tests import _files
 
 
@@ -44,6 +45,20 @@ class BigQueryMaterializedViewMixin:
             type=RelationType.Table,
         )
 
+    @pytest.fixture(scope="function", autouse=True)
+    def setup(self, project, my_materialized_view):
+        run_dbt(["seed"])
+        run_dbt(["run", "--full-refresh"])
+
+        # the tests touch these files, store their contents in memory
+        initial_model = get_model_file(project, my_materialized_view)
+
+        yield
+
+        # and then reset them after the test runs
+        set_model_file(project, my_materialized_view, initial_model)
+        project.run_sql(f"drop schema if exists {project.test_schema} cascade")
+
     @pytest.fixture(scope="class", autouse=True)
     def seeds(self):
         return {"my_seed.csv": _files.MY_SEED}
@@ -57,26 +72,6 @@ class BigQueryMaterializedViewMixin:
             "my_other_base_table.sql": _files.MY_OTHER_BASE_TABLE,
             "my_materialized_view.sql": _files.MY_MATERIALIZED_VIEW,
         }
-
-    @pytest.fixture(scope="function", autouse=True)
-    def setup(self, project, my_materialized_view):
-        """
-        We overwrite this so that we get a `--full-refresh` of everything between tests, instead of just the MV
-        """
-        # make sure the model in the data reflects the files each time
-        run_dbt(["seed"])
-        run_dbt(["run", "--full-refresh"])
-
-        # the tests touch these files, store their contents in memory
-        initial_model = get_model_file(project, my_materialized_view)
-
-        yield
-
-        # and then reset them after the test runs
-        set_model_file(project, my_materialized_view, initial_model)
-
-        # ensure clean slate each method
-        project.run_sql(f"drop schema if exists {project.test_schema} cascade")
 
     @staticmethod
     def insert_record(project, table: BaseRelation, record: Tuple[int, int]) -> None:

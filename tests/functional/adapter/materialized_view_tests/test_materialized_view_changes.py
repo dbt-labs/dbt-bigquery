@@ -22,7 +22,7 @@ class BigQueryMaterializedViewChanges(BigQueryMaterializedViewMixin, Materialize
         assert results.partition.field == "record_valid_date"
         assert results.partition.data_type == "datetime"
         assert results.partition.granularity == "day"
-        assert results.cluster.fields == frozenset({"id", "value"})
+        assert results.cluster.fields == tuple(["id", "value"])
 
     @staticmethod
     def change_config_via_alter(project, materialized_view):
@@ -74,7 +74,7 @@ class BigQueryMaterializedViewChanges(BigQueryMaterializedViewMixin, Materialize
         assert results.partition.field == "value"
         assert results.partition.data_type == "int64"
         assert results.partition.range == {"start": 0, "end": 500, "interval": 50}
-        assert results.cluster.fields == frozenset({"id"})
+        assert results.cluster.fields == tuple(["id"])
 
 
 class TestBigQueryMaterializedViewChangesApply(

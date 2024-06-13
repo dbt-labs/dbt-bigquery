@@ -126,7 +126,7 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
             "hours_to_expiration"
         ):  # type: ignore
             config_dict.update(
-                {"expiration_timestamp": datetime.now() + timedelta(hours=hours_to_expiration)}
+                {"expiration_timestamp": f"TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL {hours_to_expiration} hour)"}
             )
         if not relation_config.config.persist_docs:  # type: ignore
             del config_dict["description"]

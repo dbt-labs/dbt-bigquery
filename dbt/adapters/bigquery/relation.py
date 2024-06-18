@@ -90,11 +90,24 @@ class BigQueryRelation(BaseRelation):
         new_materialized_view = cls.materialized_view_from_relation_config(relation_config)
 
         if new_materialized_view.options != existing_materialized_view.options:
-            # get an options change object with only the options that have changed
-            config_change_collection.options = BigQueryOptionsConfigChange.from_options_configs(
-                new_materialized_view.options,
-                existing_materialized_view.options,
-            )
+            # the options have already gone through validation and defaults since they are on the MV object
+            # don't worry about things like interactions and defaults
+
+            # allow_non_incremental_definition cannot be changed via an ALTER statement
+            if (
+                new_materialized_view.options.allow_non_incremental_definition
+                != existing_materialized_view.options.allow_non_incremental_definition
+            ):
+                action = RelationConfigChangeAction.drop
+            else:
+                action = RelationConfigChangeAction.alter
+
+            # even though some options are not changing, the change is issued as one DDL statement
+            # it is easier to submit a large set of consistent changes than determining a
+            # proper subset of consistent changes
+            context = new_materialized_view.options
+
+            config_change_collection.options = BigQueryOptionsConfigChange(action, context)
 
         if new_materialized_view.partition != existing_materialized_view.partition:
             # the existing PartitionConfig is not hashable, but since we need to do

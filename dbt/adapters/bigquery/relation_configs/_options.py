@@ -1,22 +1,36 @@
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Set
 
-from dbt.adapters.relation_configs import RelationConfigChange
+from dbt.adapters.relation_configs import (
+    RelationConfigChange,
+    RelationConfigChangeAction,
+    RelationConfigValidationMixin,
+    RelationConfigValidationRule,
+)
 from dbt.adapters.contracts.relation import RelationConfig
+from dbt_common.exceptions import DbtRuntimeError
 from google.cloud.bigquery import Table as BigQueryTable
 from typing_extensions import Self
 
 from dbt.adapters.bigquery.relation_configs._base import BigQueryBaseRelationConfig
 from dbt.adapters.bigquery.utility import bool_setting, float_setting, sql_escape
-from dbt.adapters.relation_configs import RelationConfigChangeAction
 
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
-class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
+class BigQueryOptionsConfig(BigQueryBaseRelationConfig, RelationConfigValidationMixin):
     """
     This config manages materialized view options. See the following for more information:
     - https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#materialized_view_option_list
+
+    Note:
+        BigQuery allows options to be "unset" in the sense that they do not contain a value (think `None` or `null`).
+        This can be counterintuitive when that option is a boolean; it introduces a third value, in particular
+        a value that behaves "false-y". The practice is to mimic the data platform's inputs to the extent
+        possible to minimize any translation confusion between dbt docs and the platform's (BQ's) docs.
+        The values `False` and `None` will behave differently when producing the DDL options:
+        - `False` will show up in the statement submitted to BQ with the value `False`
+        - `None` will not show up in the statement submitted to BQ at all
     """
 
     enable_refresh: Optional[bool] = True
@@ -28,9 +42,38 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
     description: Optional[str] = None
     labels: Optional[Dict[str, str]] = None
 
-    def as_ddl_dict(self) -> Dict[str, Any]:
+    @property
+    def validation_rules(self) -> Set[RelationConfigValidationRule]:
+        # validation_check is what is allowed
+        return {
+            RelationConfigValidationRule(
+                validation_check=self.allow_non_incremental_definition is not True
+                or self.max_staleness is not None,
+                validation_error=DbtRuntimeError(
+                    "Please provide a setting for max_staleness when enabling allow_non_incremental_definition.\n"
+                    "Received:\n"
+                    f"    allow_non_incremental_definition: {self.allow_non_incremental_definition}\n"
+                    f"    max_staleness: {self.max_staleness}\n"
+                ),
+            ),
+            RelationConfigValidationRule(
+                validation_check=self.enable_refresh is True
+                or all(
+                    [self.max_staleness is None, self.allow_non_incremental_definition is None]
+                ),
+                validation_error=DbtRuntimeError(
+                    "Do not provide a setting for refresh_interval_minutes, max_staleness, nor allow_non_incremental_definition when disabling enable_refresh.\n"
+                    "Received:\n"
+                    f"    enable_refresh: {self.enable_refresh}\n"
+                    f"    max_staleness: {self.max_staleness}\n"
+                    f"    allow_non_incremental_definition: {self.allow_non_incremental_definition}\n"
+                ),
+            ),
+        }
+
+    def as_ddl_dict(self, include_nulls: Optional[bool] = False) -> Dict[str, Any]:
         """
-        Reformat `options_dict` so that it can be passed into the `bigquery_options()` macro.
+        Return a representation of this object so that it can be passed into the `bigquery_options()` macro.
 
         Options should be flattened and filtered prior to passing into this method. For example:
         - the "auto refresh" set of options should be flattened into the root instead of stuck under "auto_refresh"
@@ -68,14 +111,17 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
 
         def formatted_option(name: str) -> Optional[Any]:
             value = getattr(self, name)
-            if value is not None:
-                formatter = option_formatters[name]
-                return formatter(value)
-            return None
+            if value is None and include_nulls:
+                # used when altering relations to catch scenarios where non-defaulted options are "unset"
+                return "NULL"
+            elif value is None:
+                return None
+            formatter = option_formatters[name]
+            return formatter(value)
 
         options = {
             option: formatted_option(option)
-            for option, option_formatter in option_formatters.items()
+            for option in option_formatters
             if formatted_option(option) is not None
         }
 
@@ -176,19 +222,4 @@ class BigQueryOptionsConfigChange(RelationConfigChange):
 
     @property
     def requires_full_refresh(self) -> bool:
-        # allow_non_incremental_definition cannot be changed via an ALTER statement
-        return self.context.allow_non_incremental_definition is not None
-
-    @classmethod
-    def from_options_configs(
-        cls, new_options: BigQueryOptionsConfig, existing_options: BigQueryOptionsConfig
-    ) -> Self:
-        new_options_dict = asdict(new_options)
-        existing_options_dict = asdict(existing_options)
-        option_diffs_dict = {
-            k: v
-            for k, v in new_options_dict.items()
-            if new_options_dict[k] != existing_options_dict[k]
-        }
-        option_diffs = BigQueryOptionsConfig.from_dict(option_diffs_dict)
-        return cls(action=RelationConfigChangeAction.alter, context=option_diffs)
+        return self.action != RelationConfigChangeAction.alter

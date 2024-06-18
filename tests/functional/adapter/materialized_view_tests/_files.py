@@ -71,11 +71,39 @@ from {{ ref('my_seed') }}
 
 
 MY_MINIMAL_MATERIALIZED_VIEW = """
-{{
-  config(
-    materialized = 'materialized_view',
-    )
-}}
+{{ config(
+    materialized='materialized_view'
+) }}
 
 select * from {{ ref('my_seed') }}
+"""
+
+
+MY_MATERIALIZED_VIEW_NON_INCREMENTAL = """
+{{ config(
+    max_staleness="INTERVAL '0-0 0 0:45:0' YEAR TO SECOND",
+    allow_non_incremental_definition=True,
+    materialized='materialized_view'
+) }}
+select
+    id,
+    value,
+    record_valid_date
+from {{ ref('my_base_table') }}
+"""
+
+
+MY_MATERIALIZED_VIEW_REFRESH_CONFIG = """
+{{ config(
+    enable_refresh=True,
+    refresh_interval_minutes=60,
+    max_staleness="INTERVAL '0-0 0 0:45:0' YEAR TO SECOND",
+    allow_non_incremental_definition=True,
+    materialized='materialized_view'
+) }}
+select
+    id,
+    value,
+    record_valid_date
+from {{ ref('my_base_table') }}
 """

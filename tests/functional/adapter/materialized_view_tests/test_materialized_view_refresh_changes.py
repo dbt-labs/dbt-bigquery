@@ -79,10 +79,10 @@ class TestTurnOnAllowNonIncremental(RefreshChanges):
     def check_start_state(project, my_materialized_view):
         with get_connection(project.adapter):
             results = project.adapter.describe_relation(my_materialized_view)
-        assert results.options.enable_refresh is True
-        assert results.options.refresh_interval_minutes == 30
-        assert results.options.max_staleness is None
-        assert results.options.allow_non_incremental_definition is None
+        assert results.enable_refresh is True
+        assert results.refresh_interval_minutes == 30
+        assert results.max_staleness is None
+        assert results.allow_non_incremental_definition is None
 
     @staticmethod
     def change_config(project, my_materialized_view):
@@ -97,10 +97,10 @@ class TestTurnOnAllowNonIncremental(RefreshChanges):
     def check_end_state(project, my_materialized_view):
         with get_connection(project.adapter):
             results = project.adapter.describe_relation(my_materialized_view)
-        assert results.options.enable_refresh is True
-        assert results.options.refresh_interval_minutes == 30
-        assert results.options.max_staleness == "INTERVAL '0-0 0 0:45:0' YEAR TO SECOND"
-        assert results.options.allow_non_incremental_definition is True
+        assert results.enable_refresh is True
+        assert results.refresh_interval_minutes == 30
+        assert results.max_staleness == "INTERVAL '0-0 0 0:45:0' YEAR TO SECOND"
+        assert results.allow_non_incremental_definition is True
 
 
 class TestTurnOffAllowNonIncremental(RefreshChanges):
@@ -115,10 +115,10 @@ class TestTurnOffAllowNonIncremental(RefreshChanges):
     def check_start_state(project, my_materialized_view):
         with get_connection(project.adapter):
             results = project.adapter.describe_relation(my_materialized_view)
-        assert results.options.enable_refresh is True
-        assert results.options.refresh_interval_minutes == 30
-        assert results.options.max_staleness == "INTERVAL '0-0 0 0:45:0' YEAR TO SECOND"
-        assert results.options.allow_non_incremental_definition is True
+        assert results.enable_refresh is True
+        assert results.refresh_interval_minutes == 30
+        assert results.max_staleness == "INTERVAL '0-0 0 0:45:0' YEAR TO SECOND"
+        assert results.allow_non_incremental_definition is True
 
     @staticmethod
     def change_config(project, my_materialized_view):
@@ -132,10 +132,10 @@ class TestTurnOffAllowNonIncremental(RefreshChanges):
     def check_end_state(project, my_materialized_view):
         with get_connection(project.adapter):
             results = project.adapter.describe_relation(my_materialized_view)
-        assert results.options.enable_refresh is True
-        assert results.options.refresh_interval_minutes == 30
-        assert results.options.max_staleness == "INTERVAL '0-0 0 0:45:0' YEAR TO SECOND"
-        assert results.options.allow_non_incremental_definition is False
+        assert results.enable_refresh is True
+        assert results.refresh_interval_minutes == 30
+        assert results.max_staleness == "INTERVAL '0-0 0 0:45:0' YEAR TO SECOND"
+        assert results.allow_non_incremental_definition is False
 
 
 class TestUnsetAllowNonIncremental(RefreshChanges):
@@ -150,10 +150,10 @@ class TestUnsetAllowNonIncremental(RefreshChanges):
     def check_start_state(project, my_materialized_view):
         with get_connection(project.adapter):
             results = project.adapter.describe_relation(my_materialized_view)
-        assert results.options.enable_refresh is True
-        assert results.options.refresh_interval_minutes == 30
-        assert results.options.max_staleness == "INTERVAL '0-0 0 0:45:0' YEAR TO SECOND"
-        assert results.options.allow_non_incremental_definition is True
+        assert results.enable_refresh is True
+        assert results.refresh_interval_minutes == 30
+        assert results.max_staleness == "INTERVAL '0-0 0 0:45:0' YEAR TO SECOND"
+        assert results.allow_non_incremental_definition is True
 
     @staticmethod
     def change_config(project, my_materialized_view):
@@ -165,10 +165,10 @@ class TestUnsetAllowNonIncremental(RefreshChanges):
     def check_end_state(project, my_materialized_view):
         with get_connection(project.adapter):
             results = project.adapter.describe_relation(my_materialized_view)
-        assert results.options.enable_refresh is True
-        assert results.options.refresh_interval_minutes == 30
-        assert results.options.max_staleness == "INTERVAL '0-0 0 0:45:0' YEAR TO SECOND"
-        assert results.options.allow_non_incremental_definition is None
+        assert results.enable_refresh is True
+        assert results.refresh_interval_minutes == 30
+        assert results.max_staleness == "INTERVAL '0-0 0 0:45:0' YEAR TO SECOND"
+        assert results.allow_non_incremental_definition is None
 
 
 class TestTurnOffRefresh(RefreshChanges):
@@ -183,10 +183,10 @@ class TestTurnOffRefresh(RefreshChanges):
     def check_start_state(project, my_materialized_view):
         with get_connection(project.adapter):
             results = project.adapter.describe_relation(my_materialized_view)
-        assert results.options.enable_refresh is True
-        assert results.options.refresh_interval_minutes == 60
-        assert results.options.max_staleness == "INTERVAL '0-0 0 0:45:0' YEAR TO SECOND"
-        assert results.options.allow_non_incremental_definition is True
+        assert results.enable_refresh is True
+        assert results.refresh_interval_minutes == 60
+        assert results.max_staleness == "INTERVAL '0-0 0 0:45:0' YEAR TO SECOND"
+        assert results.allow_non_incremental_definition is True
 
     @staticmethod
     def change_config(project, my_materialized_view):
@@ -198,9 +198,9 @@ class TestTurnOffRefresh(RefreshChanges):
     def check_end_state(project, my_materialized_view):
         with get_connection(project.adapter):
             results = project.adapter.describe_relation(my_materialized_view)
-        assert results.options.enable_refresh is False
+        assert results.enable_refresh is False
         assert (
-            results.options.refresh_interval_minutes == 30
+            results.refresh_interval_minutes == 30
         )  # this is a defaulted value in BQ, so it doesn't get cleared
-        assert results.options.max_staleness is None
-        assert results.options.allow_non_incremental_definition is None
+        assert results.max_staleness is None
+        assert results.allow_non_incremental_definition is None

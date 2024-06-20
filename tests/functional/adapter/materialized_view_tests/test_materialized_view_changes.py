@@ -17,10 +17,10 @@ class BigQueryMaterializedViewChanges(BigQueryMaterializedViewMixin, Materialize
         with get_connection(project.adapter):
             results = project.adapter.describe_relation(materialized_view)
         assert isinstance(results, BigQueryMaterializedViewConfig)
-        assert results.options.enable_refresh is True
-        assert results.options.refresh_interval_minutes == 60
-        assert results.options.max_staleness == "INTERVAL '0-0 0 0:45:0' YEAR TO SECOND"
-        assert results.options.allow_non_incremental_definition is True
+        assert results.enable_refresh is True
+        assert results.refresh_interval_minutes == 60
+        assert results.max_staleness == "INTERVAL '0-0 0 0:45:0' YEAR TO SECOND"
+        assert results.allow_non_incremental_definition is True
         assert results.partition.field == "record_valid_date"
         assert results.partition.data_type == "datetime"
         assert results.partition.granularity == "day"
@@ -80,7 +80,7 @@ class BigQueryMaterializedViewChanges(BigQueryMaterializedViewMixin, Materialize
         assert results.partition.data_type == "int64"
         assert results.partition.range == {"start": 0, "end": 500, "interval": 50}
         assert results.cluster.fields == frozenset({"id"})
-        assert results.options.allow_non_incremental_definition is False
+        assert results.allow_non_incremental_definition is False
 
 
 class TestBigQueryMaterializedViewChangesApply(

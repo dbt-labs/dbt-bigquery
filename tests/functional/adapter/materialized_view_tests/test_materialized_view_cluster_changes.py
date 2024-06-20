@@ -21,7 +21,7 @@ class BigQueryMaterializedViewClusterChanges(
         assert isinstance(results, BigQueryMaterializedViewConfig)
         assert results.options.enable_refresh is True
         assert results.options.refresh_interval_minutes == 60
-        assert results.cluster.fields == frozenset({"id", "value"})
+        assert results.cluster.fields == tuple(["id", "value"])
 
     @staticmethod
     def change_config_via_alter(project, materialized_view):
@@ -48,7 +48,7 @@ class BigQueryMaterializedViewClusterChanges(
         with get_connection(project.adapter):
             results = project.adapter.describe_relation(materialized_view)
         assert isinstance(results, BigQueryMaterializedViewConfig)
-        assert results.cluster.fields == frozenset({"id"})
+        assert results.cluster.fields == tuple(["id"])
 
 
 class TestBigQueryMaterializedViewClusterChangesApply(

@@ -1,0 +1,6 @@
+kind: Fixes
+body: Fix mixed cluster order for materialized views
+time: 2024-06-13T16:25:04.020387+02:00
+custom:
+    Author: thmswt
+    Issue: "1116"

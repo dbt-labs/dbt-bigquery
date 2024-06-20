@@ -1,3 +1,6 @@
+# flake8: noqa
+# ignores the special characters in the descripton check
+
 MY_SEED = """
 id,value,record_valid_date
 1,100,2023-01-01 00:00:00
@@ -25,9 +28,10 @@ from {{ ref('my_seed') }}
 
 
 # the whitespace to the left on partition matters here
+# this should test all possible config (skip KMS key since it needs to exist)
 MY_MATERIALIZED_VIEW = """
 {{ config(
-    materialized='materialized_view',
+    materialized="materialized_view",
     partition_by={
         "field": "record_valid_date",
         "data_type": "datetime",
@@ -36,8 +40,11 @@ MY_MATERIALIZED_VIEW = """
     cluster_by=["id", "value"],
     enable_refresh=True,
     refresh_interval_minutes=60,
+    hours_to_expiration=24,
     max_staleness="INTERVAL '0-0 0 0:45:0' YEAR TO SECOND",
-    allow_non_incremental_definition=True
+    allow_non_incremental_definition=True,
+    description="<Th!s is /a 'string' with specia\ ch@rs.",
+    labels={"name": "tony_stark", "alias": "ironman"}
 ) }}
 select
     id,

@@ -115,6 +115,7 @@ class BigqueryConfig(AdapterConfig):
     max_staleness: Optional[str] = None
     enable_list_inference: Optional[bool] = None
     intermediate_format: Optional[str] = None
+    allow_non_incremental_definition: Optional[bool] = None
 
 
 class BigQueryAdapter(BaseAdapter):

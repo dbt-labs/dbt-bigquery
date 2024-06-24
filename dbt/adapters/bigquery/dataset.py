@@ -43,3 +43,25 @@ def add_access_entry_to_dataset(dataset: Dataset, access_entry: AccessEntry) -> 
     access_entries.append(access_entry)
     dataset.access_entries = access_entries
     return dataset
+
+
+
+def delete_access_entry_from_dataset(dataset: Dataset, access_entry: AccessEntry) -> Dataset:
+    """Remove an access entry from a dataset, always use.
+
+    Args:
+        dataset (Dataset): the dataset to be updated
+        access_entry (AccessEntry): the access entry to be removed from the dataset
+    """
+    access_entries = dataset.access_entries
+    access_entries_id = [entity.entity_id for entity in access_entries]
+    
+    full_dataset_id = f"{dataset.project}.{dataset.dataset_id}"
+    if access_entry.entity_id in access_entries_id:
+        dataset.access_entries = [
+            entry for entry in access_entries if entry.entity_id != access_entry.entity_id
+        ]
+    else:
+        print(f"no need to revoke the dataset access for '{access_entry.entity_id}' to ' dataset '{full_dataset_id}.' it doesn't exist")    
+    return dataset
+

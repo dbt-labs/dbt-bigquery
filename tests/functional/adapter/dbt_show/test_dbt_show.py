@@ -1,5 +1,9 @@
 import pytest
-from dbt.tests.adapter.dbt_show.test_dbt_show import BaseShowSqlHeader, BaseShowLimit
+from dbt.tests.adapter.dbt_show.test_dbt_show import (
+    BaseShowSqlHeader,
+    BaseShowLimit,
+    BaseShowDoesNotHandleDoubleLimit,
+)
 
 from dbt.tests.util import run_dbt
 
@@ -52,3 +56,7 @@ class TestBigQueryShowSqlWorksWithJSONStruct:
 
     def test_show_with_null_json_struct(self, project):
         run_dbt(["show", "--select", "null_json_struct_model"])
+
+
+class TestBigQueryShowDoesNotHandleDoubleLimit(BaseShowDoesNotHandleDoubleLimit):
+    pass

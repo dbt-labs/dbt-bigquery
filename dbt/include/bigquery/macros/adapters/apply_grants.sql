@@ -12,9 +12,19 @@
 
 
 {%- macro bigquery__get_grant_sql(relation, privilege, grantee) -%}
-    grant `{{ privilege }}` on {{ relation.type }} {{ relation }} to {{ '\"' + grantee|join('\", \"') + '\"' }}
+    {% set relation_type_overrides = {
+          "materialized_view": "materialized view"
+        }
+    %}
+    {% set relation_type = relation_type_overrides.get(relation.type, relation.type) %}
+    grant `{{ privilege }}` on {{ relation_type }} {{ relation }} to {{ '\"' + grantee|join('\", \"') + '\"' }}
 {%- endmacro -%}
 
 {%- macro bigquery__get_revoke_sql(relation, privilege, grantee) -%}
-    revoke `{{ privilege }}` on {{ relation.type }} {{ relation }} from {{ '\"' + grantee|join('\", \"') + '\"' }}
+    {% set relation_type_overrides = {
+          "materialized_view": "materialized view"
+        }
+    %}
+    {% set relation_type = relation_type_overrides.get(relation.type, relation.type) %}
+    revoke `{{ privilege }}` on {{ relation_type }} {{ relation }} from {{ '\"' + grantee|join('\", \"') + '\"' }}
 {%- endmacro -%}

@@ -1,0 +1,6 @@
+kind: Fixes
+body: Fix grants statements on materialized views
+time: 2024-06-25T14:03:29.437827546Z
+custom:
+    Author: AcidFlow
+    Issue: "1268"

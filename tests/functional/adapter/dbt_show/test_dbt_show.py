@@ -59,4 +59,4 @@ class TestBigQueryShowSqlWorksWithJSONStruct:
 
 
 class TestBigQueryShowDoesNotHandleDoubleLimit(BaseShowDoesNotHandleDoubleLimit):
-    pass
+    DATABASE_ERROR_MESSAGE = "Syntax error: Expected end of input but got keyword LIMIT"

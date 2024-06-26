@@ -121,10 +121,12 @@
         end as table_name,
         tables.table_type,
         tables.table_comment,
-        columns.column_name,
-        columns.column_index,
-        columns.column_type,
-        columns.column_comment,
+        -- coalesce column metadata fields to ensure they are non-null for catalog generation
+        -- external table columns are not present in COLUMN_FIELD_PATHS
+        coalesce(columns.column_name, '<unknown>') as column_name,
+        coalesce(columns.column_index, 1) as column_index,
+        coalesce(columns.column_type, '<unknown>') as column_type,
+        coalesce(columns.column_comment, '') as column_comment,
 
         'Shard count' as `stats__date_shards__label`,
         table_stats.shard_count as `stats__date_shards__value`,

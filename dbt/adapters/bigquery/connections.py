@@ -1,3 +1,4 @@
+from concurrent.futures import TimeoutError
 import json
 import re
 from contextlib import contextmanager
@@ -9,9 +10,8 @@ from dbt_common.events.contextvars import get_node_info
 from mashumaro.helper import pass_through
 
 from functools import lru_cache
-import agate
 from requests.exceptions import ConnectionError
-from typing import Optional, Any, Dict, Tuple
+from typing import Optional, Any, Dict, Tuple, TYPE_CHECKING
 
 import google.auth
 import google.auth.exceptions
@@ -25,7 +25,6 @@ from google.oauth2 import (
 )
 
 from dbt.adapters.bigquery import gcloud
-from dbt_common.clients import agate_helper
 from dbt.adapters.contracts.connection import ConnectionState, AdapterResponse, Credentials
 from dbt_common.exceptions import (
     DbtRuntimeError,
@@ -39,8 +38,14 @@ from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery
 from dbt_common.events.functions import fire_event
 from dbt.adapters.bigquery import __version__ as dbt_version
+from dbt.adapters.bigquery.utility import is_base64, base64_to_string
 
 from dbt_common.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
+
+if TYPE_CHECKING:
+    # Indirectly imported via agate_helper, which is lazy loaded further downfile.
+    # Used by mypy for earlier type hints.
+    import agate
 
 logger = AdapterLogger("BigQuery")
 
@@ -124,7 +129,7 @@ class BigQueryCredentials(Credentials):
     job_creation_timeout_seconds: Optional[int] = None
     job_execution_timeout_seconds: Optional[int] = None
 
-    # Keyfile json creds
+    # Keyfile json creds (unicode or base 64 encoded)
     keyfile: Optional[str] = None
     keyfile_json: Optional[Dict[str, Any]] = None
 
@@ -331,6 +336,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON:
             details = profile_credentials.keyfile_json
+            if is_base64(profile_credentials.keyfile_json):
+                details = base64_to_string(details)
             return creds.from_service_account_info(details, scopes=profile_credentials.scopes)
 
         elif method == BigQueryConnectionMethod.OAUTH_SECRETS:
@@ -427,7 +434,9 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return credentials.job_retry_deadline_seconds
 
     @classmethod
-    def get_table_from_response(cls, resp):
+    def get_table_from_response(cls, resp) -> "agate.Table":
+        from dbt_common.clients import agate_helper
+
         column_names = [field.name for field in resp.schema]
         return agate_helper.table_from_data_flat(resp, column_names)
 
@@ -494,7 +503,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
     def execute(
         self, sql, auto_begin=False, fetch=None, limit: Optional[int] = None
-    ) -> Tuple[BigQueryAdapterResponse, agate.Table]:
+    ) -> Tuple[BigQueryAdapterResponse, "agate.Table"]:
         sql = self._add_query_comment(sql)
         # auto_begin is ignored on bigquery, and only included for consistency
         query_job, iterator = self.raw_execute(sql, limit=limit)
@@ -502,6 +511,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
         if fetch:
             table = self.get_table_from_response(iterator)
         else:
+            from dbt_common.clients import agate_helper
+
             table = agate_helper.empty_table()
 
         message = "OK"
@@ -736,9 +747,12 @@ class BigQueryConnectionManager(BaseConnectionManager):
             logger.debug(
                 self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
             )
-
-        iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
-        return query_job, iterator
+        try:
+            iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
+            return query_job, iterator
+        except TimeoutError:
+            exc = f"Operation did not complete within the designated timeout of {job_execution_timeout} seconds."
+            raise TimeoutError(exc)
 
     def _retry_and_handle(self, msg, conn, fn):
         """retry a function call within the context of exception_handler."""

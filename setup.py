@@ -36,7 +36,6 @@ def _dbt_bigquery_version() -> str:
 
 
 package_name = "dbt-bigquery"
-package_version = "1.8.0b2"
 description = """The BigQuery adapter plugin for dbt"""
 
 setup(
@@ -51,8 +50,8 @@ setup(
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
     install_requires=[
-        "dbt-common>=0.1.0a1,<2.0",
-        "dbt-adapters>=0.1.0a1,<2.0",
+        "dbt-common>=1.0.4,<2.0",
+        "dbt-adapters>=1.1.1,<2.0",
         # 3.20 introduced pyarrow>=3.0 under the `pandas` extra
         "google-cloud-bigquery[pandas]>=3.0,<4.0",
         "google-cloud-storage~=2.4",
@@ -61,7 +60,7 @@ setup(
         # Expect compatibility with all new versions of these packages, so lower bounds only.
         "google-api-core>=2.11.0",
         # add dbt-core to ensure backwards compatibility of installation, this is not a functional dependency
-        "dbt-core>=1.8.0a1",
+        "dbt-core>=1.8.0",
     ],
     zip_safe=False,
     classifiers=[

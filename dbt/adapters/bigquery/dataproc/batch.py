@@ -35,7 +35,7 @@ def poll_batch_job(
     response = None
     run_time = 0
     while state in _BATCH_RUNNING_STATES and run_time < timeout:
-        time.sleep(1)
+        time.sleep(1) if state == Batch.State.RUNNING else time.sleep(10)
         response = job_client.get_batch(  # type: ignore
             request=GetBatchRequest(name=batch_name),  # type: ignore
             retry=Retry()

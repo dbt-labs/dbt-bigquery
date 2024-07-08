@@ -9,6 +9,7 @@ from google.cloud.dataproc_v1 import (
     GetBatchRequest,
 )
 from google.protobuf.json_format import ParseDict
+from google.api_core.retry import Retry
 
 from dbt.adapters.bigquery.connections import DataprocBatchConfig
 
@@ -37,6 +38,7 @@ def poll_batch_job(
         time.sleep(1)
         response = job_client.get_batch(  # type: ignore
             request=GetBatchRequest(name=batch_name),  # type: ignore
+            retry=Retry()
         )
         run_time = datetime.now().timestamp() - response.create_time.timestamp()  # type: ignore
         state = response.state

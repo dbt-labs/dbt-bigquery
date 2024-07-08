@@ -1,0 +1,6 @@
+kind: Fixes
+body: Retry Dataproc serverless transient errors
+time: 2024-07-08T17:44:37.756623827Z
+custom:
+    Author: OSalama
+    Issue: "1271"

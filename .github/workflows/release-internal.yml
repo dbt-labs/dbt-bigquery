@@ -40,21 +40,21 @@ defaults:
     shell: bash
 
 jobs:
-  get-last-successful-run:
+  get-last-successful-release-run:
     runs-on: ubuntu-latest
     outputs:
-      commit_sha: ${{ steps.get_last_successful_run.outputs.commit_sha }}
+      commit_sha: ${{ steps.get_last_successful_release_run.outputs.commit_sha }}
     steps:
-      - name: Get last successful run details
-        id: get_last_successful_run
+      - name: Get last successful Release to Cloud run details
+        id: get_last_successful_release_run
         run: |
-          last_run_url=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/runs?event=workflow_dispatch&status=success&branch=${{ github.ref }}" | jq -r '.workflow_runs[0].url')
+          last_run_url=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/runs?event=workflow_dispatch&status=success&branch=${{ github.ref }}&workflow_file=release.internal.yml" | jq -r '.workflow_runs[0].url')
           commit_sha=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" $last_run_url | jq -r '.head_sha')
           echo "::set-output name=commit_sha::$commit_sha"
 
   check-for-new-commits:
     runs-on: ubuntu-latest
-    needs: get-last-successful-run
+    needs: get-last-successful-release-run
     outputs:
       new_commits: ${{ steps.check_new_commits.outputs.new_commits }}
     steps:

@@ -40,27 +40,28 @@ defaults:
     shell: bash
 
 jobs:
-  get-latest-release:
+  get-last-successful-run:
     runs-on: ubuntu-latest
     outputs:
-      latest_release: ${{ steps.get_latest_release.outputs.latest_release }}
+      commit_sha: ${{ steps.get_last_successful_run.outputs.commit_sha }}
     steps:
-      - name: Get latest release
-        id: get_latest_release
+      - name: Get last successful run details
+        id: get_last_successful_run
         run: |
-          latest_release=$(curl --silent "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r .tag_name)
-          echo "::set-output name=latest_release::$latest_release"
+          last_run_url=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/runs?event=workflow_dispatch&status=success&branch=${{ github.ref }}" | jq -r '.workflow_runs[0].url')
+          commit_sha=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" $last_run_url | jq -r '.head_sha')
+          echo "::set-output name=commit_sha::$commit_sha"
 
   check-for-new-commits:
     runs-on: ubuntu-latest
-    needs: get-latest-release
+    needs: get-last-successful-run
     outputs:
       new_commits: ${{ steps.check_new_commits.outputs.new_commits }}
     steps:
       - name: Check for new commits since last release
         id: check_new_commits
         run: |
-          last_release_date=$(curl --silent "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ needs.get-latest-release.outputs.latest_release }}" | jq -r .published_at)
+          last_release_date=$(curl --silent "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ needs.get-last-successful-run.outputs.commit_sha }}" | jq -r .published_at)
           new_commits=$(git rev-list --count --since="$last_release_date" ${{ inputs.ref }})
           echo "::set-output name=new_commits::$new_commits"
 

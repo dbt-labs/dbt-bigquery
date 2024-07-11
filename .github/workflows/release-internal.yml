@@ -48,12 +48,11 @@ jobs:
       - name: Get last successful Release to Cloud run details
         id: get_last_successful_release_run
         run: |
-          last_run_url=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/runs?event=workflow_dispatch&status=success&branch=${{ github.ref }}&workflow_file=release.internal.yml" | jq -r '.workflow_runs[0].url')
+          last_run_url=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/runs?event=workflow_dispatch&status=success&branch=main&workflow_file=release-internal.yml" | jq -r '.workflow_runs[0].url')
           echo "Last run URL: $last_run_url"
           commit_sha=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" $last_run_url | jq -r '.head_sha')
           echo "Commit SHA: $commit_sha"
           echo "::set-output name=commit_sha::$commit_sha"
-
   check-for-new-commits:
     runs-on: ubuntu-latest
     needs: get-last-successful-release-run

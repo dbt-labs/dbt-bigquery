@@ -49,24 +49,34 @@ jobs:
         id: get_last_successful_release_run
         run: |
           last_run_url=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/runs?event=workflow_dispatch&status=success&branch=${{ github.ref }}&workflow_file=release.internal.yml" | jq -r '.workflow_runs[0].url')
+          echo "Last run URL: $last_run_url"
           commit_sha=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" $last_run_url | jq -r '.head_sha')
+          echo "Commit SHA: $commit_sha"
           echo "::set-output name=commit_sha::$commit_sha"
 
   check-for-new-commits:
     runs-on: ubuntu-latest
     needs: get-last-successful-release-run
     outputs:
-      new_commits: ${{ steps.check_new_commits.outputs.new_commits }}
+      latest_commit_sha: ${{ steps.check_new_commits.outputs.latest_commit_sha }}
+      has_new_commits: ${{ steps.check_new_commits.outputs.has_new_commits }}
     steps:
-      - name: Check for new commits since last release
+      - name: Check for new commits since last Release to Cloud run
         id: check_new_commits
         run: |
-          last_release_date=$(curl --silent "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ needs.get-last-successful-run.outputs.commit_sha }}" | jq -r .published_at)
-          new_commits=$(git rev-list --count --since="$last_release_date" ${{ inputs.ref }})
-          echo "::set-output name=new_commits::$new_commits"
+          last_commit_sha=${{ needs.get-last-successful-release-run.outputs.commit_sha }}
+          echo "Last successful commit SHA: $last_commit_sha"
+          latest_commit_sha=$(git rev-parse ${{ inputs.ref }})
+          echo "Latest commit SHA: $latest_commit_sha"
+          if [ "$last_commit_sha" != "$latest_commit_sha" ]; then
+            echo "::set-output name=has_new_commits::true"
+          else
+            echo "::set-output name=has_new_commits::false"
+          fi
+          echo "::set-output name=latest_commit_sha::$latest_commit_sha"
 
   invoke-reusable-workflow:
-    if: needs.check-for-new-commits.output.new_commits != '0'
+    if: needs.check-for-new-commits.outputs.has_new_commits == 'true'
     name: "Build and Release Internally"
     uses: "dbt-labs/dbt-release/.github/workflows/internal-archive-release.yml@main"
     with:
@@ -74,4 +84,4 @@ jobs:
       dbms_name: "bigquery"
       ref: "${{ inputs.ref }}"
       skip_tests: "${{ inputs.skip_tests }}"
-    secrets: "inherit"
+    secrets: inherit

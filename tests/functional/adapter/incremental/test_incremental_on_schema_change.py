@@ -4,7 +4,7 @@ from dbt.tests.adapter.incremental.test_incremental_on_schema_change import (
     BaseIncrementalOnSchemaChangeSetup,
     BaseIncrementalOnSchemaChange,
 )
-
+from dbt.tests.util import run_dbt, run_dbt_and_capture
 from dbt.tests.adapter.incremental.fixtures import (
     _MODELS__A,
     _MODELS__INCREMENTAL_SYNC_ALL_COLUMNS_TARGET,
@@ -251,3 +251,59 @@ class TestIncrementalOnSchemaChangeBigQuerySpecific(BaseIncrementalOnSchemaChang
         compare_source = "incremental_sync_all_columns_time_ingestion_partitioning"
         compare_target = "incremental_sync_all_columns_time_ingestion_partitioning_target"
         self.run_twice_and_assert(select, compare_source, compare_target, project)
+
+
+_MODELS__SRC_ARTISTS = """
+{{
+    config(
+        materialized='table',
+    )
+}}
+{% if var("version", 0) == 0 %}
+    select {{ dbt.current_timestamp() }} as inserted_at, 'john' as name
+{% else %}
+    -- add a non-zero version to the end of the command to get a different version:
+    -- --vars "{'version': 1}"
+    select {{ dbt.current_timestamp() }} as inserted_at, 'engineer' as Job,
+{% endif %}
+"""
+
+_MODELS__DIM_ARTISTS = """
+{{
+    config(
+        materialized='incremental',
+        on_schema_change='append_new_columns',
+    )
+}}
+select  * from {{ ref("src_artists") }}
+"""
+
+
+class BaseBigQueryIncrementalCaseSenstivityOnSchemaChange:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "src_artists.sql": _MODELS__SRC_ARTISTS,
+            "dim_artists.sql": _MODELS__DIM_ARTISTS,
+        }
+
+    def test_incremental_case_sensitivity(self, project):
+        select = "src_artists dim_artists"
+        run_dbt(["run", "--models", select, "--full-refresh"])
+        run_dbt(["show", "--inline", "select * from {{ ref('dim_artists') }}"])
+        res, logs = run_dbt_and_capture(
+            ["show", "--inline", "select * from {{ ref('dim_artists') }}"]
+        )
+        assert "Job" not in logs
+        run_dbt(["run", "--vars", "{'version': 1}"])
+        run_dbt(["show", "--inline", "select * from {{ ref('dim_artists') }}"])
+        res, logs = run_dbt_and_capture(
+            ["show", "--inline", "select * from {{ ref('dim_artists') }}"]
+        )
+        assert "Job" in logs
+
+
+class TestBigQueryIncrementalCaseSenstivityOnSchemaChange(
+    BaseBigQueryIncrementalCaseSenstivityOnSchemaChange
+):
+    pass

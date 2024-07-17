@@ -1,7 +1,7 @@
 import uuid
 from typing import Dict, Union
 
-from dbt.events import AdapterLogger
+from dbt.adapters.events.logging import AdapterLogger
 
 from dbt.adapters.base import PythonJobHelper
 from google.api_core.future.polling import POLLING_PREDICATE

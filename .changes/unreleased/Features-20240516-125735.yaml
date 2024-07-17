@@ -1,0 +1,6 @@
+kind: Features
+body: Add support for base 64 encoded json keyfile credentials
+time: 2024-05-16T12:57:35.383416-07:00
+custom:
+    Author: robeleb1
+    Issue: "923"

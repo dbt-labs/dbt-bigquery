@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: create test for checking case sensitivity on incrmeneal models that add new columns
+time: 2024-07-17T10:16:01.119077-05:00
+custom:
+    Author: McKnight-42
+    Issue: "1277"

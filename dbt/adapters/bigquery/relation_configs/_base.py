@@ -1,7 +1,6 @@
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Optional, Dict, TYPE_CHECKING
 
-import agate
 from dbt.adapters.base.relation import Policy
 from dbt.adapters.relation_configs import RelationConfigBase
 from google.cloud.bigquery import Table as BigQueryTable
@@ -12,6 +11,11 @@ from dbt.adapters.bigquery.relation_configs._policies import (
     BigQueryQuotePolicy,
 )
 from dbt.adapters.contracts.relation import ComponentName, RelationConfig
+
+if TYPE_CHECKING:
+    # Indirectly imported via agate_helper, which is lazy loaded further downfile.
+    # Used by mypy for earlier type hints.
+    import agate
 
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
@@ -55,8 +59,10 @@ class BigQueryBaseRelationConfig(RelationConfigBase):
         return None
 
     @classmethod
-    def _get_first_row(cls, results: agate.Table) -> agate.Row:
+    def _get_first_row(cls, results: "agate.Table") -> "agate.Row":
         try:
             return results.rows[0]
         except IndexError:
+            import agate
+
             return agate.Row(values=set())

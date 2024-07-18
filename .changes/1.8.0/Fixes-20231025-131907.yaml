@@ -1,6 +1,0 @@
-kind: Fixes
-body: Lower bound of `2.11.0` for `google-api-core`
-time: 2023-10-25T13:19:07.580826-06:00
-custom:
-  Author: gmyrianthous dbeatty10
-  Issue: "979"

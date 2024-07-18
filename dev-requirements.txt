@@ -7,7 +7,6 @@ git+https://github.com/dbt-labs/dbt-adapters.git#subdirectory=dbt-tests-adapter
 # if version 1.x or greater -> pin to major version
 # if version 0.x -> pin to minor
 black>=24.3
-bumpversion~=0.6.0
 click~=8.1
 ddtrace==2.3.0
 flake8~=7.0
@@ -29,5 +28,5 @@ tox~=4.11
 types-pytz~=2023.3
 types-protobuf~=4.24
 types-requests~=2.31
-twine~=4.0
-wheel~=0.42
+
+-r build-requirements.txt

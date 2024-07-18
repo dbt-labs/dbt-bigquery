@@ -9,7 +9,7 @@ from google.api_core.future.polling import POLLING_PREDICATE
 from dbt.adapters.bigquery import BigQueryConnectionManager, BigQueryCredentials
 from google.api_core import retry
 from google.api_core.client_options import ClientOptions
-from google.cloud import storage, dataproc_v1  # type: ignore
+from google.cloud import storage, dataproc_v1
 from google.cloud.dataproc_v1.types.batches import Batch
 
 from dbt.adapters.bigquery.dataproc.batch import (
@@ -89,7 +89,7 @@ class ClusterDataprocHelper(BaseDataProcHelper):
             raise ValueError(
                 "Need to supply dataproc_cluster_name in profile or config to submit python job with cluster submission method"
             )
-        return dataproc_v1.JobControllerClient(  # type: ignore
+        return dataproc_v1.JobControllerClient(
             client_options=self.client_options, credentials=self.GoogleCredentials
         )
 
@@ -105,7 +105,7 @@ class ClusterDataprocHelper(BaseDataProcHelper):
                 "main_python_file_uri": self.gcs_location,
             },
         }
-        operation = self.job_client.submit_job_as_operation(  # type: ignore
+        operation = self.job_client.submit_job_as_operation(
             request={
                 "project_id": self.credential.execution_project,
                 "region": self.credential.dataproc_region,
@@ -138,13 +138,13 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
             batch_id=batch_id,
             region=self.credential.dataproc_region,  # type: ignore
             project=self.credential.execution_project,  # type: ignore
-        )  # type: ignore
+        )
         # make the request
-        self.job_client.create_batch(request=request)  # type: ignore
+        self.job_client.create_batch(request=request)
         return poll_batch_job(
             parent=request.parent,
             batch_id=batch_id,
-            job_client=self.job_client,  # type: ignore
+            job_client=self.job_client,
             timeout=self.timeout,
         )
         # there might be useful results here that we can parse and return

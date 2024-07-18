@@ -20,9 +20,9 @@ def create_batch_request(
     batch: Batch, batch_id: str, project: str, region: str
 ) -> CreateBatchRequest:
     return CreateBatchRequest(
-        parent=f"projects/{project}/locations/{region}",  # type: ignore
-        batch_id=batch_id,  # type: ignore
-        batch=batch,  # type: ignore
+        parent=f"projects/{project}/locations/{region}",
+        batch_id=batch_id,
+        batch=batch,
     )
 
 
@@ -35,10 +35,10 @@ def poll_batch_job(
     run_time = 0
     while state in _BATCH_RUNNING_STATES and run_time < timeout:
         time.sleep(1)
-        response = job_client.get_batch(  # type: ignore
-            request=GetBatchRequest(name=batch_name),  # type: ignore
+        response = job_client.get_batch(
+            request=GetBatchRequest(name=batch_name),
         )
-        run_time = datetime.now().timestamp() - response.create_time.timestamp()  # type: ignore
+        run_time = datetime.now().timestamp() - response.create_time.timestamp()
         state = response.state
     if not response:
         raise ValueError("No response from Dataproc")

@@ -97,6 +97,7 @@ jobs:
               - 'dbt/**'
               - 'tests/**'
               - 'dev-requirements.txt'
+              - '.github/**'
 
       - name: Generate integration test matrix
         id: generate-matrix

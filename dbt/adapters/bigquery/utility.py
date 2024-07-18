@@ -1,7 +1,9 @@
+import base64
+import binascii
 import json
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
-import dbt.exceptions
+import dbt_common.exceptions
 
 
 def bool_setting(value: Optional[Any] = None) -> Optional[bool]:
@@ -41,5 +43,41 @@ def float_setting(value: Optional[Any] = None) -> Optional[float]:
 
 def sql_escape(string):
     if not isinstance(string, str):
-        raise dbt.exceptions.CompilationError(f"cannot escape a non-string: {string}")
+        raise dbt_common.exceptions.CompilationError(f"cannot escape a non-string: {string}")
     return json.dumps(string)[1:-1]
+
+
+def is_base64(s: Union[str, bytes]) -> bool:
+    """
+    Checks if the given string or bytes object is valid Base64 encoded.
+
+    Args:
+        s: The string or bytes object to check.
+
+    Returns:
+        True if the input is valid Base64, False otherwise.
+    """
+
+    if isinstance(s, str):
+        # For strings, ensure they consist only of valid Base64 characters
+        if not s.isascii():
+            return False
+        # Convert to bytes for decoding
+        s = s.encode("ascii")
+
+    try:
+        # Use the 'validate' parameter to enforce strict Base64 decoding rules
+        base64.b64decode(s, validate=True)
+        return True
+    except TypeError:
+        return False
+    except binascii.Error:  # Catch specific errors from the base64 module
+        return False
+
+
+def base64_to_string(b):
+    return base64.b64decode(b).decode("utf-8")
+
+
+def string_to_base64(s):
+    return base64.b64encode(s.encode("utf-8"))

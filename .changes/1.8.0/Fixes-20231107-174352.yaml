@@ -1,7 +1,0 @@
-kind: Fixes
-body: Fixed issue where materialized views were failing on re-run with minimal config
-  parameters
-time: 2023-11-07T17:43:52.972135-05:00
-custom:
-  Author: "mikealfare"
-  Issue: "1007"

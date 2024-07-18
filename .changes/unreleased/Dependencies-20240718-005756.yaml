@@ -1,0 +1,6 @@
+kind: "Dependencies"
+body: "Update flaky requirement from ~=3.7 to ~=3.8"
+time: 2024-07-18T00:57:56.00000Z
+custom:
+  Author: dependabot[bot]
+  PR: 1283

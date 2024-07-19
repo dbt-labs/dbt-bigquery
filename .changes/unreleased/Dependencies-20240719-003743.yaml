@@ -1,0 +1,6 @@
+kind: "Dependencies"
+body: "Update types-protobuf requirement from ~=4.24 to ~=5.27"
+time: 2024-07-19T00:37:43.00000Z
+custom:
+  Author: dependabot[bot]
+  PR: 1292

@@ -50,8 +50,16 @@ jobs:
         id: get_last_successful_release_run
         run: |
           last_run_url=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/runs?event=workflow_dispatch&status=success&branch=main&workflow_file=release-internal.yml" | jq -r '.workflow_runs[0].url')
+          if [ -z "$last_run_url" ]; then
+            echo "No successful Release to Cloud run found."
+            exit 1
+          fi
           echo "Last run URL: $last_run_url"
-          commit_sha=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" $last_run_url | jq -r '.head_sha')
+          commit_sha=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$last_run_url" | jq -r '.head_sha')
+          if [ -z "$commit_sha" ]; then
+            echo "No commit SHA found for the last successful run."
+            exit 1
+          fi
           echo "Commit SHA: $commit_sha"
           echo "commit_sha=$commit_sha" >> "$GITHUB_OUTPUT"
 

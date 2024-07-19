@@ -9,6 +9,7 @@
 # When?
 #
 # Manual trigger or cron job every wednesday morning.
+# action will check if a new commit was added if not should do nothing
 
 name: "Release to Cloud"
 run-name: "Release to Cloud off of ${{ inputs.ref }}"
@@ -52,7 +53,8 @@ jobs:
           echo "Last run URL: $last_run_url"
           commit_sha=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" $last_run_url | jq -r '.head_sha')
           echo "Commit SHA: $commit_sha"
-          echo "::set-output name=commit_sha::$commit_sha"
+          echo "commit_sha=$commit_sha" >> "$GITHUB_OUTPUT"
+
   check-for-new-commits:
     runs-on: ubuntu-latest
     needs: get-last-successful-release-run
@@ -60,21 +62,25 @@ jobs:
       latest_commit_sha: ${{ steps.check_new_commits.outputs.latest_commit_sha }}
       has_new_commits: ${{ steps.check_new_commits.outputs.has_new_commits }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
       - name: Check for new commits since last Release to Cloud run
         id: check_new_commits
         run: |
-          last_commit_sha=${{ needs.get-last-successful-release-run.outputs.commit_sha }}
-          echo "Last successful commit SHA: $last_commit_sha"
+          last_released_commit_sha=${{ needs.get-last-successful-release-run.outputs.commit_sha }}
+          echo "Last released commit SHA: $last_released_commit_sha"
           latest_commit_sha=$(git rev-parse ${{ inputs.ref }})
           echo "Latest commit SHA: $latest_commit_sha"
-          if [ "$last_commit_sha" != "$latest_commit_sha" ]; then
-            echo "::set-output name=has_new_commits::true"
+          if [ "$last_released_commit_sha" != "$latest_commit_sha" ]; then
+            echo "has_new_commits=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::set-output name=has_new_commits::false"
+            echo "has_new_commits=false" >> "$GITHUB_OUTPUT"
           fi
-          echo "::set-output name=latest_commit_sha::$latest_commit_sha"
+          echo "latest_commit_sha=$latest_commit_sha" >> "$GITHUB_OUTPUT"
 
   invoke-reusable-workflow:
+    needs: check-for-new-commits
     if: needs.check-for-new-commits.outputs.has_new_commits == 'true'
     name: "Build and Release Internally"
     uses: "dbt-labs/dbt-release/.github/workflows/internal-archive-release.yml@main"
@@ -83,4 +89,4 @@ jobs:
       dbms_name: "bigquery"
       ref: "${{ inputs.ref }}"
       skip_tests: "${{ inputs.skip_tests }}"
-    secrets: inherit
+    secrets: "inherit"

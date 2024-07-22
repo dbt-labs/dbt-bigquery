@@ -10,7 +10,7 @@ black>=24.3
 bumpversion~=0.6.0
 click~=8.1
 ddtrace==2.3.0
-flake8~=7.0
+flake8~=7.1
 flaky~=3.8
 freezegun~=1.4
 ipdb~=0.13.13

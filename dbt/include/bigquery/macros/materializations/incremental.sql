@@ -151,10 +151,6 @@
       {{ build_sql }}
     {% endcall %}
 
-    {%- if language == 'python' and tmp_relation -%}
-      {{ adapter.drop_relation(tmp_relation) }}
-    {%- endif -%}
-
   {% endif %}
 
   {{ run_hooks(post_hooks) }}
@@ -165,6 +161,10 @@
   {% do apply_grants(target_relation, grant_config, should_revoke) %}
 
   {% do persist_docs(target_relation, model) %}
+
+  {%- if tmp_relation_exists -%}
+    {{ adapter.drop_relation(tmp_relation) }}
+  {%- endif -%}
 
   {{ return({'relations': [target_relation]}) }}
 

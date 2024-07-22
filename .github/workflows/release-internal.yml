@@ -32,6 +32,11 @@ on:
         type: boolean
         required: true
         default: false
+      dry_run:
+        description: "Is this a dry run? (default to false)"
+        type: boolean
+        required: true
+        default: false
 
   schedule:
     - cron: '0 13 * * 3' # Every Wednesday at 8:00 AM central time
@@ -41,14 +46,19 @@ defaults:
     shell: bash
 
 jobs:
-  get-last-successful-release-run:
+  check-for-new-commits:
     runs-on: ubuntu-latest
     outputs:
-      commit_sha: ${{ steps.get_last_successful_release_run.outputs.commit_sha }}
+      latest_commit_sha: ${{ steps.check_new_commits.outputs.latest_commit_sha }}
+      has_new_commits: ${{ steps.check_new_commits.outputs.has_new_commits }}
     steps:
-      - name: Get last successful Release to Cloud run details
-        id: get_last_successful_release_run
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Get last successful Release to Cloud run details and check for new commits
+        id: check_new_commits
         run: |
+          # Get last successful Release to Cloud run details
           last_run_url=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/runs?event=workflow_dispatch&status=success&branch=main&workflow_file=release-internal.yml" | jq -r '.workflow_runs[0].url')
           if [ -z "$last_run_url" ]; then
             echo "No successful Release to Cloud run found."
@@ -61,35 +71,26 @@ jobs:
             exit 1
           fi
           echo "Commit SHA: $commit_sha"
-          echo "commit_sha=$commit_sha" >> "$GITHUB_OUTPUT"
 
-  check-for-new-commits:
-    runs-on: ubuntu-latest
-    needs: get-last-successful-release-run
-    outputs:
-      latest_commit_sha: ${{ steps.check_new_commits.outputs.latest_commit_sha }}
-      has_new_commits: ${{ steps.check_new_commits.outputs.has_new_commits }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Check for new commits since last Release to Cloud run
-        id: check_new_commits
-        run: |
-          last_released_commit_sha=${{ needs.get-last-successful-release-run.outputs.commit_sha }}
-          echo "Last released commit SHA: $last_released_commit_sha"
+          # Check for new commits
+          echo "Last released commit SHA: $commit_sha"
           latest_commit_sha=$(git rev-parse ${{ inputs.ref }})
           echo "Latest commit SHA: $latest_commit_sha"
-          if [ "$last_released_commit_sha" != "$latest_commit_sha" ]; then
+          if [ "$commit_sha" != "$latest_commit_sha" ]; then
             echo "has_new_commits=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_new_commits=false" >> "$GITHUB_OUTPUT"
           fi
           echo "latest_commit_sha=$latest_commit_sha" >> "$GITHUB_OUTPUT"
 
+          # Print the commit SHAs for dry run
+          if [ "${{ inputs.dry_run }}" == "true" ]; then
+            echo "::notice title=Dry Run::Last released commit SHA: $commit_sha, Latest commit SHA: $latest_commit_sha"
+          fi
+
   invoke-reusable-workflow:
     needs: check-for-new-commits
-    if: needs.check-for-new-commits.outputs.has_new_commits == 'true'
+    if: needs.check-for-new-commits.outputs.has_new_commits == 'true' && inputs.dry_run == 'false'
     name: "Build and Release Internally"
     uses: "dbt-labs/dbt-release/.github/workflows/internal-archive-release.yml@main"
     with:

@@ -54,6 +54,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags
+
+      - name: Fetch ref
+        run: |
+          git fetch origin ${{ inputs.ref }}:${{ inputs.ref }}
 
       - name: Get last successful Release to Cloud run details and check for new commits
         id: check_new_commits

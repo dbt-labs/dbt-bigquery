@@ -1,0 +1,6 @@
+kind: Fixes
+body: Drop intermediate objects created in BigQuery for incremental models
+time: 2024-01-20T18:08:18.817915-06:00
+custom:
+  Author: vinit2107
+  Issue: "1036"

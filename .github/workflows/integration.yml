@@ -97,6 +97,7 @@ jobs:
               - 'dbt/**'
               - 'tests/**'
               - 'dev-requirements.txt'
+              - '.github/**'
 
       - name: Generate integration test matrix
         id: generate-matrix
@@ -188,11 +189,12 @@ jobs:
           GCS_BUCKET: dbt-ci
         run: tox -- --ddtrace
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: logs
           path: ./logs
+          overwrite: true
 
       - name: Get current date
         if: always()
@@ -200,11 +202,12 @@ jobs:
         run: |
           echo "date=$(date +'%Y-%m-%dT%H_%M_%S')" >> $GITHUB_OUTPUT #no colons allowed for artifacts
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: integration_results_${{ matrix.python-version }}_${{ matrix.os }}_${{ matrix.adapter }}-${{ steps.date.outputs.date }}.csv
           path: integration_results.csv
+          overwrite: true
 
   # python integration tests are slow so we only run them seperately and for a single OS / python version
   test-python:

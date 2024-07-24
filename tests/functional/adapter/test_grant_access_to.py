@@ -3,7 +3,7 @@ import time
 import pytest
 
 from dbt.tests.util import run_dbt
-
+import re
 
 def select_1(dataset: str, materialized: str):
     config = f"""config(
@@ -84,6 +84,21 @@ class TestAccessGrantSucceeds:
         time.sleep(10)
         results = run_dbt(["run"])
         assert len(results) == 2
+
+
+
+class TestAccessGrantSucceedsWithFullRefresh(TestAccessGrantSucceeds):
+    def test_grant_access_succeeds(self, project, setup_grant_schema, teardown_grant_schema,capsys):
+        # Need to run twice to validate idempotency
+        results = run_dbt(["run"])
+        assert len(results) == 2
+        time.sleep(10)
+        results = run_dbt(["run","--full-refresh"])
+        assert len(results) == 2
+        captured = capsys.readouterr()
+        assert not re.search(r"BigQuery adapter: Access entry <AccessEntry: .* already exists in dataset",captured[0])
+
+
 
 
 class TestAccessGrantFails:

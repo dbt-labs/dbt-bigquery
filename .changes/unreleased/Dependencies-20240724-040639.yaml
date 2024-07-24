@@ -1,0 +1,6 @@
+kind: "Dependencies"
+body: "Update freezegun requirement from ~=1.4 to ~=1.5"
+time: 2024-07-24T04:06:39.00000Z
+custom:
+  Author: dependabot[bot]
+  PR: 1301

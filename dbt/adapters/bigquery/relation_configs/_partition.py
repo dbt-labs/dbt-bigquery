@@ -6,6 +6,7 @@ from dbt.adapters.relation_configs import RelationConfigChange
 from dbt.adapters.contracts.relation import RelationConfig
 from dbt_common.dataclass_schema import dbtClassMixin, ValidationError
 from google.cloud.bigquery.table import Table as BigQueryTable
+from typing_extensions import Self
 
 
 @dataclass
@@ -80,7 +81,7 @@ class PartitionConfig(dbtClassMixin):
             return self.render(alias)
 
     @classmethod
-    def parse(cls, raw_partition_by) -> Optional["PartitionConfig"]:
+    def parse(cls, raw_partition_by: Dict[str, Any]) -> Optional[Self]:
         if raw_partition_by is None:
             return None
         try:

@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-from typing import Optional, Dict, TYPE_CHECKING
+from typing import Dict, Hashable, Optional, TYPE_CHECKING
 
 from dbt.adapters.base.relation import Policy
-from dbt.adapters.relation_configs import RelationConfigBase
+from dbt.adapters.relation_configs import RelationConfigBase, RelationConfigChangeAction
 from google.cloud.bigquery import Table as BigQueryTable
 from typing_extensions import Self
 
@@ -66,3 +66,10 @@ class BigQueryBaseRelationConfig(RelationConfigBase):
             import agate
 
             return agate.Row(values=set())
+
+
+@dataclass(frozen=True, eq=True, unsafe_hash=True)
+class BigQueryRelationConfigChange(RelationConfigBase):
+    action: RelationConfigChangeAction
+    context: Optional[Hashable]
+    requires_full_refresh: Optional[bool] = False

@@ -1,0 +1,6 @@
+kind: Features
+body: Support allow_non_incremental_definition option in BigQuery materialized views
+time: 2023-11-08T14:07:52.28972-05:00
+custom:
+  Author: bnaul,mikealfare
+  Issue: "672"

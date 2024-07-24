@@ -1,19 +1,18 @@
 from dataclasses import dataclass, field
+from itertools import chain, islice
 from typing import FrozenSet, Optional, TypeVar
 
-from itertools import chain, islice
 from dbt.adapters.base.relation import BaseRelation, ComponentName, InformationSchema
-from dbt.adapters.relation_configs import RelationConfigChangeAction
-from dbt.adapters.bigquery.relation_configs import (
-    BigQueryClusterConfigChange,
-    BigQueryMaterializedViewConfig,
-    BigQueryMaterializedViewConfigChangeset,
-    BigQueryOptionsConfigChange,
-    BigQueryPartitionConfigChange,
-)
 from dbt.adapters.contracts.relation import RelationType, RelationConfig
+from dbt.adapters.relation_configs import RelationConfigChangeAction
 from dbt_common.exceptions import CompilationError
 from dbt_common.utils.dict import filter_null_values
+
+from dbt.adapters.bigquery.relation_configs import (
+    BigQueryMaterializedViewConfig,
+    BigQueryMaterializedViewConfigChangeset,
+    BigQueryRelationConfigChange,
+)
 
 
 Self = TypeVar("Self", bound="BigQueryRelation")
@@ -89,28 +88,66 @@ class BigQueryRelation(BaseRelation):
         config_change_collection = BigQueryMaterializedViewConfigChangeset()
         new_materialized_view = cls.materialized_view_from_relation_config(relation_config)
 
-        if new_materialized_view.options != existing_materialized_view.options:
-            config_change_collection.options = BigQueryOptionsConfigChange(
-                action=RelationConfigChangeAction.alter,
-                context=new_materialized_view.options,
+        def add_change(option: str, requires_full_refresh: bool):
+            cls._add_change(
+                config_change_collection=config_change_collection,
+                new_relation=new_materialized_view,
+                existing_relation=existing_materialized_view,
+                option=option,
+                requires_full_refresh=requires_full_refresh,
             )
 
-        if new_materialized_view.partition != existing_materialized_view.partition:
-            # the existing PartitionConfig is not hashable, but since we need to do
-            # a full refresh either way, we don't need to provide a context
-            config_change_collection.partition = BigQueryPartitionConfigChange(
-                action=RelationConfigChangeAction.alter,
-            )
-
-        if new_materialized_view.cluster != existing_materialized_view.cluster:
-            config_change_collection.cluster = BigQueryClusterConfigChange(
-                action=RelationConfigChangeAction.alter,
-                context=new_materialized_view.cluster,
-            )
+        add_change("partition", True)
+        add_change("cluster", True)
+        add_change("enable_refresh", False)
+        add_change("refresh_interval_minutes", False)
+        add_change("max_staleness", False)
+        add_change("allow_non_incremental_definition", True)
+        add_change("kms_key_name", False)
+        add_change("description", False)
+        add_change("labels", False)
 
         if config_change_collection.has_changes:
             return config_change_collection
         return None
+
+    @classmethod
+    def _add_change(
+        cls,
+        config_change_collection,
+        new_relation,
+        existing_relation,
+        option: str,
+        requires_full_refresh: bool,
+    ) -> None:
+        # if there's no change, don't do anything
+        if getattr(new_relation, option) == getattr(existing_relation, option):
+            return
+
+        # determine the type of change: drop, create, alter (includes full refresh)
+        if getattr(new_relation, option) is None:
+            action = RelationConfigChangeAction.drop
+        elif getattr(existing_relation, option) is None:
+            action = RelationConfigChangeAction.create
+        else:
+            action = RelationConfigChangeAction.alter
+
+        # don't worry about passing along the context if it's a going to result in a full refresh
+        if requires_full_refresh:
+            context = None
+        else:
+            context = getattr(new_relation, option)
+
+        # add the change to the collection for downstream processing
+        setattr(
+            config_change_collection,
+            option,
+            BigQueryRelationConfigChange(
+                action=action,
+                context=context,
+                requires_full_refresh=requires_full_refresh,
+            ),
+        )
 
     def information_schema(self, identifier: Optional[str] = None) -> "BigQueryInformationSchema":
         return BigQueryInformationSchema.from_relation(self, identifier)

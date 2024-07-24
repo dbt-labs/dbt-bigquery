@@ -46,7 +46,7 @@ class BigQueryMaterializedViewMixin:
         )
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self, project, my_base_table, my_other_base_table, my_materialized_view):  # type: ignore
+    def setup(self, project, my_materialized_view):
         run_dbt(["seed"])
         run_dbt(["run", "--full-refresh"])
 

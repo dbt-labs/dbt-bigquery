@@ -29,5 +29,5 @@ tox~=4.11
 types-pytz~=2023.3
 types-protobuf~=4.24
 types-requests~=2.31
-twine~=4.0
+twine~=5.1
 wheel~=0.42

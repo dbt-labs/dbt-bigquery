@@ -78,7 +78,7 @@ class BigQueryRelation(BaseRelation):
     def materialized_view_from_relation_config(
         cls, relation_config: RelationConfig
     ) -> BigQueryMaterializedViewConfig:
-        return BigQueryMaterializedViewConfig.from_relation_config(relation_config)  # type: ignore
+        return BigQueryMaterializedViewConfig.from_relation_config(relation_config)
 
     @classmethod
     def materialized_view_config_changeset(

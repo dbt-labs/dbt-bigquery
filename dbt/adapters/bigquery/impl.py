@@ -22,7 +22,7 @@ from typing import (
 from dbt.adapters.contracts.relation import RelationConfig
 
 import dbt_common.exceptions.base
-from dbt.adapters.base import (  # type: ignore
+from dbt.adapters.base import (
     AdapterConfig,
     BaseAdapter,
     BaseRelation,
@@ -33,11 +33,15 @@ from dbt.adapters.base import (  # type: ignore
     available,
 )
 from dbt.adapters.base.impl import FreshnessResponse
-from dbt.adapters.cache import _make_ref_key_dict  # type: ignore
+from dbt.adapters.cache import _make_ref_key_dict
 from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
 from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.adapters.contracts.macros import MacroResolverProtocol
-from dbt_common.contracts.constraints import ColumnLevelConstraint, ConstraintType, ModelLevelConstraint  # type: ignore
+from dbt_common.contracts.constraints import (
+    ColumnLevelConstraint,
+    ConstraintType,
+    ModelLevelConstraint,
+)
 from dbt_common.dataclass_schema import dbtClassMixin
 from dbt.adapters.events.logging import AdapterLogger
 from dbt_common.events.functions import fire_event
@@ -163,7 +167,7 @@ class BigQueryAdapter(BaseAdapter):
         return False
 
     def drop_relation(self, relation: BigQueryRelation) -> None:
-        is_cached = self._schema_is_cached(relation.database, relation.schema)  # type: ignore[arg-type]
+        is_cached = self._schema_is_cached(relation.database, relation.schema)
         if is_cached:
             self.cache_dropped(relation)
 
@@ -258,7 +262,7 @@ class BigQueryAdapter(BaseAdapter):
         )
         return columns
 
-    def expand_column_types(self, goal: BigQueryRelation, current: BigQueryRelation) -> None:  # type: ignore[override]
+    def expand_column_types(self, goal: BigQueryRelation, current: BigQueryRelation) -> None:
         # This is a no-op on BigQuery
         pass
 
@@ -323,7 +327,7 @@ class BigQueryAdapter(BaseAdapter):
     # TODO: the code below is copy-pasted from SQLAdapter.create_schema. Is there a better way?
     def create_schema(self, relation: BigQueryRelation) -> None:
         # use SQL 'create schema'
-        relation = relation.without_identifier()  # type: ignore
+        relation = relation.without_identifier()
 
         fire_event(SchemaCreation(relation=_make_ref_key_dict(relation)))
         kwargs = {
@@ -410,7 +414,7 @@ class BigQueryAdapter(BaseAdapter):
         for idx, col_name in enumerate(agate_table.column_names):
             inferred_type = self.convert_agate_type(agate_table, idx)
             type_ = column_override.get(col_name, inferred_type)
-            bq_schema.append(SchemaField(col_name, type_))  # type: ignore[arg-type]
+            bq_schema.append(SchemaField(col_name, type_))
         return bq_schema
 
     @available.parse(lambda *a, **k: "")
@@ -736,8 +740,8 @@ class BigQueryAdapter(BaseAdapter):
         for candidate, schemas in candidates.items():
             database = candidate.database
             if database not in db_schemas:
-                db_schemas[database] = set(self.list_schemas(database))  # type: ignore[index]
-            if candidate.schema in db_schemas[database]:  # type: ignore[index]
+                db_schemas[database] = set(self.list_schemas(database))
+            if candidate.schema in db_schemas[database]:
                 result[candidate] = schemas
             else:
                 logger.debug(
@@ -844,7 +848,7 @@ class BigQueryAdapter(BaseAdapter):
         return None
 
     @available.parse_none
-    def grant_access_to(self, entity, entity_type, role, grant_target_dict):
+    def grant_access_to(self, entity, entity_type, role, grant_target_dict) -> None:
         """
         Given an entity, grants it access to a dataset.
         """
@@ -873,7 +877,7 @@ class BigQueryAdapter(BaseAdapter):
         dataset = client.get_dataset(dataset_ref)
         return dataset.location
 
-    def get_rows_different_sql(  # type: ignore[override]
+    def get_rows_different_sql(
         self,
         relation_a: BigQueryRelation,
         relation_b: BigQueryRelation,
@@ -921,7 +925,7 @@ class BigQueryAdapter(BaseAdapter):
             return list(res)
 
     def generate_python_submission_response(self, submission_result) -> BigQueryAdapterResponse:
-        return BigQueryAdapterResponse(_message="OK")  # type: ignore[call-arg]
+        return BigQueryAdapterResponse(_message="OK")
 
     @property
     def default_python_submission_method(self) -> str:
@@ -961,7 +965,7 @@ class BigQueryAdapter(BaseAdapter):
 
     @classmethod
     def render_column_constraint(cls, constraint: ColumnLevelConstraint) -> Optional[str]:
-        c = super().render_column_constraint(constraint)  # type: ignore
+        c = super().render_column_constraint(constraint)
         if (
             constraint.type == ConstraintType.primary_key
             or constraint.type == ConstraintType.foreign_key
@@ -971,7 +975,7 @@ class BigQueryAdapter(BaseAdapter):
 
     @classmethod
     def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
-        c = super().render_model_constraint(constraint)  # type: ignore
+        c = super().render_model_constraint(constraint)
         if (
             constraint.type == ConstraintType.primary_key
             or constraint.type == ConstraintType.foreign_key

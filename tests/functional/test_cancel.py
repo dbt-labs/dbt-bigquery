@@ -25,6 +25,8 @@ _LONG_RUNNING_MODEL_SQL = """
 
 def _get_info_schema_jobs_query(project_id, dataset_id, table_id):
     """
+    Running this query requires roles/bigquery.resourceViewer on the project,
+    see: https://cloud.google.com/bigquery/docs/information-schema-jobs#required_role
     :param project_id:
     :param dataset_id:
     :param table_id:

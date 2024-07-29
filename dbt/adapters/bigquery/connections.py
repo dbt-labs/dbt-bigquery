@@ -351,7 +351,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return f"{rows_number:3.1f}{unit}".strip()
 
     @classmethod
-    def get_google_credentials(cls, profile_credentials) -> GoogleCredentials:
+    def get_google_credentials(cls, profile_credentials) -> GoogleCredentials:  # type: ignore
         method = profile_credentials.method
         creds = GoogleServiceAccountCredentials.Credentials
 
@@ -481,6 +481,18 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         return {}
 
+    def generate_job_id(self) -> str:
+        # Generating a fresh job_id for every _query_and_results call to avoid job_id reuse.
+        # Generating a job id instead of persisting a BigQuery-generated one after client.query is called.
+        # Using BigQuery's job_id can lead to a race condition if a job has been started and a termination
+        # is sent before the job_id was stored, leading to a failure to cancel the job.
+        # By predetermining job_ids (uuid4), we can persist the job_id before the job has been kicked off.
+        # Doing this, the race condition only leads to attempting to cancel a job that doesn't exist.
+        job_id = str(uuid.uuid4())
+        thread_id = self.get_thread_identifier()
+        self.jobs_by_thread[thread_id] = self.jobs_by_thread.get(thread_id, []) + [job_id]
+        return job_id
+
     def raw_execute(
         self,
         sql,
@@ -517,15 +529,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         job_execution_timeout = self.get_job_execution_timeout_seconds(conn)
 
         def fn():
-            # Generating a fresh job_id for every _query_and_results call to avoid job_id reuse.
-            # Generating a job id instead of persisting a BigQuery-generated one after client.query is called.
-            # Using BigQuery's job_id can lead to a race condition if a job has been started and a termination
-            # is sent before the job_id was stored, leading to a failure to cancel the job.
-            # By predetermining job_ids (uuid4), we can persist the job_id before the job has been kicked off.
-            # Doing this, the race condition only leads to attempting to cancel a job that doesn't exist.
-            job_id = str(uuid.uuid4())
-            thread_id = self.get_thread_identifier()
-            self.jobs_by_thread[thread_id] = self.jobs_by_thread.get(thread_id, []) + [job_id]
+            job_id = self.generate_job_id()
 
             return self._query_and_results(
                 client,

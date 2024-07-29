@@ -689,8 +689,11 @@ class BigQueryAdapter(BaseAdapter):
         load_config.skip_leading_rows = 1
         load_config.schema = bq_schema
         load_config.field_delimiter = field_delimiter
+        job_id = self.connections.generate_job_id()
         with open(agate_table.original_abspath, "rb") as f:  # type: ignore
-            job = client.load_table_from_file(f, table_ref, rewind=True, job_config=load_config)
+            job = client.load_table_from_file(
+                f, table_ref, rewind=True, job_config=load_config, job_id=job_id
+            )
 
         timeout = self.connections.get_job_execution_timeout_seconds(conn) or 300
         with self.connections.exception_handler("LOAD TABLE"):

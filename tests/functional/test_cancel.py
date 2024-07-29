@@ -1,10 +1,23 @@
+import time
+
 import os
 import signal
-import time
 import subprocess
 
 import pytest
+
 from dbt.tests.util import get_connection
+
+_SEED_CSV = """
+id, name, astrological_sign, moral_alignment
+1, Alice, Aries, Lawful Good
+2, Bob, Taurus, Neutral Good
+3, Thaddeus, Gemini, Chaotic Neutral
+4, Zebulon, Cancer, Lawful Evil
+5, Yorick, Leo, True Neutral
+6, Xavier, Virgo, Chaotic Evil
+7, Wanda, Libra, Lawful Neutral
+"""
 
 _LONG_RUNNING_MODEL_SQL = """
     {{ config(materialized='table') }}
@@ -47,6 +60,47 @@ def _get_info_schema_jobs_query(project_id, dataset_id, table_id):
     """
 
 
+def _run_dbt_in_subprocess(project, dbt_command):
+    os.chdir(project.project_root)
+    run_dbt_process = subprocess.Popen(
+        [
+            "dbt",
+            dbt_command,
+            "--profiles-dir",
+            project.profiles_dir,
+            "--project-dir",
+            project.project_root,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        shell=False,
+    )
+    std_out_log = ""
+    while True:
+        std_out_line = run_dbt_process.stdout.readline().decode("utf-8")
+        std_out_log += std_out_line
+        if std_out_line != "":
+            print(std_out_line)
+            if "1 of 1 START" in std_out_line:
+                time.sleep(1)
+                run_dbt_process.send_signal(signal.SIGINT)
+
+        if run_dbt_process.poll():
+            break
+
+    return std_out_log
+
+
+def _get_job_id(project, table_name):
+    # Because we run this in a subprocess we have to actually call Bigquery and look up the job id
+    with get_connection(project.adapter):
+        job_id = project.run_sql(
+            _get_info_schema_jobs_query(project.database, project.test_schema, table_name)
+        )
+
+    return job_id
+
+
 class TestBigqueryCancelsQueriesOnKeyboardInterrupt:
     @pytest.fixture(scope="class", autouse=True)
     def models(self):
@@ -54,38 +108,20 @@ class TestBigqueryCancelsQueriesOnKeyboardInterrupt:
             "model.sql": _LONG_RUNNING_MODEL_SQL,
         }
 
-    def test_bigquery_cancels_queries_on_keyboard_interrupt(self, project):
-        os.chdir(project.project_root)
-        run_dbt_process = subprocess.Popen(
-            [
-                "dbt",
-                "run",
-                "--profiles-dir",
-                project.profiles_dir,
-                "--project-dir",
-                project.project_root,
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            shell=False,
-        )
-        std_out_log = ""
-        while True:
-            std_out_line = run_dbt_process.stdout.readline().decode("utf-8")
-            std_out_log += std_out_line
-            if std_out_line != "":
-                print(std_out_line)
-                if "START sql" in std_out_line:
-                    time.sleep(1)
-                    run_dbt_process.send_signal(signal.SIGINT)
+    @pytest.fixture(scope="class", autouse=True)
+    def seeds(self):
+        return {
+            "seed.csv": _SEED_CSV,
+        }
 
-            if run_dbt_process.poll():
-                break
+    def test_bigquery_cancels_queries_for_model_on_keyboard_interrupt(self, project):
+        std_out_log = _run_dbt_in_subprocess(project, "run")
 
         assert "CANCEL query model.test.model" in std_out_log
-        # Because we run this in a subprocess we have to actually call Bigquery and look up the job id
-        with get_connection(project.adapter):
-            job_id = project.run_sql(
-                _get_info_schema_jobs_query(project.database, project.test_schema, "model")
-            )
-        assert len(job_id) == 1
+        assert len(_get_job_id(project, "model")) == 1
+
+    def test_bigquery_cancels_queries_for_seed_on_keyboard_interrupt(self, project):
+        std_out_log = _run_dbt_in_subprocess(project, "seed")
+
+        assert "CANCEL query seed.test.seed" in std_out_log
+        # we can't assert the job id since we can't kill the seed process fast enough to cancel it

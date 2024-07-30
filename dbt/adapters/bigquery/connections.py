@@ -121,8 +121,8 @@ class BigQueryCredentials(Credentials):
 
     # BigQuery allows an empty database / project, where it defers to the
     # environment for the project
-    database: Optional[str] = None  # type: ignore
-    schema: Optional[str] = None  # type: ignore
+    database: Optional[str] = None
+    schema: Optional[str] = None
     execution_project: Optional[str] = None
     location: Optional[str] = None
     priority: Optional[Priority] = None
@@ -612,7 +612,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         else:
             message = f"{code}"
 
-        response = BigQueryAdapterResponse(  # type: ignore[call-arg]
+        response = BigQueryAdapterResponse(
             _message=message,
             rows_affected=num_rows,
             code=code,

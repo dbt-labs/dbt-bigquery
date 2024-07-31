@@ -1,3 +1,4 @@
+from collections import defaultdict
 from concurrent.futures import TimeoutError
 import json
 import re
@@ -238,7 +239,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
     def __init__(self, profile: AdapterRequiredConfig, mp_context: SpawnContext):
         super().__init__(profile, mp_context)
-        self.jobs_by_thread: Dict[Hashable, List[str]] = {}
+        self.jobs_by_thread: Dict[Hashable, List[str]] = defaultdict(list)
 
     @classmethod
     def handle_error(cls, error, message):
@@ -490,7 +491,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # Doing this, the race condition only leads to attempting to cancel a job that doesn't exist.
         job_id = str(uuid.uuid4())
         thread_id = self.get_thread_identifier()
-        self.jobs_by_thread[thread_id] = self.jobs_by_thread.get(thread_id, []) + [job_id]
+        self.jobs_by_thread[thread_id].append(job_id)
         return job_id
 
     def raw_execute(

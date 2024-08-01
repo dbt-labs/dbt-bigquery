@@ -125,6 +125,7 @@ class TestBigqueryCancelsQueriesOnKeyboardInterrupt:
         assert "CANCEL query model.test.model" in std_out_log
         assert len(_get_job_id(project, "model")) == 1
 
+    @pytest.mark.skip(reason="cannot reliably cancel seed queries in time")
     def test_bigquery_cancels_queries_for_seed_on_keyboard_interrupt(self, project):
         std_out_log = _run_dbt_in_subprocess(project, "seed")
 

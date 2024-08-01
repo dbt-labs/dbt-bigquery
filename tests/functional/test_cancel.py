@@ -1,3 +1,5 @@
+import platform
+
 import time
 
 import os
@@ -101,6 +103,9 @@ def _get_job_id(project, table_name):
     return job_id
 
 
+@pytest.mark.skipif(
+    platform.system() == "Windows", reason="running signt is unsupported on Windows."
+)
 class TestBigqueryCancelsQueriesOnKeyboardInterrupt:
     @pytest.fixture(scope="class", autouse=True)
     def models(self):

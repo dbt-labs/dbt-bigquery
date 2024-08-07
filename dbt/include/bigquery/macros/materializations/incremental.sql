@@ -86,6 +86,8 @@
 
   {{ run_hooks(pre_hooks) }}
 
+  {{ bigquery__run_script_headers(config.get('script_headers')) }}
+
   {% if partition_by.copy_partitions is true and strategy != 'insert_overwrite' %} {#-- We can't copy partitions with merge strategy --#}
         {% set wrong_strategy_msg -%}
         The 'copy_partitions' option requires the 'incremental_strategy' option to be set to 'insert_overwrite'.

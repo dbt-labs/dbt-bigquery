@@ -32,6 +32,7 @@ from .utils import (
     inject_adapter,
     TestAdapterConversions,
     load_internal_manifest_macros,
+    mock_connection,
 )
 
 
@@ -379,23 +380,22 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
 
     def test_cancel_open_connections_empty(self):
         adapter = self.get_adapter("oauth")
-        self.assertEqual(adapter.cancel_open_connections(), None)
+        self.assertEqual(len(list(adapter.cancel_open_connections())), 0)
 
     def test_cancel_open_connections_master(self):
         adapter = self.get_adapter("oauth")
-        adapter.connections.thread_connections[0] = object()
-        self.assertEqual(adapter.cancel_open_connections(), None)
+        key = adapter.connections.get_thread_identifier()
+        adapter.connections.thread_connections[key] = mock_connection("master")
+        self.assertEqual(len(list(adapter.cancel_open_connections())), 0)
 
     def test_cancel_open_connections_single(self):
         adapter = self.get_adapter("oauth")
-        adapter.connections.thread_connections.update(
-            {
-                0: object(),
-                1: object(),
-            }
-        )
-        # actually does nothing
-        self.assertEqual(adapter.cancel_open_connections(), None)
+        master = mock_connection("master")
+        model = mock_connection("model")
+        key = adapter.connections.get_thread_identifier()
+
+        adapter.connections.thread_connections.update({key: master, 1: model})
+        self.assertEqual(len(list(adapter.cancel_open_connections())), 1)
 
     @patch("dbt.adapters.bigquery.impl.google.auth.default")
     @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")

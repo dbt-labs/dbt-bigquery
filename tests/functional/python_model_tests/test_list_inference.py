@@ -9,6 +9,7 @@ Adjusting either of these alleviates the issue.
 
 When the regression was first reported, `files.MULTI_RECORD` failed while the other models passed.
 """
+
 from dbt.tests.util import run_dbt_and_capture
 import pytest
 

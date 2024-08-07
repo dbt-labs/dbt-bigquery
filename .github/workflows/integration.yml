@@ -20,6 +20,8 @@
 
 name: Adapter Integration Tests
 
+run-name: "${{ (contains(github.event_name, 'workflow_') && inputs.name) || github.event_name }}: ${{ (contains(github.event_name, 'workflow_') &&  inputs.adapter_branch) || github.ref_name }} by @${{ github.actor }}"
+
 on:
   # pushes to release branches
   push:
@@ -34,10 +36,31 @@ on:
   # manual trigger
   workflow_dispatch:
     inputs:
-      dbt-core-branch:
-        description: "branch of dbt-core to use in dev-requirements.txt"
+      name:
+        description: "Name to associate with run (example: 'dbt-adapters-242')"
         required: false
         type: string
+        default: "Adapter Integration Tests"
+      adapter_branch:
+        description: "The branch of this adapter repository to use"
+        type: string
+        required: false
+        default: "main"
+      dbt_adapters_branch:
+        description: "The branch of dbt-adapters to use"
+        type: string
+        required: false
+        default: "main"
+      dbt_core_branch:
+        description: "The branch of dbt-core to use"
+        type: string
+        required: false
+        default: "main"
+      dbt_common_branch:
+        description: "The branch of dbt-common to use"
+        type: string
+        required: false
+        default: "main"
 
 # explicitly turn off permissions for `GITHUB_TOKEN`
 permissions: read-all
@@ -67,11 +90,18 @@ jobs:
       run-python-tests: ${{ steps.filter.outputs.bigquery-python }}
 
     steps:
-      - name: Check out the repository (non-PR)
-        if: github.event_name != 'pull_request_target'
+      - name: Check out the repository (push)
+        if: github.event_name == 'push'
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      - name: Check out the repository (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.adapter_branch }}
 
       - name: Check out the repository (PR)
         if: github.event_name == 'pull_request_target'
@@ -97,6 +127,7 @@ jobs:
               - 'dbt/**'
               - 'tests/**'
               - 'dev-requirements.txt'
+              - '.github/**'
 
       - name: Generate integration test matrix
         id: generate-matrix
@@ -142,12 +173,19 @@ jobs:
 
     steps:
       - name: Check out the repository
-        if: github.event_name != 'pull_request_target'
+        if: github.event_name != 'pull_request_target' && github.event_name != 'workflow_dispatch'
         uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      # explicity checkout the branch for the PR,
+      - name: Check out the repository (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.adapter_branch }}
+
+      # explicitly checkout the branch for the PR,
       # this is necessary for the `pull_request_target` event
       - name: Check out the repository (PR)
         if: github.event_name == 'pull_request_target'
@@ -168,11 +206,14 @@ jobs:
           python -m pip --version
           tox --version
 
-      - name: Update dev_requirements.txt
-        if: inputs.dbt-core-branch != ''
+      - name: Update Adapters and Core branches (update dev_requirements.txt)
+        if: github.event_name == 'workflow_dispatch'
         run: |
-          pip install bumpversion
-          ./.github/scripts/update_dbt_core_branch.sh ${{ inputs.dbt-core-branch }}
+          ./.github/scripts/update_dev_dependency_branches.sh \
+            ${{ inputs.dbt_adapters_branch }} \
+            ${{ inputs.dbt_core_branch }} \
+            ${{ inputs.dbt_common_branch }}
+          cat dev-requirements.txt
 
       - name: Run tox (bigquery)
         if: matrix.adapter == 'bigquery'
@@ -188,11 +229,12 @@ jobs:
           GCS_BUCKET: dbt-ci
         run: tox -- --ddtrace
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: logs
           path: ./logs
+          overwrite: true
 
       - name: Get current date
         if: always()
@@ -200,11 +242,12 @@ jobs:
         run: |
           echo "date=$(date +'%Y-%m-%dT%H_%M_%S')" >> $GITHUB_OUTPUT #no colons allowed for artifacts
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: integration_results_${{ matrix.python-version }}_${{ matrix.os }}_${{ matrix.adapter }}-${{ steps.date.outputs.date }}.csv
           path: integration_results.csv
+          overwrite: true
 
   # python integration tests are slow so we only run them seperately and for a single OS / python version
   test-python:

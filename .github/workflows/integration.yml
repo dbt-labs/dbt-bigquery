@@ -216,21 +216,21 @@ jobs:
           cat dev-requirements.txt
           pip install -r dev-requirements.txt
 
-#      - name: Setup tmate session
-#        uses: mxschmitt/action-tmate@v3
-#        if: ${{ github.event_name == 'workflow_dispatch' && matrix.python-version == '3.12' }}
-#        with:
-#          detached: true
-#        env:
-#          BIGQUERY_TEST_SERVICE_ACCOUNT_JSON: ${{ secrets.BIGQUERY_TEST_SERVICE_ACCOUNT_JSON }}
-#          BIGQUERY_TEST_ALT_DATABASE: ${{ secrets.BIGQUERY_TEST_ALT_DATABASE }}
-#          BIGQUERY_TEST_NO_ACCESS_DATABASE: ${{ secrets.BIGQUERY_TEST_NO_ACCESS_DATABASE }}
-#          DBT_TEST_USER_1: group:buildbot@dbtlabs.com
-#          DBT_TEST_USER_2: group:engineering-core-team@dbtlabs.com
-#          DBT_TEST_USER_3: serviceAccount:dbt-integration-test-user@dbt-test-env.iam.gserviceaccount.com
-#          DATAPROC_REGION: us-central1
-#          DATAPROC_CLUSTER_NAME: dbt-test-1
-#          GCS_BUCKET: dbt-ci
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        if: ${{ github.event_name == 'workflow_dispatch' && matrix.python-version == '3.12' }}
+        with:
+          detached: true
+        env:
+          BIGQUERY_TEST_SERVICE_ACCOUNT_JSON: ${{ secrets.BIGQUERY_TEST_SERVICE_ACCOUNT_JSON }}
+          BIGQUERY_TEST_ALT_DATABASE: ${{ secrets.BIGQUERY_TEST_ALT_DATABASE }}
+          BIGQUERY_TEST_NO_ACCESS_DATABASE: ${{ secrets.BIGQUERY_TEST_NO_ACCESS_DATABASE }}
+          DBT_TEST_USER_1: group:buildbot@dbtlabs.com
+          DBT_TEST_USER_2: group:engineering-core-team@dbtlabs.com
+          DBT_TEST_USER_3: serviceAccount:dbt-integration-test-user@dbt-test-env.iam.gserviceaccount.com
+          DATAPROC_REGION: us-central1
+          DATAPROC_CLUSTER_NAME: dbt-test-1
+          GCS_BUCKET: dbt-ci
 
       - name: Run tox (bigquery)
         if: matrix.adapter == 'bigquery'

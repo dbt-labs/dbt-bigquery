@@ -76,6 +76,7 @@ def _run_dbt_in_subprocess(project, dbt_command):
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         shell=False,
+        env=os.environ,
     )
     std_out_log = ""
     while True:

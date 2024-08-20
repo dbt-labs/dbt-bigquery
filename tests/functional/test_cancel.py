@@ -63,9 +63,10 @@ def _get_info_schema_jobs_query(project_id, dataset_id, table_id):
 
 
 def _run_dbt_in_subprocess(project, dbt_command):
+    dbt_exc = os.environ["VIRTUAL_ENV"] + "/bin/dbt"
     run_dbt_process = subprocess.Popen(
         [
-            "dbt",
+            dbt_exc,
             dbt_command,
             "--profiles-dir",
             project.profiles_dir,

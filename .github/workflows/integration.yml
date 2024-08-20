@@ -214,7 +214,6 @@ jobs:
             ${{ inputs.dbt_core_branch }} \
             ${{ inputs.dbt_common_branch }}
           cat dev-requirements.txt
-          pip install -r dev-requirements.txt
 
       - name: Run tox (bigquery)
         if: matrix.adapter == 'bigquery'

@@ -61,13 +61,74 @@ from dbt.adapters.bigquery.column import (
                 "a": "string not null",
             },
         ),
-        # # Multiple nested columns
+        # Multiple nested columns
         (
             "c.d",
             None,
             None,
             {"b": {"c": "string not null"}},
             {"b": {"c": "string not null"}, "c": {"d": None}},
+        ),
+        # Multiple nested columns
+        (
+            "c.d",
+            None,
+            None,
+            {"b": {"c": "string not null"}},
+            {"b": {"c": "string not null"}, "c": {"d": None}},
+        ),
+        # Multiple levels of nesting
+        (
+            "b.c.d",
+            "string",
+            "not null",
+            {},
+            {"b": {"c": {"d": "string not null"}}},
+        ),
+        (
+            "b.c.e",
+            None,
+            "not null",
+            {"b": {"c": {"d": "string not null"}}},
+            {"b": {"c": {"d": "string not null", "e": None}}},
+        ),
+        (
+            "b.c.e",
+            None,
+            "not null",
+            {
+                "b": {
+                    _PARENT_DATA_TYPE_KEY: "struct",
+                    "c": {"d": "string not null"},
+                    "d": "int64 unique",
+                }
+            },
+            {
+                "b": {
+                    _PARENT_DATA_TYPE_KEY: "struct",
+                    "c": {"d": "string not null", "e": None},
+                    "d": "int64 unique",
+                }
+            },
+        ),
+        (
+            "b.c.e.f",
+            "int64",
+            "not null",
+            {
+                "b": {
+                    _PARENT_DATA_TYPE_KEY: "struct",
+                    "c": {"d": "string not null"},
+                    "d": "int64 unique",
+                }
+            },
+            {
+                "b": {
+                    _PARENT_DATA_TYPE_KEY: "struct",
+                    "c": {"d": "string not null", "e": {"f": "int64 not null"}},
+                    "d": "int64 unique",
+                }
+            },
         ),
     ],
 )

@@ -19,10 +19,36 @@ from dbt.adapters.bigquery.column import (
         ("a", None, "not null", {}, {"a": None}),
         # Flat column – without constraints
         ("a", None, None, {}, {"a": None}),
+        # Parent nested column – with constraints
+        ("a", "struct", "not null", {}, {"a": "struct not null"}),
         # Single nested column, 1 level – with constraints
         ("b.c", "string", "not null", {}, {"b": {"c": "string not null"}}),
         # Single nested column, 1 level – without constraints
         ("b.c", None, None, {}, {"b": {"c": None}}),
+        # Second nested column, 1 level – with constraints
+        (
+            "b.d",
+            "int64",
+            None,
+            {"b": {"c": "string not null"}},
+            {"b": {"c": "string not null", "d": "int64"}},
+        ),
+        # Single nested column, 1 level, parent constraints – with constraints
+        (
+            "b.c",
+            "string",
+            None,
+            {"b": "struct"},
+            {"b": {_PARENT_DATA_TYPE_KEY: "struct", "c": "string"}},
+        ),
+        # Second nested column, 1 level, parent constraints – with constraints
+        (
+            "b.d",
+            "int64",
+            "unique",
+            {"b": {_PARENT_DATA_TYPE_KEY: "struct", "c": "string"}},
+            {"b": {_PARENT_DATA_TYPE_KEY: "struct", "c": "string", "d": "int64 unique"}},
+        ),
     ],
 )
 def test_update_nested_column_data_types(

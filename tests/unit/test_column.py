@@ -1,6 +1,41 @@
+from typing import Dict, Optional, Union
 import pytest
 
-from dbt.adapters.bigquery.column import get_nested_column_data_types
+from dbt.adapters.bigquery.column import (
+    get_nested_column_data_types,
+    _update_nested_column_data_types,
+    _PARENT_DATA_TYPE_KEY,
+)
+
+
+@pytest.mark.parametrize(
+    "column_name, column_data_type, column_rendered_constraint, nested_column_data_types, expected_output",
+    [
+        # Flat column – with constraints
+        ("a", "string", "not null", {}, {"a": "string not null"}),
+        # Flat column – with constraints
+        ("a", "string", None, {}, {"a": "string"}),
+        # Flat column – with constraints
+        ("a", None, "not null", {}, {"a": None}),
+        # Flat column – without constraints
+        ("a", None, None, {}, {"a": None}),
+        # Single nested column, 1 level – with constraints
+        ("b.c", "string", "not null", {}, {"b": {"c": "string not null"}}),
+        # Single nested column, 1 level – without constraints
+        ("b.c", None, None, {}, {"b": {"c": None}}),
+    ],
+)
+def test_update_nested_column_data_types(
+    column_name: str,
+    column_data_type: Optional[str],
+    column_rendered_constraint: Optional[str],
+    nested_column_data_types: Dict[str, Optional[Union[str, Dict]]],
+    expected_output: Dict[str, Optional[Union[str, Dict]]],
+):
+    _update_nested_column_data_types(
+        column_name, column_data_type, column_rendered_constraint, nested_column_data_types
+    )
+    assert nested_column_data_types == expected_output
 
 
 @pytest.mark.parametrize(

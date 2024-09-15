@@ -49,9 +49,29 @@ from dbt.adapters.bigquery.column import (
             {"b": {_PARENT_DATA_TYPE_KEY: "struct", "c": "string"}},
             {"b": {_PARENT_DATA_TYPE_KEY: "struct", "c": "string", "d": "int64 unique"}},
         ),
+        # Combining flat + nested columns
+        ("b.c", "string", None, {"a": "string"}, {"a": "string", "b": {"c": "string"}}),
+        (
+            "a",
+            "string",
+            "not null",
+            {"b": {_PARENT_DATA_TYPE_KEY: "struct", "c": "string", "d": "int64 unique"}},
+            {
+                "b": {_PARENT_DATA_TYPE_KEY: "struct", "c": "string", "d": "int64 unique"},
+                "a": "string not null",
+            },
+        ),
+        # # Multiple nested columns
+        (
+            "c.d",
+            None,
+            None,
+            {"b": {"c": "string not null"}},
+            {"b": {"c": "string not null"}, "c": {"d": None}},
+        ),
     ],
 )
-def test_update_nested_column_data_types(
+def test__update_nested_column_data_types(
     column_name: str,
     column_data_type: Optional[str],
     column_rendered_constraint: Optional[str],

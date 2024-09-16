@@ -63,7 +63,7 @@ def _get_info_schema_jobs_query(project_id, dataset_id, table_id):
 
 
 def _run_dbt_in_subprocess(project, dbt_command):
-    os.chdir(project.project_root)
+
     run_dbt_process = subprocess.Popen(
         [
             "dbt",
@@ -76,6 +76,7 @@ def _run_dbt_in_subprocess(project, dbt_command):
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         shell=False,
+        env=os.environ.copy(),
     )
     std_out_log = ""
     while True:

@@ -67,7 +67,7 @@ permissions: read-all
 
 # will cancel previous workflows triggered by the same event and for the same ref for PRs or same SHA otherwise
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ contains(github.event_name, 'pull_request') && github.event.pull_request.head.ref || github.sha }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ contains(github.event_name, 'pull_request') && github.event.pull_request.head.ref || github.sha }}-${{ github.actor }}
   cancel-in-progress: true
 
 # sets default shell to bash, for all operating systems
@@ -229,18 +229,18 @@ jobs:
           GCS_BUCKET: dbt-ci
         run: tox -- --ddtrace
 
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: logs
-          path: ./logs
-          overwrite: true
-
       - name: Get current date
         if: always()
         id: date
         run: |
           echo "date=$(date +'%Y-%m-%dT%H_%M_%S')" >> $GITHUB_OUTPUT #no colons allowed for artifacts
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs_${{ matrix.python-version }}_${{ matrix.os }}_${{ matrix.adapter }}-${{ steps.date.outputs.date }}
+          path: ./logs
+          overwrite: true
 
       - uses: actions/upload-artifact@v4
         if: always()

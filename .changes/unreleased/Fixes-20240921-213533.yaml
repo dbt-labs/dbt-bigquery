@@ -1,0 +1,6 @@
+kind: Fixes
+body: Fix copy_partitions when used with static partitions
+time: 2024-09-21T21:35:33.180816+02:00
+custom:
+    Author: Kayrnt
+    Issue: "1349"

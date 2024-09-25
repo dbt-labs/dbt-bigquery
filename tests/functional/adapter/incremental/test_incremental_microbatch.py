@@ -5,9 +5,20 @@ from dbt.tests.adapter.incremental.test_incremental_microbatch import (
 )
 
 
-# TODO: No requirement for a unique_id for bigquery microbatch!
 _microbatch_model_no_unique_id_sql = """
-{{ config(materialized='incremental', incremental_strategy='microbatch', unique_key='id', event_time='event_time', batch_size='day', begin=modules.datetime.datetime(2020, 1, 1, 0, 0, 0)) }}
+{{ config(
+    materialized='incremental',
+    incremental_strategy='microbatch',
+    partition_by={
+      "field": "event_time",
+      "data_type": "timestamp",
+      "granularity": "day"
+    },
+    event_time='event_time',
+    batch_size='day',
+    begin=modules.datetime.datetime(2020, 1, 1, 0, 0, 0)
+    )
+}}
 select * from {{ ref('input_model') }}
 """
 

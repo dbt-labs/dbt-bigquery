@@ -48,8 +48,13 @@
         tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
     ) %}
 
-  {% else %} {# strategy == 'merge' #}
+  {% elif strategy == 'microbatch' %}
 
+    {% set build_sql = bq_generate_microbatch_build_sql(
+        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
+    ) %}
+
+  {% else %} {# strategy == 'merge' #}
     {% set build_sql = bq_generate_incremental_merge_build_sql(
         tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, incremental_predicates
     ) %}

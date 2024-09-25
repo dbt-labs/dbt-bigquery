@@ -10,6 +10,10 @@
     {% do exceptions.raise_compiler_error(invalid_strategy_msg) %}
   {% endif %}
 
+  {% if strategy == 'microbatch' %}
+    {% do bq_validate_microbatch_config(config) %}
+  {% endif %}
+
   {% do return(strategy) %}
 {% endmacro %}
 

@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: Update microbatch tests to use behavior flag instead of environment variable
+time: 2024-10-01T16:46:54.905253-05:00
+custom:
+  Author: QMalcolm
+  Issue: "1359"

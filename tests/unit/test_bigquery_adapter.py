@@ -17,7 +17,7 @@ import dbt.adapters
 from dbt.adapters.bigquery.relation_configs import PartitionConfig
 from dbt.adapters.bigquery import BigQueryAdapter, BigQueryRelation
 from google.cloud.bigquery.table import Table
-from dbt.adapters.bigquery.connections import _sanitize_label, _VALIDATE_LABEL_LENGTH_LIMIT
+from dbt.adapters.bigquery.connections import _sanitize_label, _VALIDATE_LABEL_LENGTH_LIMIT, get_bigquery_defaults
 from dbt_common.clients import agate_helper
 import dbt_common.exceptions
 from dbt.context.query_header import generate_query_header_context
@@ -70,6 +70,17 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
                     "location": "Luna Station",
                     "priority": "batch",
                     "maximum_bytes_billed": 0,
+                },
+                "api_endpoint": {
+                    "type": "bigquery",
+                    "method": "oauth",
+                    "project": "dbt-unit-000000",
+                    "schema": "dummy_schema",
+                    "threads": 1,
+                    "location": "Luna Station",
+                    "priority": "batch",
+                    "maximum_bytes_billed": 0,
+                    "api_endpoint": "https://localhost:3001",
                 },
                 "impersonate": {
                     "type": "bigquery",
@@ -389,6 +400,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
     @patch("dbt.adapters.bigquery.impl.google.auth.default")
     @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")
     def test_location_user_agent(self, mock_bq, mock_auth_default):
+        get_bigquery_defaults.cache_clear()
         creds = MagicMock()
         mock_auth_default.return_value = (creds, MagicMock())
         adapter = self.get_adapter("loc")
@@ -403,7 +415,41 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             creds,
             location="Luna Station",
             client_info=HasUserAgent(),
+            client_options=None,
         )
+
+    @patch("dbt.adapters.bigquery.impl.google.auth.default")
+    @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")
+    def test_api_endpoint_settable(self, mock_bq, mock_auth_default):
+        """Ensure that a user can pass api_endpoint to the connector eg. for emulator."""
+
+        get_bigquery_defaults.cache_clear()
+        creds = MagicMock()
+        mock_auth_default.return_value = (creds, MagicMock())
+        adapter = self.get_adapter("api_endpoint")
+
+        connection = adapter.acquire_connection("dummy")
+        mock_client = mock_bq.Client
+
+        mock_client.assert_not_called()
+        connection.handle
+        mock_client.assert_called_once_with(
+            "dbt-unit-000000",
+            creds,
+            location="Luna Station",
+            client_info=HasUserAgent(),
+            client_options=_CheckApiEndpointSet("https://localhost:3001"),
+        )
+
+
+class _CheckApiEndpointSet:
+    value: str
+
+    def __init__(self, value: str) -> None:
+        self.value = value
+
+    def __eq__(self, other) -> bool:
+        return getattr(other, "api_endpoint") == self.value
 
 
 class HasUserAgent:

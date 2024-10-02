@@ -54,7 +54,7 @@ To confirm you have the correct version of `dbt-core` installed please run `dbt 
 
 ### Initial Setup
 
-`dbt-bigquery` contains [unit](https://github.com/dbt-labs/dbt-bigquery/tree/main/tests/unit) and [integration](https://github.com/dbt-labs/dbt-bigquery/tree/main/tests/integration) tests. Integration tests require testing against an actual BigQuery warehouse. We have CI set up to test against a BigQuery warehouse. In order to run integration tests locally, you will need a `test.env` file in the root of the repository that contains credentials for BigQuery.
+`dbt-bigquery` contains [unit](https://github.com/dbt-labs/dbt-bigquery/tree/main/tests/unit) and [functional](https://github.com/dbt-labs/dbt-bigquery/tree/main/tests/functional) tests. functional tests require testing against an actual BigQuery warehouse. We have CI set up to test against a BigQuery warehouse. In order to run functional tests locally, you will need a `test.env` file in the root of the repository that contains credentials for BigQuery.
 
 Note: This `test.env` file is git-ignored, but please be _extra_ careful to never check in credentials or other sensitive information when developing. To create your `test.env` file, copy the provided example file, then supply your relevant credentials.
 
@@ -104,6 +104,6 @@ You don't need to worry about which `dbt-bigquery` version your change will go i
 
 dbt Labs provides a CI environment to test changes to the `dbt-bigquery` adapter and periodic checks against the development version of `dbt-core` through Github Actions.
 
-A `dbt-bigquery` maintainer will review your PR. They may suggest code revision for style or clarity, or request that you add unit or integration test(s). These are good things! We believe that, with a little bit of help, anyone can contribute high-quality code.
+A `dbt-bigquery` maintainer will review your PR. They may suggest code revision for style or clarity, or request that you add unit or functional test(s). These are good things! We believe that, with a little bit of help, anyone can contribute high-quality code.
 
 Once all tests are passing, you have updated the changelog to reflect and tag your issue/pr for reference with a small description of the change, and your PR has been approved, a `dbt-bigquery` maintainer will merge your changes into the active development branch. And that's it! Happy developing :tada:

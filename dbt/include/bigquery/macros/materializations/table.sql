@@ -11,6 +11,8 @@
 
   {{ run_hooks(pre_hooks) }}
 
+  {{ bigquery__run_script_headers(config.get('script_headers')) }}
+
   {#
       We only need to drop this thing if it is not a table.
       If it _is_ already a table, then we can overwrite it without downtime

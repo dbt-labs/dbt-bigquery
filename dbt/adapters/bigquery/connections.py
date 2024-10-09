@@ -229,7 +229,7 @@ class BigQueryCredentials(Credentials):
         # `execution_project` default to dataset/project
         if "execution_project" not in d:
             d["execution_project"] = d["database"]
-        
+        # if no dataproc_project default to execution_project
         if "dataproc_project" not in d:
             d["dataproc_project"] = d["execution_project"]
 

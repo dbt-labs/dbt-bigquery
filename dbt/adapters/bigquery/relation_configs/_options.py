@@ -124,7 +124,7 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
         # update dbt-specific versions of these settings
         if hours_to_expiration := relation_config.config.extra.get("hours_to_expiration"):
             config_dict.update(
-                {"expiration_timestamp": datetime.now() + timedelta(hours=hours_to_expiration)}
+                {"expiration_timestamp": f"TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL {hours_to_expiration} hour)"}
             )
         if not relation_config.config.persist_docs:
             del config_dict["description"]

@@ -4,10 +4,14 @@
 
   {% set invalid_strategy_msg -%}
     Invalid incremental strategy provided: {{ strategy }}
-    Expected one of: 'merge', 'insert_overwrite'
+    Expected one of: 'merge', 'insert_overwrite', 'microbatch'
   {%- endset %}
-  {% if strategy not in ['merge', 'insert_overwrite'] %}
+  {% if strategy not in ['merge', 'insert_overwrite', 'microbatch'] %}
     {% do exceptions.raise_compiler_error(invalid_strategy_msg) %}
+  {% endif %}
+
+  {% if strategy == 'microbatch' %}
+    {% do bq_validate_microbatch_config(config) %}
   {% endif %}
 
   {% do return(strategy) %}
@@ -48,8 +52,13 @@
         tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
     ) %}
 
-  {% else %} {# strategy == 'merge' #}
+  {% elif strategy == 'microbatch' %}
 
+    {% set build_sql = bq_generate_microbatch_build_sql(
+        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
+    ) %}
+
+  {% else %} {# strategy == 'merge' #}
     {% set build_sql = bq_generate_incremental_merge_build_sql(
         tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, incremental_predicates
     ) %}

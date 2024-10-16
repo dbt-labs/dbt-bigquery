@@ -1,6 +1,0 @@
-models:
- - name: my_py_model
-   config:
-     submission_method: cluster
-     dataproc_cluster_name: tdunlap-dbt-python-cluster
-     dataproc_project: some-other-test-project

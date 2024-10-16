@@ -214,6 +214,7 @@ class BigQueryCredentials(Credentials):
             "dataproc_cluster_name",
             "gcs_bucket",
             "dataproc_batch",
+            "dataproc_project",
         )
 
     @classmethod

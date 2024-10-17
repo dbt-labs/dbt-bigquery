@@ -163,7 +163,7 @@ jobs:
           overwrite: true
 
   test-build:
-    name: verify packages / python ${{ matrix.python-version }} / ${{ matrix.os }}
+    name: verify packages / python ${{ matrix.python-version }} / ${{ matrix.os }} / ${{ matrix.dist-type }}
 
     if: needs.build.outputs.is_alpha == 0
 
@@ -182,11 +182,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Install python dependencies
         run: |
           python -m pip install --user --upgrade pip
-          python -m pip install --upgrade wheel setuptools twine check-wheel-contents
+          python -m pip install --upgrade wheel
           python -m pip --version
+
       - uses: actions/download-artifact@v4
         with:
           name: dist
@@ -195,15 +197,10 @@ jobs:
       - name: Show distributions
         run: ls -lh dist/
 
-      - name: Install wheel distributions
+      - name: Install ${{ matrix.dist-type }} distributions
         run: |
-          find ./dist/*.whl -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/
-      - name: Check wheel distributions
-        run: |
-          python -c "import dbt.adapters.bigquery"
-      - name: Install source distributions
-        run: |
-          find ./dist/*.gz -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/
-      - name: Check source distributions
+          find ./dist/*.${{ matrix.dist-type }} -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/
+
+      - name: Check ${{ matrix.dist-type }} distributions
         run: |
           python -c "import dbt.adapters.bigquery"

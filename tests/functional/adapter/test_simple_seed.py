@@ -11,6 +11,12 @@ seed_id,stuff
 2,b
 """.lstrip()
 
+_SEED_CONFIGS_PIPE = """
+seed_id|stuff
+1|a
+2|b
+""".lstrip()
+
 _SCHEMA_YML = """
 version: 2
 seeds:
@@ -66,6 +72,19 @@ seeds:
     labels:
       contains_pii: 'yes'
       contains_pie: 'no'
+
+- name: seed_with_pipe
+  columns:
+    - name: seed_id
+      tests:
+        - column_type:
+            type: INT64
+    - name: stuff
+      tests:
+      - column_type:
+         type: STRING
+  config:
+    delimiter: '|'
 """.lstrip()
 
 
@@ -80,6 +99,42 @@ class TestSimpleSeedConfigs(SeedConfigBase):
             "seed_enabled.csv": seeds__enabled_in_config_csv,
             "seed_tricky.csv": seeds__tricky_csv,
             "seed_configs.csv": _SEED_CONFIGS_CSV,
+            "seed_with_pipe.csv": _SEED_CONFIGS_PIPE,
+        }
+
+    @pytest.fixture(scope="class")
+    def macros(self):
+        return {
+            "schema_test.sql": macros__schema_test,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"schema.yml": _SCHEMA_YML}
+
+    @staticmethod
+    def table_labels():
+        return {"contains_pii": "yes", "contains_pie": "no"}
+
+    def test__bigquery_simple_seed_with_schema_config_bigquery(self, project):
+        seed_results = run_dbt(["seed"])
+        assert len(seed_results) == 4
+        test_results = run_dbt(["test"])
+        assert len(test_results) == 10
+
+
+class TestSimpleSeedProjectConfigs(SeedConfigBase):
+    @pytest.fixture(scope="class")
+    def schema(self):
+        return "simple_seed"
+
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "seed_enabled.csv": seeds__enabled_in_config_csv,
+            "seed_tricky.csv": seeds__tricky_csv,
+            "seed_configs.csv": _SEED_CONFIGS_CSV,
+            "seed_with_pipe.csv": _SEED_CONFIGS_PIPE,
         }
 
     @pytest.fixture(scope="class")
@@ -111,6 +166,10 @@ class TestSimpleSeedConfigs(SeedConfigBase):
                     "seed_configs": {
                         "enabled": True,
                     },
+                    "seed_with_pipe": {
+                        "enabled": True,
+                        "+delimiter": "|",
+                    },
                 },
             },
         }
@@ -136,13 +195,13 @@ class TestSimpleSeedConfigs(SeedConfigBase):
 
     def test__bigquery_simple_seed_with_column_override_bigquery(self, project):
         seed_results = run_dbt(["seed"])
-        assert len(seed_results) == 3
+        assert len(seed_results) == 4
         test_results = run_dbt(["test"])
-        assert len(test_results) == 10
+        assert len(test_results) == 12
 
     def test__bigquery_seed_table_with_labels_config_bigquery(self, project):
         seed_results = run_dbt(["seed"])
-        assert len(seed_results) == 3
+        assert len(seed_results) == 4
         with project.adapter.connection_named("_test"):
             client = project.adapter.connections.get_thread_connection().handle
             table_id = "{}.{}.{}".format(project.database, project.test_schema, "seed_configs")

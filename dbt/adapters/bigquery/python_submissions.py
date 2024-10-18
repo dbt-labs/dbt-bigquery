@@ -36,6 +36,7 @@ class BaseDataProcHelper(PythonJobHelper):
         self.parsed_model = parsed_model
         python_required_configs = [
             "dataproc_region",
+            "dataproc_project",
             "gcs_bucket",
         ]
         for required_config in python_required_configs:
@@ -107,7 +108,7 @@ class ClusterDataprocHelper(BaseDataProcHelper):
         }
         operation = self.job_client.submit_job_as_operation(
             request={
-                "project_id": self.credential.execution_project,
+                "project_id": self.credential.dataproc_project,
                 "region": self.credential.dataproc_region,
                 "job": job,
             }

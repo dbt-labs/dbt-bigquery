@@ -148,6 +148,7 @@ class BigQueryCredentials(Credentials):
 
     dataproc_region: Optional[str] = None
     dataproc_cluster_name: Optional[str] = None
+    dataproc_project: Optional[str] = None
     gcs_bucket: Optional[str] = None
 
     dataproc_batch: Optional[DataprocBatchConfig] = field(
@@ -213,6 +214,7 @@ class BigQueryCredentials(Credentials):
             "dataproc_cluster_name",
             "gcs_bucket",
             "dataproc_batch",
+            "dataproc_project",
         )
 
     @classmethod
@@ -228,6 +230,10 @@ class BigQueryCredentials(Credentials):
         # `execution_project` default to dataset/project
         if "execution_project" not in d:
             d["execution_project"] = d["database"]
+        # if no dataproc_project default to execution_project
+        if "dataproc_project" not in d:
+            d["dataproc_project"] = d["execution_project"]
+
         return d
 
 

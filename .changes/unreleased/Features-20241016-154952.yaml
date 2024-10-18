@@ -1,0 +1,6 @@
+kind: Features
+body: Enables overriding execution project for .py models run via dataproc
+time: 2024-10-16T15:49:52.295605-06:00
+custom:
+  Author: matt-winkler
+  Issue: "1364"

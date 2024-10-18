@@ -1,0 +1,8 @@
+kind: Fixed
+body: Reduce permissions needed to generate docs by using `information_schema` to
+  fetch catalog data
+time: 2022-07-26T11:36:32.21915+01:00
+custom:
+  Author: hassan-mention-me
+  Issue: "113"
+  PR: "364"

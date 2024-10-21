@@ -1,25 +1,9 @@
-import os
-from unittest.mock import patch
+import pytest
 
-from dbt.tests.util import run_dbt, check_relations_equal_with_relations
+from dbt.tests.util import run_dbt
 from tests.unit.test_bigquery_adapter import BaseTestBigQueryAdapter
-
 from tests.functional.python_model_tests.files import SINGLE_RECORD  # noqa: F401
-
-ALT_DATABASE = os.getenv("BIGQUERY_TEST_ALT_DATABASE")
-
-"""
-dataset: dbt_mwinkler_core_dev
-keyfile: /Users/matt-winkler/Downloads/sales-demo-project-314714-2e886a5c2612.json
-method: service-account
-project: sales-demo-project-314714
-threads: 4
-type: bigquery
-gcs_bucket: matt-w-python-demo
-dataproc_cluster_name: matt-w-python-demo
-dataproc_region: us-west1
-dataproc_project: test-some-other-project
-"""
+from unittest.mock import patch
 
 
 # Test application of dataproc_batch configuration to a
@@ -27,17 +11,21 @@ dataproc_project: test-some-other-project
 # This reuses the machinery from BaseTestBigQueryAdapter to get hold of the
 # parsed credentials
 class TestOverrideDataprocProject(BaseTestBigQueryAdapter):
-    @patch(
-        "dbt.adapters.bigquery.connections.get_bigquery_defaults",
-        return_value=("credentials", "project_id"),
-    )
+    @pytest.fixture(scope="class")
+    def model_path(self):
+        return "models"
+
     def test_update_dataproc_cluster(self):
+        # update the raw profile to set dataproc_project config
+        self.raw_profile["outputs"]["dataproc-serverless-configured"]["dataproc_batch"][
+            "dataproc_project"
+        ] = "test"
         adapter = self.get_adapter("dataproc-serverless-configured")
-        raw_profile = self.raw_profile["outputs"]["dataproc-serverless-configured"][
-            "dataproc_batch"
-        ]
-        print("showing raw_profile")
-        print(raw_profile)
+        run_dbt(["models"])
+
+        # raw_profile = self.raw_profile["outputs"]["dataproc-serverless-configured"][
+        #    "dataproc_batch"
+        # ]
 
 
 # class BaseOverrideDatabase:

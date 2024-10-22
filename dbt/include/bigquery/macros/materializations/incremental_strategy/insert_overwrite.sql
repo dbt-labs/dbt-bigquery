@@ -47,37 +47,63 @@
   {% endif %}
 {% endmacro %}
 
+{% macro bq_static_select_insert_overwrite_sql(tmp_relation, sql, partition_by, tmp_relation_exists) %}
+  {%- set source_sql -%}
+  (
+    {% if partition_by.time_ingestion_partitioning and tmp_relation_exists -%}
+    select
+      {{ partition_by.insertable_time_partitioning_field() }},
+      * from {{ tmp_relation }}
+    {% elif tmp_relation_exists -%}
+      select
+      * from {{ tmp_relation }}
+    {%- elif partition_by.time_ingestion_partitioning -%}
+      {{ wrap_with_time_ingestion_partitioning_sql(partition_by, sql, True) }}
+    {%- else -%}
+      {{sql}}
+    {%- endif %}
+  )
+  {%- endset -%}
+  {{ return(source_sql) }}
+{% endmacro %}
+
+{% macro bq_static_copy_partitions_insert_overwrite_sql(
+  tmp_relation, target_relation, sql, partition_by, partitions, tmp_relation_exists
+  ) %}
+  {%- if tmp_relation_exists is false -%}
+    {%- set source_sql = bq_static_select_insert_overwrite_sql(tmp_relation, sql, partition_by, tmp_relation_exists) %}
+  {# We run temp table creation in a separated script to move to partitions copy if it doesn't already exist #}
+    {%- call statement('create_tmp_relation_for_copy', language='sql') -%}
+      {{ bq_create_table_as(partition_by, True, tmp_relation, source_sql, 'sql')
+    }}
+    {%- endcall %}
+  {%- endif -%}
+  {%- set partitions_sql -%}
+    select
+    {%- for partition in partitions %}
+      CAST({{ partition }} AS TIMESTAMP){%- if not loop.last -%},{%- endif -%}
+    {%- endfor %}
+    from {{ tmp_relation }}
+  {%- endset -%}
+  {%- set partitions = run_query(partitions_sql).columns[0].values() -%}
+  {# We copy the partitions #}
+  {%- do bq_copy_partitions(tmp_relation, target_relation, partitions, partition_by) -%}
+  -- Clean up the temp table
+  drop table if exists {{ tmp_relation }}
+{% endmacro %}
+
 {% macro bq_static_insert_overwrite_sql(
     tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
 ) %}
-
+  {%- if copy_partitions %}
+     {{ bq_static_copy_partitions_insert_overwrite_sql(tmp_relation, target_relation, sql, partition_by, partitions, tmp_relation_exists) }}
+  {% else -%}
       {% set predicate -%}
           {{ partition_by.render_wrapped(alias='DBT_INTERNAL_DEST') }} in (
               {{ partitions | join (', ') }}
           )
       {%- endset %}
-
-      {%- set source_sql -%}
-        (
-          {% if partition_by.time_ingestion_partitioning and tmp_relation_exists -%}
-          select
-            {{ partition_by.insertable_time_partitioning_field() }},
-            * from {{ tmp_relation }}
-          {% elif tmp_relation_exists -%}
-            select
-            * from {{ tmp_relation }}
-          {%- elif partition_by.time_ingestion_partitioning -%}
-            {{ wrap_with_time_ingestion_partitioning_sql(partition_by, sql, True) }}
-          {%- else -%}
-            {{sql}}
-          {%- endif %}
-
-        )
-      {%- endset -%}
-
-      {% if copy_partitions %}
-          {% do bq_copy_partitions(tmp_relation, target_relation, partitions, partition_by) %}
-      {% else %}
+      {%- set source_sql = bq_static_select_insert_overwrite_sql(tmp_relation, sql, partition_by, tmp_relation_exists) %}
 
       {#-- In case we're putting the model SQL _directly_ into the MERGE statement,
          we need to prepend the MERGE statement with the user-configured sql_header,
@@ -92,8 +118,7 @@
       -- 2. clean up the temp table
       drop table if exists {{ tmp_relation }};
       {%- endif -%}
-
-  {% endif %}
+  {%- endif -%}
 {% endmacro %}
 
 {% macro bq_dynamic_copy_partitions_insert_overwrite_sql(
@@ -118,7 +143,7 @@
 {% endmacro %}
 
 {% macro bq_dynamic_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, copy_partitions) %}
-  {%- if copy_partitions is true %}
+  {%- if copy_partitions %}
      {{ bq_dynamic_copy_partitions_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, copy_partitions) }}
   {% else -%}
       {% set predicate -%}

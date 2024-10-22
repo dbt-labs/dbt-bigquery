@@ -4,7 +4,8 @@ from unittest import mock
 
 from dbt.tests.util import run_dbt_and_capture
 from dbt.tests.adapter.incremental.test_incremental_microbatch import (
-    BaseMicrobatch,
+    BaseTestMicrobatchOn,
+    BaseTestMicrobatchOff,
     patch_microbatch_end_time,
 )
 
@@ -16,7 +17,13 @@ from tests.functional.adapter.incremental.incremental_strategy_fixtures import (
 )
 
 
-class TestBigQueryMicrobatch(BaseMicrobatch):
+class TestBigQueryMicrobatchOn(BaseTestMicrobatchOn):
+    @pytest.fixture(scope="class")
+    def microbatch_model_sql(self) -> str:
+        return microbatch_model_no_unique_id_sql
+
+
+class TestBigQueryMicrobatchOff(BaseTestMicrobatchOff):
     @pytest.fixture(scope="class")
     def microbatch_model_sql(self) -> str:
         return microbatch_model_no_unique_id_sql

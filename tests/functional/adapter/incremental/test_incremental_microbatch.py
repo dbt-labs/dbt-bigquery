@@ -4,7 +4,8 @@ from unittest import mock
 
 from dbt.tests.util import run_dbt_and_capture
 from dbt.tests.adapter.incremental.test_incremental_microbatch import (
-    BaseMicrobatch,
+    BaseTestMicrobatchOn,
+    BaseTestMicrobatchOff,
     patch_microbatch_end_time,
 )
 
@@ -16,7 +17,13 @@ from tests.functional.adapter.incremental.incremental_strategy_fixtures import (
 )
 
 
-class TestBigQueryMicrobatch(BaseMicrobatch):
+class TestBigQueryMicrobatchOn(BaseTestMicrobatchOn):
+    @pytest.fixture(scope="class")
+    def microbatch_model_sql(self) -> str:
+        return microbatch_model_no_unique_id_sql
+
+
+class TestBigQueryMicrobatchOff(BaseTestMicrobatchOff):
     @pytest.fixture(scope="class")
     def microbatch_model_sql(self) -> str:
         return microbatch_model_no_unique_id_sql
@@ -30,7 +37,14 @@ class TestBigQueryMicrobatchMissingPartitionBy:
             "input_model.sql": microbatch_input_sql,
         }
 
-    @mock.patch.dict(os.environ, {"DBT_EXPERIMENTAL_MICROBATCH": "True"})
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            "flags": {
+                "require_builtin_microbatch_strategy": True,
+            }
+        }
+
     def test_execution_failure_no_partition_by(self, project):
         with patch_microbatch_end_time("2020-01-03 13:57:00"):
             _, stdout = run_dbt_and_capture(["run"], expect_pass=False)
@@ -45,7 +59,14 @@ class TestBigQueryMicrobatchInvalidPartitionByGranularity:
             "input_model.sql": microbatch_input_sql,
         }
 
-    @mock.patch.dict(os.environ, {"DBT_EXPERIMENTAL_MICROBATCH": "True"})
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            "flags": {
+                "require_builtin_microbatch_strategy": True,
+            }
+        }
+
     def test_execution_failure_no_partition_by(self, project):
         with patch_microbatch_end_time("2020-01-03 13:57:00"):
             _, stdout = run_dbt_and_capture(["run"], expect_pass=False)

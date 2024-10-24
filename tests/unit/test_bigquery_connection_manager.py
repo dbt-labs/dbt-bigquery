@@ -84,12 +84,14 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         rate_limit_error = exceptions.Forbidden(
             "code broke", errors=[{"reason": "rateLimitExceeded"}]
         )
+        service_unavailable_error = exceptions.ServiceUnavailable("service is unavailable")
 
         self.assertTrue(_is_retryable(internal_server_error))
         self.assertTrue(_is_retryable(bad_request_error))
         self.assertTrue(_is_retryable(connection_error))
         self.assertFalse(_is_retryable(client_error))
         self.assertTrue(_is_retryable(rate_limit_error))
+        self.assertTrue(_is_retryable(service_unavailable_error))
 
     def test_drop_dataset(self):
         mock_table = Mock()

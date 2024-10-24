@@ -8,7 +8,8 @@
 #
 # When?
 #
-# Manual trigger.
+# Manual trigger or cron job every wednesday morning.
+# action will check if a new commit was added if not should do nothing
 
 name: "Release to Cloud"
 run-name: "Release to Cloud off of ${{ inputs.ref }}"
@@ -31,21 +32,76 @@ on:
         type: boolean
         required: true
         default: false
+      dry_run:
+        description: "Is this a dry run? (default to false)"
+        type: boolean
+        required: true
+        default: false
+
+  schedule:
+    - cron: '0 13 * * 3' # Every Wednesday at 8:00 AM central time
 
 defaults:
   run:
     shell: bash
 
 jobs:
+  check-for-new-commits:
+    runs-on: ubuntu-latest
+    outputs:
+      latest_commit_sha: ${{ steps.check_new_commits.outputs.latest_commit_sha }}
+      has_new_commits: ${{ steps.check_new_commits.outputs.has_new_commits }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags
+
+      - name: Fetch ref
+        run: |
+          git fetch origin ${{ inputs.ref }}:${{ inputs.ref }}
+
+      - name: Get last successful Release to Cloud run details and check for new commits
+        id: check_new_commits
+        run: |
+          # Get last successful Release to Cloud run details
+          last_run_url=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/runs?event=workflow_dispatch&status=success&branch=main&workflow_file=release-internal.yml" | jq -r '.workflow_runs[0].url')
+          if [ -z "$last_run_url" ]; then
+            echo "No successful Release to Cloud run found."
+            exit 1
+          fi
+          echo "Last run URL: $last_run_url"
+          commit_sha=$(curl --silent -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$last_run_url" | jq -r '.head_sha')
+          if [ -z "$commit_sha" ]; then
+            echo "No commit SHA found for the last successful run."
+            exit 1
+          fi
+          echo "Commit SHA: $commit_sha"
+
+          # Check for new commits
+          echo "Last released commit SHA: $commit_sha"
+          latest_commit_sha=$(git rev-parse ${{ inputs.ref }})
+          echo "Latest commit SHA: $latest_commit_sha"
+          if [ "$commit_sha" != "$latest_commit_sha" ]; then
+            echo "has_new_commits=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_new_commits=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "latest_commit_sha=$latest_commit_sha" >> "$GITHUB_OUTPUT"
+
+          # Print the commit SHAs for dry run
+          if [ "${{ inputs.dry_run }}" == "true" ]; then
+            echo "::notice title=Dry Run::Last released commit SHA: $commit_sha, Latest commit SHA: $latest_commit_sha"
+          fi
+
   invoke-reusable-workflow:
+    needs: check-for-new-commits
+    if: needs.check-for-new-commits.outputs.has_new_commits == 'true' && inputs.dry_run == 'false'
     name: "Build and Release Internally"
-
     uses: "dbt-labs/dbt-release/.github/workflows/internal-archive-release.yml@main"
-
     with:
       package_test_command: "${{ inputs.package_test_command }}"
       dbms_name: "bigquery"
       ref: "${{ inputs.ref }}"
       skip_tests: "${{ inputs.skip_tests }}"
-
     secrets: "inherit"

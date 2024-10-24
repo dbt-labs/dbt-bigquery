@@ -269,6 +269,10 @@ class BigQueryConnectionManager(BaseConnectionManager):
             message = "Access denied while running query"
             self.handle_error(e, message)
 
+        except google.cloud.exceptions.NotFound as e:
+            message = "Not found while running query"
+            self.handle_error(e, message)
+
         except google.auth.exceptions.RefreshError as e:
             message = (
                 "Unable to generate access token, if you're using "

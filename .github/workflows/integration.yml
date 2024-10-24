@@ -33,6 +33,7 @@ on:
   # all PRs, important to note that `pull_request_target` workflows
   # will run in the context of the target branch of a PR
   pull_request_target:
+    types: [opened, reopened, synchronize, labeled]
   # manual trigger
   workflow_dispatch:
     inputs:
@@ -128,6 +129,7 @@ jobs:
               - 'tests/**'
               - 'dev-requirements.txt'
               - '.github/**'
+              - '*.py'
 
       - name: Generate integration test matrix
         id: generate-matrix
@@ -279,10 +281,10 @@ jobs:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Set up Python 3.8
+      - name: Set up Python 3.9
         uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: "3.9"
 
       - name: Install python dependencies
         run: |

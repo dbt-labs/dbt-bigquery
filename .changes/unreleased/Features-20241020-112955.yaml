@@ -1,0 +1,6 @@
+kind: Features
+body: Support google.auth.credentials.AnonymousCredentials for bigquery enabling to unit test models in isolation locally.
+time: 2024-10-20T11:29:55.098322635Z
+custom:
+    Author: shrivastava-ankur
+    Issue: "1377"

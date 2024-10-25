@@ -403,6 +403,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             creds,
             location="Luna Station",
             client_info=HasUserAgent(),
+            client_options=None,
         )
 
 

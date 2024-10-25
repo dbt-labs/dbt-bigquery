@@ -5,6 +5,9 @@ import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 import uuid
+
+from google.api_core.client_options import ClientOptions
+from google.auth.credentials import AnonymousCredentials
 from mashumaro.helper import pass_through
 
 from functools import lru_cache
@@ -98,6 +101,7 @@ class BigQueryConnectionMethod(StrEnum):
     SERVICE_ACCOUNT = "service-account"
     SERVICE_ACCOUNT_JSON = "service-account-json"
     OAUTH_SECRETS = "oauth-secrets"
+    ANONYMOUS = "anonymous"
 
 
 @dataclass
@@ -134,6 +138,7 @@ class BigQueryCredentials(Credentials):
     job_retries: Optional[int] = 1
     job_creation_timeout_seconds: Optional[int] = None
     job_execution_timeout_seconds: Optional[int] = None
+    client_options: Optional[Dict[str, Any]] = None
 
     # Keyfile json creds (unicode or base 64 encoded)
     keyfile: Optional[str] = None
@@ -206,6 +211,7 @@ class BigQueryCredentials(Credentials):
             "job_retries",
             "job_creation_timeout_seconds",
             "job_execution_timeout_seconds",
+            "client_options",
             "timeout_seconds",
             "client_id",
             "token_uri",
@@ -383,6 +389,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 token_uri=profile_credentials.token_uri,
                 scopes=profile_credentials.scopes,
             )
+        elif method == BigQueryConnectionMethod.ANONYMOUS:
+            return AnonymousCredentials()
 
         error = 'Invalid `method` in profile: "{}"'.format(method)
         raise FailedToConnectError(error)
@@ -409,13 +417,16 @@ class BigQueryConnectionManager(BaseConnectionManager):
         creds = cls.get_credentials(profile_credentials)
         execution_project = profile_credentials.execution_project
         location = getattr(profile_credentials, "location", None)
+        client_options_kwargs = getattr(profile_credentials, "client_options", None)
 
+        options = ClientOptions(**client_options_kwargs) if client_options_kwargs else None
         info = client_info.ClientInfo(user_agent=f"dbt-bigquery-{dbt_version.version}")
         return google.cloud.bigquery.Client(
             execution_project,
             creds,
             location=location,
             client_info=info,
+            client_options=options,
         )
 
     @classmethod
@@ -598,8 +609,11 @@ class BigQueryConnectionManager(BaseConnectionManager):
             conn = self.get_thread_connection()
             client = conn.handle
             # use anonymous table for num_rows
-            query_table = client.get_table(query_job.destination)
-            num_rows = query_table.num_rows
+            if query_job.destination:
+                query_table = client.get_table(query_job.destination)
+                num_rows = query_table.num_rows
+            else:
+                num_rows = None
 
         # set common attributes
         bytes_processed = query_job.total_bytes_processed

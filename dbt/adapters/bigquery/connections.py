@@ -65,6 +65,7 @@ REOPENABLE_ERRORS = (
 )
 
 RETRYABLE_ERRORS = (
+    google.auth.exceptions.RefreshError,
     google.cloud.exceptions.ServerError,
     google.cloud.exceptions.BadRequest,
     google.cloud.exceptions.BadGateway,
@@ -739,7 +740,12 @@ class BigQueryConnectionManager(BaseConnectionManager):
         database = database or conn.credentials.database
         schema = schema or conn.credentials.schema
         table_ref = self.table_ref(database, schema, identifier)
-        return conn.handle.get_table(table_ref)
+        client = conn.handle
+
+        def fn():
+            return client.get_table(table_ref)
+
+        return self._retry_and_handle(msg="get table", conn=conn, fn=fn)
 
     def drop_dataset(self, database, schema):
         conn = self.get_thread_connection()

@@ -125,6 +125,7 @@ df.write \
   {%- endif %}
   {%- endif %}
   {% else %}
+  # if no partitioning is specified, we can write directly
   .option("writeMethod", "direct") \
   {%- endif %}
   {%- if raw_cluster_by is not none %}

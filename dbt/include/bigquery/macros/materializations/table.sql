@@ -115,7 +115,7 @@ else:
 
 # For writeMethod we need to use "indirect" if materializing a partitioned table
 # otherwise we can use "direct". Note that indirect will fail if the GCS bucket has a retention policy set on it.
-{%- if partition_config is not none %}
+{%- if partition_config %}
       {%- set write_method = 'indirect' -%}
 {%- else %}
       {% set write_method = 'direct' -%}

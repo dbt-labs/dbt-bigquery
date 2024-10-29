@@ -1,29 +1,28 @@
-import uuid
 from typing import Dict, Union
+import uuid
 
-from dbt.adapters.events.logging import AdapterLogger
-
-from dbt.adapters.base import PythonJobHelper
-from google.api_core.future.polling import POLLING_PREDICATE
-
-from dbt.adapters.bigquery import BigQueryConnectionManager, BigQueryCredentials
 from google.api_core import retry
 from google.api_core.client_options import ClientOptions
-from google.cloud import storage, dataproc_v1
+from google.api_core.future.polling import POLLING_PREDICATE
+from google.cloud import dataproc_v1, storage
 from google.cloud.dataproc_v1.types.batches import Batch
 
+from dbt.adapters.base import PythonJobHelper
+from dbt.adapters.events.logging import AdapterLogger
+
+from dbt.adapters.bigquery.connections import BigQueryConnectionManager, BigQueryCredentials
 from dbt.adapters.bigquery.dataproc.batch import (
+    DEFAULT_JAR_FILE_URI,
     create_batch_request,
     poll_batch_job,
-    DEFAULT_JAR_FILE_URI,
     update_batch_from_config,
 )
 
-OPERATION_RETRY_TIME = 10
-logger = AdapterLogger("BigQuery")
+
+_logger = AdapterLogger("BigQuery")
 
 
-class BaseDataProcHelper(PythonJobHelper):
+class _BaseDataProcHelper(PythonJobHelper):
     def __init__(self, parsed_model: Dict, credential: BigQueryCredentials) -> None:
         """_summary_
 
@@ -83,7 +82,7 @@ class BaseDataProcHelper(PythonJobHelper):
         raise NotImplementedError("_submit_dataproc_job not implemented")
 
 
-class ClusterDataprocHelper(BaseDataProcHelper):
+class ClusterDataprocHelper(_BaseDataProcHelper):
     def _get_job_client(self) -> dataproc_v1.JobControllerClient:
         if not self._get_cluster_name():
             raise ValueError(
@@ -119,7 +118,7 @@ class ClusterDataprocHelper(BaseDataProcHelper):
         return response
 
 
-class ServerlessDataProcHelper(BaseDataProcHelper):
+class ServerlessDataProcHelper(_BaseDataProcHelper):
     def _get_job_client(self) -> dataproc_v1.BatchControllerClient:
         return dataproc_v1.BatchControllerClient(
             client_options=self.client_options, credentials=self.GoogleCredentials
@@ -132,7 +131,7 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
 
     def _submit_dataproc_job(self) -> Batch:
         batch_id = self._get_batch_id()
-        logger.info(f"Submitting batch job with id: {batch_id}")
+        _logger.info(f"Submitting batch job with id: {batch_id}")
         request = create_batch_request(
             batch=self._configure_batch(),
             batch_id=batch_id,

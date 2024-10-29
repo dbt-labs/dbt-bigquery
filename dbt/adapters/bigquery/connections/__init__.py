@@ -2,5 +2,8 @@ from dbt.adapters.bigquery.connections._connection_manager import (
     BigQueryAdapterResponse,
     BigQueryConnectionManager,
     BigQueryCredentials,
-    DataprocBatchConfig,
+)
+from dbt.adapters.bigquery.connections._python_submissions import (
+    ClusterDataprocHelper,
+    ServerlessDataProcHelper,
 )

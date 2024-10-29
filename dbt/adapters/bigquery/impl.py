@@ -60,7 +60,7 @@ from dbt.adapters.bigquery import BigQueryColumn, BigQueryConnectionManager
 from dbt.adapters.bigquery.column import get_nested_column_data_types
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse
 from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset, is_access_entry_in_dataset
-from dbt.adapters.bigquery.python_submissions import (
+from dbt.adapters.bigquery.connections import (
     ClusterDataprocHelper,
     ServerlessDataProcHelper,
 )

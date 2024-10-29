@@ -10,8 +10,11 @@ from google.cloud.dataproc_v1.types.batches import Batch
 from dbt.adapters.base import PythonJobHelper
 from dbt.adapters.events.logging import AdapterLogger
 
-from dbt.adapters.bigquery.connections import BigQueryConnectionManager, BigQueryCredentials
-from dbt.adapters.bigquery.dataproc.batch import (
+from dbt.adapters.bigquery.connections._connection_manager import (
+    BigQueryConnectionManager,
+    BigQueryCredentials,
+)
+from dbt.adapters.bigquery.connections._dataproc import (
     DEFAULT_JAR_FILE_URI,
     create_batch_request,
     poll_batch_job,

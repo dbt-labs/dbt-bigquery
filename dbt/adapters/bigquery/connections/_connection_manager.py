@@ -1,70 +1,69 @@
 from collections import defaultdict
 from concurrent.futures import TimeoutError
-import json
-import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-import uuid
-from mashumaro.helper import pass_through
-
 from functools import lru_cache
-from requests.exceptions import ConnectionError
-
+import json
 from multiprocessing.context import SpawnContext
-from typing import Optional, Any, Dict, Tuple, Hashable, List, TYPE_CHECKING
+import re
+from typing import Any, Dict, Hashable, List, Optional, Tuple, TYPE_CHECKING
+import uuid
 
+from google.api_core import retry, client_info
 import google.auth
+from google.auth import impersonated_credentials
 import google.auth.exceptions
 import google.cloud.bigquery
 import google.cloud.exceptions
-from google.api_core import retry, client_info
-from google.auth import impersonated_credentials
 from google.oauth2 import (
     credentials as GoogleCredentials,
     service_account as GoogleServiceAccountCredentials,
 )
+from mashumaro.helper import pass_through
+from requests.exceptions import ConnectionError
 
+from dbt_common.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
 from dbt_common.events.contextvars import get_node_info
 from dbt_common.events.functions import fire_event
 from dbt_common.exceptions import (
-    DbtRuntimeError,
     DbtConfigError,
     DbtDatabaseError,
+    DbtRuntimeError,
 )
 from dbt_common.invocation import get_invocation_id
-from dbt.adapters.bigquery import gcloud
+from dbt.adapters.base import BaseConnectionManager
 from dbt.adapters.contracts.connection import (
     ConnectionState,
     AdapterResponse,
     Credentials,
     AdapterRequiredConfig,
 )
-from dbt.adapters.exceptions.connection import FailedToConnectError
-from dbt.adapters.base import BaseConnectionManager
 from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery
-from dbt.adapters.bigquery import __version__ as dbt_version
-from dbt.adapters.bigquery.utility import is_base64, base64_to_string
+from dbt.adapters.exceptions.connection import FailedToConnectError
 
-from dbt_common.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
+from dbt.adapters.bigquery import gcloud
+from dbt.adapters.bigquery import __version__ as dbt_version
+from dbt.adapters.bigquery.utility import base64_to_string, is_base64
 
 if TYPE_CHECKING:
     # Indirectly imported via agate_helper, which is lazy loaded further downfile.
     # Used by mypy for earlier type hints.
     import agate
 
-logger = AdapterLogger("BigQuery")
 
-BQ_QUERY_JOB_SPLIT = "-----Query Job SQL Follows-----"
+_logger = AdapterLogger("BigQuery")
 
-WRITE_TRUNCATE = google.cloud.bigquery.job.WriteDisposition.WRITE_TRUNCATE
+_BQ_QUERY_JOB_SPLIT = "-----Query Job SQL Follows-----"
 
-REOPENABLE_ERRORS = (
+_WRITE_TRUNCATE = google.cloud.bigquery.job.WriteDisposition.WRITE_TRUNCATE
+
+_REOPENABLE_ERRORS = (
     ConnectionResetError,
     ConnectionError,
 )
 
-RETRYABLE_ERRORS = (
+_RETRYABLE_ERRORS = (
     google.cloud.exceptions.ServerError,
     google.cloud.exceptions.BadRequest,
     google.cloud.exceptions.BadGateway,
@@ -74,7 +73,7 @@ RETRYABLE_ERRORS = (
 
 
 @lru_cache()
-def get_bigquery_defaults(scopes=None) -> Tuple[Any, Optional[str]]:
+def _get_bigquery_defaults(scopes=None) -> Tuple[Any, Optional[str]]:
     """
     Returns (credentials, project_id)
 
@@ -88,12 +87,12 @@ def get_bigquery_defaults(scopes=None) -> Tuple[Any, Optional[str]]:
         raise DbtConfigError(f"Failed to authenticate with supplied credentials\nerror:\n{e}")
 
 
-class Priority(StrEnum):
+class _Priority(StrEnum):
     Interactive = "interactive"
     Batch = "batch"
 
 
-class BigQueryConnectionMethod(StrEnum):
+class _BigQueryConnectionMethod(StrEnum):
     OAUTH = "oauth"
     SERVICE_ACCOUNT = "service-account"
     SERVICE_ACCOUNT_JSON = "service-account-json"
@@ -118,7 +117,7 @@ class DataprocBatchConfig(ExtensibleDbtClassMixin):
 
 @dataclass
 class BigQueryCredentials(Credentials):
-    method: BigQueryConnectionMethod = None  # type: ignore
+    method: _BigQueryConnectionMethod = None  # type: ignore
 
     # BigQuery allows an empty database / project, where it defers to the
     # environment for the project
@@ -126,7 +125,7 @@ class BigQueryCredentials(Credentials):
     schema: Optional[str] = None
     execution_project: Optional[str] = None
     location: Optional[str] = None
-    priority: Optional[Priority] = None
+    priority: Optional[_Priority] = None
     maximum_bytes_billed: Optional[int] = None
     impersonate_service_account: Optional[str] = None
 
@@ -223,7 +222,7 @@ class BigQueryCredentials(Credentials):
 
         # `database` is an alias of `project` in BigQuery
         if "database" not in d:
-            _, database = get_bigquery_defaults()
+            _, database = _get_bigquery_defaults()
             d["database"] = database
         # `execution_project` default to dataset/project
         if "execution_project" not in d:
@@ -245,7 +244,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
     def handle_error(cls, error, message):
         error_msg = "\n".join([item["message"] for item in error.errors])
         if hasattr(error, "query_job"):
-            logger.error(
+            _logger.error(
                 cls._bq_job_link(
                     error.query_job.location, error.query_job.project, error.query_job.job_id
                 )
@@ -284,8 +283,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
             raise DbtRuntimeError(message)
 
         except Exception as e:
-            logger.debug("Unhandled error while running:\n{}".format(sql))
-            logger.debug(e)
+            _logger.debug("Unhandled error while running:\n{}".format(sql))
+            _logger.debug(e)
             if isinstance(e, DbtRuntimeError):
                 # during a sql query, an internal to dbt exception was raised.
                 # this sounds a lot like a signal handler and probably has
@@ -294,8 +293,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
             exc_message = str(e)
             # the google bigquery library likes to add the query log, which we
             # don't want to log. Hopefully they never change this!
-            if BQ_QUERY_JOB_SPLIT in exc_message:
-                exc_message = exc_message.split(BQ_QUERY_JOB_SPLIT)[0].strip()
+            if _BQ_QUERY_JOB_SPLIT in exc_message:
+                exc_message = exc_message.split(_BQ_QUERY_JOB_SPLIT)[0].strip()
             raise DbtRuntimeError(exc_message)
 
     def cancel_open(self):
@@ -360,21 +359,21 @@ class BigQueryConnectionManager(BaseConnectionManager):
         method = profile_credentials.method
         creds = GoogleServiceAccountCredentials.Credentials
 
-        if method == BigQueryConnectionMethod.OAUTH:
-            credentials, _ = get_bigquery_defaults(scopes=profile_credentials.scopes)
+        if method == _BigQueryConnectionMethod.OAUTH:
+            credentials, _ = _get_bigquery_defaults(scopes=profile_credentials.scopes)
             return credentials
 
-        elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT:
+        elif method == _BigQueryConnectionMethod.SERVICE_ACCOUNT:
             keyfile = profile_credentials.keyfile
             return creds.from_service_account_file(keyfile, scopes=profile_credentials.scopes)
 
-        elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON:
+        elif method == _BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON:
             details = profile_credentials.keyfile_json
             if is_base64(profile_credentials.keyfile_json):
                 details = base64_to_string(details)
             return creds.from_service_account_info(details, scopes=profile_credentials.scopes)
 
-        elif method == BigQueryConnectionMethod.OAUTH_SECRETS:
+        elif method == _BigQueryConnectionMethod.OAUTH_SECRETS:
             return GoogleCredentials.Credentials(
                 token=profile_credentials.token,
                 refresh_token=profile_credentials.refresh_token,
@@ -421,20 +420,20 @@ class BigQueryConnectionManager(BaseConnectionManager):
     @classmethod
     def open(cls, connection):
         if connection.state == "open":
-            logger.debug("Connection is already open, skipping open.")
+            _logger.debug("Connection is already open, skipping open.")
             return connection
 
         try:
             handle = cls.get_bigquery_client(connection.credentials)
 
         except google.auth.exceptions.DefaultCredentialsError:
-            logger.info("Please log into GCP to continue")
+            _logger.info("Please log into GCP to continue")
             gcloud.setup_default_credentials()
 
             handle = cls.get_bigquery_client(connection.credentials)
 
         except Exception as e:
-            logger.debug(
+            _logger.debug(
                 "Got an error when attempting to create a bigquery " "client: '{}'".format(e)
             )
 
@@ -521,7 +520,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         }
 
         priority = conn.credentials.priority
-        if priority == Priority.Batch:
+        if priority == _Priority.Batch:
             job_params["priority"] = google.cloud.bigquery.QueryPriority.BATCH
         else:
             job_params["priority"] = google.cloud.bigquery.QueryPriority.INTERACTIVE
@@ -700,7 +699,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             destination.database, destination.schema, destination.table
         )
 
-        logger.debug(
+        _logger.debug(
             'Copying table(s) "{}" to "{}" with disposition: "{}"',
             ", ".join(source_ref.path for source_ref in source_ref_array),
             destination_ref.path,
@@ -796,7 +795,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             and query_job.job_id is not None
             and query_job.project is not None
         ):
-            logger.debug(
+            _logger.debug(
                 self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
             )
         try:
@@ -810,8 +809,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
         """retry a function call within the context of exception_handler."""
 
         def reopen_conn_on_error(error):
-            if isinstance(error, REOPENABLE_ERRORS):
-                logger.warning("Reopening connection after {!r}".format(error))
+            if isinstance(error, _REOPENABLE_ERRORS):
+                _logger.warning("Reopening connection after {!r}".format(error))
                 self.close(conn)
                 self.open(conn)
                 return
@@ -854,7 +853,7 @@ class _ErrorCounter(object):
             return False  # Don't log
         self.error_count += 1
         if _is_retryable(error) and self.error_count <= self.retries:
-            logger.debug(
+            _logger.debug(
                 "Retry attempt {} of {} after error: {}".format(
                     self.error_count, self.retries, repr(error)
                 )
@@ -866,7 +865,7 @@ class _ErrorCounter(object):
 
 def _is_retryable(error):
     """Return true for errors that are unlikely to occur again if retried."""
-    if isinstance(error, RETRYABLE_ERRORS):
+    if isinstance(error, _RETRYABLE_ERRORS):
         return True
     elif isinstance(error, google.api_core.exceptions.Forbidden) and any(
         e["reason"] == "rateLimitExceeded" for e in error.errors

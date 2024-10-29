@@ -1,9 +1,6 @@
 from typing import List
-from google.cloud.bigquery import Dataset, AccessEntry
 
-from dbt.adapters.events.logging import AdapterLogger
-
-logger = AdapterLogger("BigQuery")
+from google.cloud.bigquery import AccessEntry, Dataset
 
 
 def is_access_entry_in_dataset(dataset: Dataset, access_entry: AccessEntry) -> bool:

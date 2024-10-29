@@ -125,7 +125,7 @@ df.write \
   {%- endif %}
   {%- endif %}
   {% else %}
-  .option("writeMethod", "direct") \# if no partitioning is specified, we can write directly
+  .option("writeMethod", "direct") \
   {%- endif %}
   {%- if raw_cluster_by is not none %}
   .option("clusteredFields", "{{- raw_cluster_by | join(',') -}}") \

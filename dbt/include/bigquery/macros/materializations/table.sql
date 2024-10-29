@@ -116,17 +116,20 @@ else:
 df.write \
   .mode("overwrite") \
   .format("bigquery") \
-  .option("writeMethod", "indirect").option("writeDisposition", 'WRITE_TRUNCATE') \
   {%- if partition_config is not none %}
+  .option("writeMethod", "indirect") \
   {%- if partition_config.data_type | lower in ('date','timestamp','datetime') %}
   .option("partitionField", "{{- partition_config.field -}}") \
   {%- if partition_config.granularity is not none %}
   .option("partitionType", "{{- partition_config.granularity| upper -}}") \
   {%- endif %}
   {%- endif %}
+  {% else %}
+  .option("writeMethod", "direct") \
   {%- endif %}
   {%- if raw_cluster_by is not none %}
   .option("clusteredFields", "{{- raw_cluster_by | join(',') -}}") \
   {%- endif %}
+  .option("writeDisposition", 'WRITE_TRUNCATE') \
   .save("{{target_relation}}")
 {% endmacro %}

@@ -1,3 +1,5 @@
+import base64
+import binascii
 from collections import defaultdict
 from concurrent.futures import TimeoutError
 from contextlib import contextmanager
@@ -6,7 +8,7 @@ from functools import lru_cache
 import json
 from multiprocessing.context import SpawnContext
 import re
-from typing import Any, Dict, Hashable, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, Hashable, List, Optional, Tuple, TYPE_CHECKING, Union
 import uuid
 
 from google.api_core import retry, client_info
@@ -44,7 +46,6 @@ from dbt.adapters.exceptions.connection import FailedToConnectError
 
 from dbt.adapters.bigquery.connections import _gcloud
 from dbt.adapters.bigquery import __version__ as dbt_version
-from dbt.adapters.bigquery.utility import base64_to_string, is_base64
 
 if TYPE_CHECKING:
     # Indirectly imported via agate_helper, which is lazy loaded further downfile.
@@ -884,3 +885,35 @@ def _sanitize_label(value: str) -> str:
     value = value.strip().lower()
     value = _SANITIZE_LABEL_PATTERN.sub("_", value)
     return value[:_VALIDATE_LABEL_LENGTH_LIMIT]
+
+
+def is_base64(s: Union[str, bytes]) -> bool:
+    """
+    Checks if the given string or bytes object is valid Base64 encoded.
+
+    Args:
+        s: The string or bytes object to check.
+
+    Returns:
+        True if the input is valid Base64, False otherwise.
+    """
+
+    if isinstance(s, str):
+        # For strings, ensure they consist only of valid Base64 characters
+        if not s.isascii():
+            return False
+        # Convert to bytes for decoding
+        s = s.encode("ascii")
+
+    try:
+        # Use the 'validate' parameter to enforce strict Base64 decoding rules
+        base64.b64decode(s, validate=True)
+        return True
+    except TypeError:
+        return False
+    except binascii.Error:  # Catch specific errors from the base64 module
+        return False
+
+
+def base64_to_string(b):
+    return base64.b64decode(b).decode("utf-8")

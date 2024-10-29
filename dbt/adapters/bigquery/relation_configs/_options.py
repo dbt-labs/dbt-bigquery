@@ -8,7 +8,7 @@ from google.cloud.bigquery import Table as BigQueryTable
 from typing_extensions import Self
 
 from dbt.adapters.bigquery.relation_configs._base import BigQueryBaseRelationConfig
-from dbt.adapters.bigquery.utility import bool_setting, float_setting, sql_escape
+from dbt.adapters.bigquery.utility import sql_escape
 
 
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
@@ -157,3 +157,38 @@ class BigQueryOptionsConfigChange(RelationConfigChange):
     @property
     def requires_full_refresh(self) -> bool:
         return False
+
+
+def bool_setting(value: Optional[Any] = None) -> Optional[bool]:
+    if value is None:
+        return None
+    elif isinstance(value, bool):
+        return value
+    elif isinstance(value, str):
+        # don't do bool(value) as that is equivalent to: len(value) > 0
+        if value.lower() == "true":
+            return True
+        elif value.lower() == "false":
+            return False
+        else:
+            raise ValueError(
+                f"Invalid input, "
+                f"expecting `bool` or `str` ex. (True, False, 'true', 'False'), received: {value}"
+            )
+    else:
+        raise TypeError(
+            f"Invalid type for bool evaluation, "
+            f"expecting `bool` or `str`, received: {type(value)}"
+        )
+
+
+def float_setting(value: Optional[Any] = None) -> Optional[float]:
+    if value is None:
+        return None
+    elif any(isinstance(value, i) for i in [int, float, str]):
+        return float(value)
+    else:
+        raise TypeError(
+            f"Invalid type for float evaluation, "
+            f"expecting `int`, `float`, or `str`, received: {type(value)}"
+        )

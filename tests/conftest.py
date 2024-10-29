@@ -1,7 +1,7 @@
 import pytest
 import os
 import json
-from dbt.adapters.bigquery.utility import is_base64, base64_to_string
+from dbt.adapters.bigquery.connections._connection_manager import is_base64, base64_to_string
 
 # Import the fuctional fixtures as a plugin
 # Note: fixtures with session scope need to be local

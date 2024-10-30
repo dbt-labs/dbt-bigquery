@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from dbt.adapters.bigquery.dataproc.batch import update_batch_from_config
+from dbt.adapters.bigquery.connections._dataproc import update_batch_from_config
 from google.cloud import dataproc_v1
 
 from .test_bigquery_adapter import BaseTestBigQueryAdapter

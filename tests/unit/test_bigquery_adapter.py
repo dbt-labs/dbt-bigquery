@@ -17,7 +17,10 @@ import dbt.adapters
 from dbt.adapters.bigquery.relation_configs import PartitionConfig
 from dbt.adapters.bigquery import BigQueryAdapter, BigQueryRelation
 from google.cloud.bigquery.table import Table
-from dbt.adapters.bigquery.connections import _sanitize_label, _VALIDATE_LABEL_LENGTH_LIMIT
+from dbt.adapters.bigquery.connections._connection_manager import (
+    _sanitize_label,
+    _VALIDATE_LABEL_LENGTH_LIMIT,
+)
 from dbt_common.clients import agate_helper
 import dbt_common.exceptions
 from dbt.context.query_header import generate_query_header_context

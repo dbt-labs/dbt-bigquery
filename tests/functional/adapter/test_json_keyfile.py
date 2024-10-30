@@ -1,6 +1,7 @@
+import base64
 import json
 import pytest
-from dbt.adapters.bigquery.utility import string_to_base64, is_base64
+from dbt.adapters.bigquery.connections._connection_manager import is_base64
 
 
 @pytest.fixture
@@ -40,7 +41,11 @@ def example_json_keyfile_b64():
         }
     )
 
-    return string_to_base64(keyfile)
+    return _string_to_base64(keyfile)
+
+
+def _string_to_base64(s):
+    return base64.b64encode(s.encode("utf-8"))
 
 
 def test_valid_base64_strings(example_json_keyfile_b64):

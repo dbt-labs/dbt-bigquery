@@ -17,7 +17,10 @@ import dbt.adapters
 from dbt.adapters.bigquery.relation_configs import PartitionConfig
 from dbt.adapters.bigquery import BigQueryAdapter, BigQueryRelation
 from google.cloud.bigquery.table import Table
-from dbt.adapters.bigquery.connections import _sanitize_label, _VALIDATE_LABEL_LENGTH_LIMIT
+from dbt.adapters.bigquery.connections._connection_manager import (
+    _sanitize_label,
+    _VALIDATE_LABEL_LENGTH_LIMIT,
+)
 from dbt_common.clients import agate_helper
 import dbt_common.exceptions
 from dbt.context.query_header import generate_query_header_context
@@ -203,7 +206,7 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
 
 class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
     @patch(
-        "dbt.adapters.bigquery.connections.get_bigquery_defaults",
+        "dbt.adapters.bigquery.connections._connection_manager._get_bigquery_defaults",
         return_value=("credentials", "project_id"),
     )
     @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())
@@ -244,7 +247,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         mock_open_connection.assert_called_once()
 
     @patch(
-        "dbt.adapters.bigquery.connections.get_bigquery_defaults",
+        "dbt.adapters.bigquery.connections._connection_manager._get_bigquery_defaults",
         return_value=("credentials", "project_id"),
     )
     @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())
@@ -568,7 +571,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         adapter.connections = MagicMock()
         adapter.copy_table("source", "destination", "table")
         adapter.connections.copy_bq_table.assert_called_once_with(
-            "source", "destination", dbt.adapters.bigquery.impl.WRITE_TRUNCATE
+            "source", "destination", dbt.adapters.bigquery.impl._WRITE_TRUNCATE
         )
 
     def test_copy_table_materialization_incremental(self):
@@ -576,7 +579,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         adapter.connections = MagicMock()
         adapter.copy_table("source", "destination", "incremental")
         adapter.connections.copy_bq_table.assert_called_once_with(
-            "source", "destination", dbt.adapters.bigquery.impl.WRITE_APPEND
+            "source", "destination", dbt.adapters.bigquery.impl._WRITE_APPEND
         )
 
     def test_parse_partition_by(self):

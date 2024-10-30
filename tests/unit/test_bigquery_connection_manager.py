@@ -26,7 +26,9 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.connections.get_job_retry_deadline_seconds = lambda x: None
         self.connections.get_job_retries = lambda x: 1
 
-    @patch("dbt.adapters.bigquery.connections._is_retryable", return_value=True)
+    @patch(
+        "dbt.adapters.bigquery.connections._connection_manager._is_retryable", return_value=True
+    )
     def test_retry_and_handle(self, is_retryable):
         self.connections.DEFAULT_MAXIMUM_DELAY = 2.0
 
@@ -53,7 +55,9 @@ class TestBigQueryConnectionManager(unittest.TestCase):
             )
             self.assertEqual(DummyException.count, 9)
 
-    @patch("dbt.adapters.bigquery.connections._is_retryable", return_value=True)
+    @patch(
+        "dbt.adapters.bigquery.connections._connection_manager._is_retryable", return_value=True
+    )
     def test_retry_connection_reset(self, is_retryable):
         self.connections.open = MagicMock()
         self.connections.close = MagicMock()
@@ -75,7 +79,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.connections.open.assert_called_once_with(mock_conn)
 
     def test_is_retryable(self):
-        _is_retryable = dbt.adapters.bigquery.connections._is_retryable
+        _is_retryable = dbt.adapters.bigquery.connections._connection_manager._is_retryable
         exceptions = dbt.adapters.bigquery.impl.google.cloud.exceptions
         internal_server_error = exceptions.InternalServerError("code broke")
         bad_request_error = exceptions.BadRequest("code broke")
@@ -121,7 +125,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         )
 
     def test_copy_bq_table_appends(self):
-        self._copy_table(write_disposition=dbt.adapters.bigquery.impl.WRITE_APPEND)
+        self._copy_table(write_disposition=dbt.adapters.bigquery.impl._WRITE_APPEND)
         args, kwargs = self.mock_client.copy_table.call_args
         self.mock_client.copy_table.assert_called_once_with(
             [self._table_ref("project", "dataset", "table1")],
@@ -130,11 +134,11 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         )
         args, kwargs = self.mock_client.copy_table.call_args
         self.assertEqual(
-            kwargs["job_config"].write_disposition, dbt.adapters.bigquery.impl.WRITE_APPEND
+            kwargs["job_config"].write_disposition, dbt.adapters.bigquery.impl._WRITE_APPEND
         )
 
     def test_copy_bq_table_truncates(self):
-        self._copy_table(write_disposition=dbt.adapters.bigquery.impl.WRITE_TRUNCATE)
+        self._copy_table(write_disposition=dbt.adapters.bigquery.impl._WRITE_TRUNCATE)
         args, kwargs = self.mock_client.copy_table.call_args
         self.mock_client.copy_table.assert_called_once_with(
             [self._table_ref("project", "dataset", "table1")],
@@ -143,7 +147,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         )
         args, kwargs = self.mock_client.copy_table.call_args
         self.assertEqual(
-            kwargs["job_config"].write_disposition, dbt.adapters.bigquery.impl.WRITE_TRUNCATE
+            kwargs["job_config"].write_disposition, dbt.adapters.bigquery.impl._WRITE_TRUNCATE
         )
 
     def test_job_labels_valid_json(self):

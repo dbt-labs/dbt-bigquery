@@ -36,7 +36,7 @@ from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery
 from dbt.adapters.exceptions.connection import FailedToConnectError
 
-from dbt.adapters.bigquery import __version__ as dbt_version
+import dbt.adapters.bigquery.__version__ as dbt_version
 from dbt.adapters.bigquery import gcloud
 from dbt.adapters.bigquery.credentials import (
     BigQueryConnectionMethod,

@@ -1,7 +1,7 @@
-from dbt_common.exceptions import DbtRuntimeError
-
-from dbt.adapters.events.logging import AdapterLogger
 from dbt_common.clients.system import run_cmd
+from dbt_common.exceptions import DbtRuntimeError
+from dbt.adapters.events.logging import AdapterLogger
+
 
 NOT_INSTALLED_MSG = """
 dbt requires the gcloud SDK to be installed to authenticate with BigQuery.

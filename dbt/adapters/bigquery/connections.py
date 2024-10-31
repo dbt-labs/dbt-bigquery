@@ -1,48 +1,46 @@
 from collections import defaultdict
 from concurrent.futures import TimeoutError
-import json
-import re
 from contextlib import contextmanager
 from dataclasses import dataclass
+import json
+from multiprocessing.context import SpawnContext
+import re
+from typing import Dict, Hashable, List, Optional, Tuple, TYPE_CHECKING
 import uuid
 
 from requests.exceptions import ConnectionError
 
-from multiprocessing.context import SpawnContext
-from typing import Optional, Dict, Tuple, Hashable, List, TYPE_CHECKING
-
-import google.auth
-import google.auth.exceptions
-import google.cloud.bigquery
-import google.cloud.exceptions
 from google.api_core import retry, client_info
+import google.auth
 from google.auth import impersonated_credentials
+import google.auth.exceptions
 from google.oauth2 import (
     credentials as GoogleCredentials,
     service_account as GoogleServiceAccountCredentials,
 )
+import google.cloud.bigquery
+import google.cloud.exceptions
 
 from dbt_common.events.contextvars import get_node_info
 from dbt_common.events.functions import fire_event
-from dbt_common.exceptions import (
-    DbtRuntimeError,
-    DbtDatabaseError,
-)
+from dbt_common.exceptions import DbtDatabaseError, DbtRuntimeError
 from dbt_common.invocation import get_invocation_id
-from dbt.adapters.bigquery import gcloud
-from dbt.adapters.contracts.connection import (
-    ConnectionState,
-    AdapterResponse,
-    AdapterRequiredConfig,
-)
-from dbt.adapters.exceptions.connection import FailedToConnectError
+
 from dbt.adapters.base import BaseConnectionManager
+from dbt.adapters.contracts.connection import (
+    AdapterRequiredConfig,
+    AdapterResponse,
+    ConnectionState,
+)
 from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery
+from dbt.adapters.exceptions.connection import FailedToConnectError
+
 from dbt.adapters.bigquery import __version__ as dbt_version
+from dbt.adapters.bigquery import gcloud
 from dbt.adapters.bigquery.credentials import (
-    Priority,
     BigQueryConnectionMethod,
+    Priority,
     get_bigquery_defaults,
 )
 from dbt.adapters.bigquery.utility import is_base64, base64_to_string
@@ -51,6 +49,7 @@ if TYPE_CHECKING:
     # Indirectly imported via agate_helper, which is lazy loaded further downfile.
     # Used by mypy for earlier type hints.
     import agate
+
 
 logger = AdapterLogger("BigQuery")
 

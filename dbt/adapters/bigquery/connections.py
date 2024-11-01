@@ -18,7 +18,16 @@ from google.oauth2 import (
     credentials as GoogleCredentials,
     service_account as GoogleServiceAccountCredentials,
 )
-from requests.exceptions import ConnectionError
+from google.cloud.bigquery import (
+    Client,
+    CopyJobConfig,
+    DatasetReference,
+    QueryJobConfig,
+    QueryPriority,
+    TableReference,
+    WriteDisposition,
+)
+import google.cloud.exceptions
 
 from dbt_common.events.contextvars import get_node_info
 from dbt_common.events.functions import fire_event
@@ -42,7 +51,7 @@ from dbt.adapters.bigquery.credentials import (
     get_bigquery_defaults,
     setup_default_credentials,
 )
-from dbt.adapters.bigquery.retry import _BufferedPredicate as _ErrorCounter, RetryFactory
+from dbt.adapters.bigquery.retry import RetryFactory
 from dbt.adapters.bigquery.utility import is_base64, base64_to_string
 
 if TYPE_CHECKING:
@@ -55,9 +64,12 @@ logger = AdapterLogger("BigQuery")
 
 BQ_QUERY_JOB_SPLIT = "-----Query Job SQL Follows-----"
 
-WRITE_TRUNCATE = google.cloud.bigquery.job.WriteDisposition.WRITE_TRUNCATE
+WRITE_TRUNCATE = WriteDisposition.WRITE_TRUNCATE
 
-REOPENABLE_ERRORS = (ConnectionError,)
+REOPENABLE_ERRORS = (
+    ConnectionError,
+    ConnectionResetError,
+)
 
 
 @dataclass
@@ -84,7 +96,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
     def _reopen_on_error(self, connection: Connection) -> Callable[[Exception], None]:
 
         def _on_error(error: Exception):
-            if isinstance(error, ConnectionError):
+            if isinstance(error, REOPENABLE_ERRORS):
                 logger.warning("Reopening connection after {!r}".format(error))
                 self.close(connection)
                 self.open(connection)
@@ -264,7 +276,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         info = client_info.ClientInfo(user_agent=f"dbt-bigquery-{dbt_version.version}")
         options = client_options.ClientOptions(quota_project_id=quota_project)
-        return google.cloud.bigquery.Client(
+        return Client(
             execution_project,
             creds,
             location=location,
@@ -360,7 +372,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         dry_run: bool = False,
     ):
         conn = self.get_thread_connection()
-        client = conn.handle
 
         fire_event(SQLQuery(conn_name=conn.name, sql=sql, node_info=get_node_info()))
 
@@ -376,33 +387,24 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         priority = conn.credentials.priority
         if priority == Priority.Batch:
-            job_params["priority"] = google.cloud.bigquery.QueryPriority.BATCH
+            job_params["priority"] = QueryPriority.BATCH
         else:
-            job_params["priority"] = google.cloud.bigquery.QueryPriority.INTERACTIVE
+            job_params["priority"] = QueryPriority.INTERACTIVE
 
         maximum_bytes_billed = conn.credentials.maximum_bytes_billed
         if maximum_bytes_billed is not None and maximum_bytes_billed != 0:
             job_params["maximum_bytes_billed"] = maximum_bytes_billed
 
-        job_creation_timeout = self.get_job_creation_timeout_seconds(conn)
-        job_execution_timeout = self.get_job_execution_timeout_seconds(conn)
-
-        def fn():
+        with self.exception_handler(sql):
             job_id = self.generate_job_id()
 
             return self._query_and_results(
-                client,
+                conn,
                 sql,
                 job_params,
                 job_id,
-                job_creation_timeout=job_creation_timeout,
-                job_execution_timeout=job_execution_timeout,
                 limit=limit,
             )
-
-        query_job, iterator = self._retry_and_handle(msg=sql, conn=conn, fn=fn)
-
-        return query_job, iterator
 
     def execute(
         self, sql, auto_begin=False, fetch=None, limit: Optional[int] = None
@@ -533,7 +535,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
     def copy_bq_table(self, source, destination, write_disposition):
         conn = self.get_thread_connection()
-        client = conn.handle
+        client: Client = conn.handle
 
         # -------------------------------------------------------------------------------
         #  BigQuery allows to use copy API using two different formats:
@@ -561,30 +563,27 @@ class BigQueryConnectionManager(BaseConnectionManager):
             write_disposition,
         )
 
-        def copy_and_results():
-            job_config = google.cloud.bigquery.CopyJobConfig(write_disposition=write_disposition)
-            copy_job = client.copy_table(source_ref_array, destination_ref, job_config=job_config)
-            timeout = self.get_job_execution_timeout_seconds(conn) or 300
-            iterator = copy_job.result(timeout=timeout)
-            return copy_job, iterator
-
-        self._retry_and_handle(
-            msg='copy table "{}" to "{}"'.format(
-                ", ".join(source_ref.path for source_ref in source_ref_array),
-                destination_ref.path,
-            ),
-            conn=conn,
-            fn=copy_and_results,
+        msg = 'copy table "{}" to "{}"'.format(
+            ", ".join(source_ref.path for source_ref in source_ref_array),
+            destination_ref.path,
         )
+        with self.exception_handler(msg):
+            copy_job = client.copy_table(
+                source_ref_array,
+                destination_ref,
+                job_config=CopyJobConfig(write_disposition=write_disposition),
+                retry=self._retry.deadline(self._reopen_on_error(conn)),
+            )
+            copy_job.result(retry=self._retry.job_execution_capped(self._reopen_on_error(conn)))
 
     @staticmethod
     def dataset_ref(database, schema):
-        return google.cloud.bigquery.DatasetReference(project=database, dataset_id=schema)
+        return DatasetReference(project=database, dataset_id=schema)
 
     @staticmethod
     def table_ref(database, schema, table_name):
-        dataset_ref = google.cloud.bigquery.DatasetReference(database, schema)
-        return google.cloud.bigquery.TableReference(dataset_ref, table_name)
+        dataset_ref = DatasetReference(database, schema)
+        return TableReference(dataset_ref, table_name)
 
     def get_bq_table(self, database, schema, identifier):
         """Get a bigquery table for a schema/model."""
@@ -597,53 +596,56 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
     def drop_dataset(self, database, schema):
         conn = self.get_thread_connection()
-        dataset_ref = self.dataset_ref(database, schema)
-        client = conn.handle
-
-        def fn():
-            return client.delete_dataset(dataset_ref, delete_contents=True, not_found_ok=True)
-
-        self._retry_and_handle(msg="drop dataset", conn=conn, fn=fn)
+        client: Client = conn.handle
+        with self.exception_handler("drop dataset"):
+            return client.delete_dataset(
+                dataset=self.dataset_ref(database, schema),
+                delete_contents=True,
+                not_found_ok=True,
+                retry=self._retry.deadline(self._reopen_on_error(conn)),
+            )
 
     def create_dataset(self, database, schema):
         conn = self.get_thread_connection()
-        client = conn.handle
-        dataset_ref = self.dataset_ref(database, schema)
-
-        def fn():
-            return client.create_dataset(dataset_ref, exists_ok=True)
-
-        self._retry_and_handle(msg="create dataset", conn=conn, fn=fn)
+        client: Client = conn.handle
+        with self.exception_handler("create dataset"):
+            return client.create_dataset(
+                dataset=self.dataset_ref(database, schema),
+                exists_ok=True,
+                retry=self._retry.deadline(self._reopen_on_error(conn)),
+            )
 
     def list_dataset(self, database: str):
-        # the database string we get here is potentially quoted. Strip that off
-        # for the API call.
-        database = database.strip("`")
+        # The database string we get here is potentially quoted.
+        # Strip that off for the API call.
         conn = self.get_thread_connection()
-        client = conn.handle
-
-        def query_schemas():
+        client: Client = conn.handle
+        with self.exception_handler("list dataset"):
             # this is similar to how we have to deal with listing tables
-            all_datasets = client.list_datasets(project=database, max_results=10000)
+            all_datasets = client.list_datasets(
+                project=database.strip("`"),
+                max_results=10000,
+                retry=self._retry.deadline(self._reopen_on_error(conn)),
+            )
             return [ds.dataset_id for ds in all_datasets]
-
-        return self._retry_and_handle(msg="list dataset", conn=conn, fn=query_schemas)
 
     def _query_and_results(
         self,
-        client,
+        conn,
         sql,
         job_params,
         job_id,
-        job_creation_timeout=None,
-        job_execution_timeout=None,
         limit: Optional[int] = None,
     ):
+        client: Client = conn.handle
         """Query the client and wait for results."""
         # Cannot reuse job_config if destination is set and ddl is used
-        job_config = google.cloud.bigquery.QueryJobConfig(**job_params)
+        job_config = QueryJobConfig(**job_params)
         query_job = client.query(
-            query=sql, job_config=job_config, job_id=job_id, timeout=job_creation_timeout
+            query=sql,
+            job_config=job_config,
+            job_id=job_id,  # note, this disables retry since the job_id will have been used
+            timeout=self._retry.job_creation_timeout,
         )
         if (
             query_job.location is not None
@@ -654,36 +656,13 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
             )
         try:
-            iterator = query_job.result(max_results=limit, timeout=job_execution_timeout)
+            iterator = query_job.result(
+                max_results=limit, timeout=self._retry.job_execution_timeout
+            )
             return query_job, iterator
         except TimeoutError:
-            exc = f"Operation did not complete within the designated timeout of {job_execution_timeout} seconds."
+            exc = f"Operation did not complete within the designated timeout of {self._retry.job_execution_timeout} seconds."
             raise TimeoutError(exc)
-
-    def _retry_and_handle(self, msg, conn, fn):
-        """retry a function call within the context of exception_handler."""
-
-        def reopen_conn_on_error(error):
-            if isinstance(error, REOPENABLE_ERRORS):
-                logger.warning("Reopening connection after {!r}".format(error))
-                self.close(conn)
-                self.open(conn)
-                return
-
-        with self.exception_handler(msg):
-            return retry.retry_target(
-                target=fn,
-                predicate=_ErrorCounter(self.get_job_retries(conn)).count_error,
-                sleep_generator=self._retry_generator(),
-                deadline=self.get_job_retry_deadline_seconds(conn),
-                on_error=reopen_conn_on_error,
-            )
-
-    def _retry_generator(self):
-        """Generates retry intervals that exponentially back off."""
-        return retry.exponential_sleep_generator(
-            initial=self.DEFAULT_INITIAL_DELAY, maximum=self.DEFAULT_MAXIMUM_DELAY
-        )
 
     def _labels_from_query_comment(self, comment: str) -> Dict:
         try:

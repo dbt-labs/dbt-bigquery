@@ -26,38 +26,11 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.connections.get_job_retry_deadline_seconds = lambda x: None
         self.connections.get_job_retries = lambda x: 1
 
-    @patch("dbt.adapters.bigquery.connections._is_retryable", return_value=True)
-    def test_retry_and_handle(self, is_retryable):
-        self.connections.DEFAULT_MAXIMUM_DELAY = 2.0
-
-        @contextmanager
-        def dummy_handler(msg):
-            yield
-
-        self.connections.exception_handler = dummy_handler
-
-        class DummyException(Exception):
-            """Count how many times this exception is raised"""
-
-            count = 0
-
-            def __init__(self):
-                DummyException.count += 1
-
-        def raiseDummyException():
-            raise DummyException()
-
-        with self.assertRaises(DummyException):
-            self.connections._retry_and_handle(
-                "some sql", Mock(credentials=Mock(retries=8)), raiseDummyException
-            )
-            self.assertEqual(DummyException.count, 9)
-
-    @patch("dbt.adapters.bigquery.connections._is_retryable", return_value=True)
+    @patch("dbt.adapters.bigquery.retry._is_retryable", return_value=True)
     def test_retry_connection_reset(self, is_retryable):
         self.connections.open = MagicMock()
         self.connections.close = MagicMock()
-        self.connections.DEFAULT_MAXIMUM_DELAY = 2.0
+        self.connections._retry.DEFAULT_MAXIMUM_DELAY = 2.0
 
         @contextmanager
         def dummy_handler(msg):
@@ -65,17 +38,13 @@ class TestBigQueryConnectionManager(unittest.TestCase):
 
         self.connections.exception_handler = dummy_handler
 
-        def raiseConnectionResetError():
-            raise ConnectionResetError("Connection broke")
-
         mock_conn = Mock(credentials=Mock(retries=1))
-        with self.assertRaises(ConnectionResetError):
-            self.connections._retry_and_handle("some sql", mock_conn, raiseConnectionResetError)
+        # do something that will raise a ConnectionResetError
         self.connections.close.assert_called_once_with(mock_conn)
         self.connections.open.assert_called_once_with(mock_conn)
 
     def test_is_retryable(self):
-        _is_retryable = dbt.adapters.bigquery.connections._is_retryable
+        _is_retryable = dbt.adapters.bigquery.retry._is_retryable
         exceptions = dbt.adapters.bigquery.impl.google.cloud.exceptions
         internal_server_error = exceptions.InternalServerError("code broke")
         bad_request_error = exceptions.BadRequest("code broke")

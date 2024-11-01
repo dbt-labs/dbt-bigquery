@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import json
 from multiprocessing.context import SpawnContext
 import re
-from typing import Dict, Hashable, List, Optional, Tuple, TYPE_CHECKING
+from typing import Callable, Dict, Hashable, List, Optional, Tuple, TYPE_CHECKING
 import uuid
 
 from google.api_core import client_info, client_options, retry
@@ -28,6 +28,7 @@ from dbt.adapters.base import BaseConnectionManager
 from dbt.adapters.contracts.connection import (
     AdapterRequiredConfig,
     AdapterResponse,
+    Connection,
     ConnectionState,
 )
 from dbt.adapters.events.logging import AdapterLogger
@@ -41,7 +42,7 @@ from dbt.adapters.bigquery.credentials import (
     get_bigquery_defaults,
     setup_default_credentials,
 )
-from dbt.adapters.bigquery.retry import _BufferedPredicate as _ErrorCounter
+from dbt.adapters.bigquery.retry import _BufferedPredicate as _ErrorCounter, RetryFactory
 from dbt.adapters.bigquery.utility import is_base64, base64_to_string
 
 if TYPE_CHECKING:
@@ -56,10 +57,7 @@ BQ_QUERY_JOB_SPLIT = "-----Query Job SQL Follows-----"
 
 WRITE_TRUNCATE = google.cloud.bigquery.job.WriteDisposition.WRITE_TRUNCATE
 
-REOPENABLE_ERRORS = (
-    ConnectionResetError,
-    ConnectionError,
-)
+REOPENABLE_ERRORS = (ConnectionError,)
 
 
 @dataclass
@@ -81,6 +79,18 @@ class BigQueryConnectionManager(BaseConnectionManager):
     def __init__(self, profile: AdapterRequiredConfig, mp_context: SpawnContext):
         super().__init__(profile, mp_context)
         self.jobs_by_thread: Dict[Hashable, List[str]] = defaultdict(list)
+        self._retry = RetryFactory(profile.credentials)
+
+    def _reopen_on_error(self, connection: Connection) -> Callable[[Exception], None]:
+
+        def _on_error(error: Exception):
+            if isinstance(error, ConnectionError):
+                logger.warning("Reopening connection after {!r}".format(error))
+                self.close(connection)
+                self.open(connection)
+            return
+
+        return _on_error
 
     @classmethod
     def handle_error(cls, error, message):

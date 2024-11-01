@@ -156,15 +156,15 @@ class BigQueryConnectionManager(BaseConnectionManager):
             for thread_id, connection in self.thread_connections.items():
                 if connection is this_connection:
                     continue
+
                 if connection.handle is not None and connection.state == ConnectionState.OPEN:
                     client = connection.handle
                     for job_id in self.jobs_by_thread.get(thread_id, []):
-
-                        def fn():
-                            return client.cancel_job(job_id)
-
-                        self._retry_and_handle(msg=f"Cancel job: {job_id}", conn=connection, fn=fn)
-
+                        with self.exception_handler(f"Cancel job: {job_id}"):
+                            client.cancel_job(
+                                job_id,
+                                retry=self._retry.deadline(self._reopen_on_error(connection)),
+                            )
                     self.close(connection)
 
                 if connection.name is not None:

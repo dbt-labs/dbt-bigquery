@@ -698,7 +698,7 @@ class BigQueryAdapter(BaseAdapter):
                 f, table_ref, rewind=True, job_config=load_config, job_id=job_id
             )
 
-        timeout = self.connections.get_job_execution_timeout_seconds(conn) or 300
+        timeout = conn.credentials.job_execution_timeout_seconds or 300
         with self.connections.exception_handler("LOAD TABLE"):
             self.poll_until_job_completes(job, timeout)
 
@@ -721,7 +721,7 @@ class BigQueryAdapter(BaseAdapter):
         with open(local_file_path, "rb") as f:
             job = client.load_table_from_file(f, table_ref, rewind=True, job_config=load_config)
 
-        timeout = self.connections.get_job_execution_timeout_seconds(conn) or 300
+        timeout = conn.credentials.job_execution_timeout_seconds or 300
         with self.connections.exception_handler("LOAD TABLE"):
             self.poll_until_job_completes(job, timeout)
 

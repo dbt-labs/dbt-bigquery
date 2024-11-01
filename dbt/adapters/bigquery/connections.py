@@ -314,26 +314,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return connection
 
     @classmethod
-    def get_job_execution_timeout_seconds(cls, conn):
-        credentials = conn.credentials
-        return credentials.job_execution_timeout_seconds
-
-    @classmethod
-    def get_job_retries(cls, conn) -> int:
-        credentials = conn.credentials
-        return credentials.job_retries
-
-    @classmethod
-    def get_job_creation_timeout_seconds(cls, conn):
-        credentials = conn.credentials
-        return credentials.job_creation_timeout_seconds
-
-    @classmethod
-    def get_job_retry_deadline_seconds(cls, conn):
-        credentials = conn.credentials
-        return credentials.job_retry_deadline_seconds
-
-    @classmethod
     def get_table_from_response(cls, resp) -> "agate.Table":
         from dbt_common.clients import agate_helper
 

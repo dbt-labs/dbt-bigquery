@@ -23,7 +23,6 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.mock_connection.handle = self.mock_client
 
         self.connections.get_thread_connection = lambda: self.mock_connection
-        self.connections.get_job_retry_deadline_seconds = lambda x: None
         self.connections.get_job_retries = lambda x: 1
 
     @patch("dbt.adapters.bigquery.retry._is_retryable", return_value=True)

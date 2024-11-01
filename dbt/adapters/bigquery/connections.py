@@ -8,8 +8,7 @@ import re
 from typing import Dict, Hashable, List, Optional, Tuple, TYPE_CHECKING
 import uuid
 
-
-from google.api_core import retry, client_info
+from google.api_core import client_info, client_options, retry
 import google.auth
 from google.auth import impersonated_credentials
 import google.auth.exceptions

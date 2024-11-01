@@ -8,24 +8,23 @@ import re
 from typing import Dict, Hashable, List, Optional, Tuple, TYPE_CHECKING
 import uuid
 
-from requests.exceptions import ConnectionError
 
 from google.api_core import retry, client_info
 import google.auth
 from google.auth import impersonated_credentials
 import google.auth.exceptions
+import google.cloud.bigquery
+import google.cloud.exceptions
 from google.oauth2 import (
     credentials as GoogleCredentials,
     service_account as GoogleServiceAccountCredentials,
 )
-import google.cloud.bigquery
-import google.cloud.exceptions
+from requests.exceptions import ConnectionError
 
 from dbt_common.events.contextvars import get_node_info
 from dbt_common.events.functions import fire_event
 from dbt_common.exceptions import DbtDatabaseError, DbtRuntimeError
 from dbt_common.invocation import get_invocation_id
-
 from dbt.adapters.base import BaseConnectionManager
 from dbt.adapters.contracts.connection import (
     AdapterRequiredConfig,
@@ -258,14 +257,17 @@ class BigQueryConnectionManager(BaseConnectionManager):
     def get_bigquery_client(cls, profile_credentials):
         creds = cls.get_credentials(profile_credentials)
         execution_project = profile_credentials.execution_project
+        quota_project = profile_credentials.quota_project
         location = getattr(profile_credentials, "location", None)
 
         info = client_info.ClientInfo(user_agent=f"dbt-bigquery-{dbt_version.version}")
+        options = client_options.ClientOptions(quota_project_id=quota_project)
         return google.cloud.bigquery.Client(
             execution_project,
             creds,
             location=location,
             client_info=info,
+            client_options=options,
         )
 
     @classmethod

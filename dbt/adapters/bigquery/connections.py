@@ -35,11 +35,11 @@ from dbt.adapters.events.types import SQLQuery
 from dbt.adapters.exceptions.connection import FailedToConnectError
 
 import dbt.adapters.bigquery.__version__ as dbt_version
-from dbt.adapters.bigquery import gcloud
 from dbt.adapters.bigquery.credentials import (
     BigQueryConnectionMethod,
     Priority,
     get_bigquery_defaults,
+    setup_default_credentials,
 )
 from dbt.adapters.bigquery.utility import is_base64, base64_to_string
 
@@ -280,7 +280,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         except google.auth.exceptions.DefaultCredentialsError:
             logger.info("Please log into GCP to continue")
-            gcloud.setup_default_credentials()
+            setup_default_credentials()
 
             handle = cls.get_bigquery_client(connection.credentials)
 

@@ -6,9 +6,14 @@ import google.auth
 from google.auth.exceptions import DefaultCredentialsError
 from mashumaro import pass_through
 
+from dbt_common.clients.system import run_cmd
 from dbt_common.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
 from dbt_common.exceptions import DbtConfigError, DbtRuntimeError
 from dbt.adapters.contracts.connection import Credentials
+from dbt.adapters.events.logging import AdapterLogger
+
+
+_logger = AdapterLogger("BigQuery")
 
 
 class Priority(StrEnum):
@@ -44,6 +49,28 @@ def get_bigquery_defaults(scopes=None) -> Tuple[Any, Optional[str]]:
         raise DbtConfigError(f"Failed to authenticate with supplied credentials\nerror:\n{e}")
 
 
+def setup_default_credentials():
+    if _gcloud_installed():
+        run_cmd(".", ["gcloud", "auth", "application-default", "login"])
+    else:
+        msg = """
+        dbt requires the gcloud SDK to be installed to authenticate with BigQuery.
+        Please download and install the SDK, or use a Service Account instead.
+
+        https://cloud.google.com/sdk/
+        """
+        raise DbtRuntimeError(msg)
+
+
+def _gcloud_installed():
+    try:
+        run_cmd(".", ["gcloud", "--version"])
+        return True
+    except OSError as e:
+        _logger.debug(e)
+        return False
+
+
 @dataclass
 class BigQueryCredentials(Credentials):
     method: BigQueryConnectionMethod = None  # type: ignore
@@ -53,6 +80,7 @@ class BigQueryCredentials(Credentials):
     database: Optional[str] = None
     schema: Optional[str] = None
     execution_project: Optional[str] = None
+    quota_project: Optional[str] = None
     location: Optional[str] = None
     priority: Optional[Priority] = None
     maximum_bytes_billed: Optional[int] = None

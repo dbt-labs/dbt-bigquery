@@ -41,6 +41,7 @@ from dbt.adapters.bigquery.credentials import (
     get_bigquery_defaults,
     setup_default_credentials,
 )
+from dbt.adapters.bigquery.retry import _BufferedPredicate as _ErrorCounter
 from dbt.adapters.bigquery.utility import is_base64, base64_to_string
 
 if TYPE_CHECKING:
@@ -56,14 +57,6 @@ BQ_QUERY_JOB_SPLIT = "-----Query Job SQL Follows-----"
 WRITE_TRUNCATE = google.cloud.bigquery.job.WriteDisposition.WRITE_TRUNCATE
 
 REOPENABLE_ERRORS = (
-    ConnectionResetError,
-    ConnectionError,
-)
-
-RETRYABLE_ERRORS = (
-    google.cloud.exceptions.ServerError,
-    google.cloud.exceptions.BadRequest,
-    google.cloud.exceptions.BadGateway,
     ConnectionResetError,
     ConnectionError,
 )
@@ -691,39 +684,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
             _sanitize_label(key): _sanitize_label(str(value))
             for key, value in comment_labels.items()
         }
-
-
-class _ErrorCounter(object):
-    """Counts errors seen up to a threshold then raises the next error."""
-
-    def __init__(self, retries):
-        self.retries = retries
-        self.error_count = 0
-
-    def count_error(self, error):
-        if self.retries == 0:
-            return False  # Don't log
-        self.error_count += 1
-        if _is_retryable(error) and self.error_count <= self.retries:
-            logger.debug(
-                "Retry attempt {} of {} after error: {}".format(
-                    self.error_count, self.retries, repr(error)
-                )
-            )
-            return True
-        else:
-            return False
-
-
-def _is_retryable(error):
-    """Return true for errors that are unlikely to occur again if retried."""
-    if isinstance(error, RETRYABLE_ERRORS):
-        return True
-    elif isinstance(error, google.api_core.exceptions.Forbidden) and any(
-        e["reason"] == "rateLimitExceeded" for e in error.errors
-    ):
-        return True
-    return False
 
 
 _SANITIZE_LABEL_PATTERN = re.compile(r"[^a-z0-9_-]")

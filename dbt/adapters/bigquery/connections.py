@@ -6,7 +6,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 import uuid
 
-from google.api_core.client_options import ClientOptions
 from google.auth.credentials import AnonymousCredentials
 from mashumaro.helper import pass_through
 
@@ -130,6 +129,7 @@ class BigQueryCredentials(Credentials):
     schema: Optional[str] = None
     execution_project: Optional[str] = None
     quota_project: Optional[str] = None
+    api_endpoint: Optional[str] = None
     location: Optional[str] = None
     priority: Optional[Priority] = None
     maximum_bytes_billed: Optional[int] = None
@@ -139,7 +139,6 @@ class BigQueryCredentials(Credentials):
     job_retries: Optional[int] = 1
     job_creation_timeout_seconds: Optional[int] = None
     job_execution_timeout_seconds: Optional[int] = None
-    client_options: Optional[Dict[str, Any]] = None
 
     # Keyfile json creds (unicode or base 64 encoded)
     keyfile: Optional[str] = None
@@ -206,13 +205,13 @@ class BigQueryCredentials(Credentials):
             "schema",
             "location",
             "priority",
+            "api_endpoint",
             "maximum_bytes_billed",
             "impersonate_service_account",
             "job_retry_deadline_seconds",
             "job_retries",
             "job_creation_timeout_seconds",
             "job_execution_timeout_seconds",
-            "client_options",
             "timeout_seconds",
             "client_id",
             "token_uri",
@@ -419,11 +418,12 @@ class BigQueryConnectionManager(BaseConnectionManager):
         execution_project = profile_credentials.execution_project
         quota_project = profile_credentials.quota_project
         location = getattr(profile_credentials, "location", None)
-        client_options_kwargs = getattr(profile_credentials, "client_options", None)
+        api_endpoint = getattr(profile_credentials, "api_endpoint", None)
 
-        options = ClientOptions(**client_options_kwargs) if client_options_kwargs else None
         info = client_info.ClientInfo(user_agent=f"dbt-bigquery-{dbt_version.version}")
-        options = client_options.ClientOptions(quota_project_id=quota_project)
+        options = client_options.ClientOptions(
+            api_endpoint=api_endpoint, quota_project_id=quota_project
+        )
         return google.cloud.bigquery.Client(
             execution_project,
             creds,

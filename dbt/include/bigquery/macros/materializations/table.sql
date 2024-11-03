@@ -113,10 +113,19 @@ else:
   msg = f"{type(df)} is not a supported type for dbt Python materialization"
   raise Exception(msg)
 
+# For writeMethod we need to use "indirect" if materializing a partitioned table
+# otherwise we can use "direct". Note that indirect will fail if the GCS bucket has a retention policy set on it.
+{%- if partition_config %}
+      {%- set write_method = 'indirect' -%}
+{%- else %}
+      {% set write_method = 'direct' -%}
+{%- endif %}
+
 df.write \
   .mode("overwrite") \
   .format("bigquery") \
-  .option("writeMethod", "indirect").option("writeDisposition", 'WRITE_TRUNCATE') \
+  .option("writeMethod", "{{ write_method }}") \
+  .option("writeDisposition", 'WRITE_TRUNCATE') \
   {%- if partition_config is not none %}
   {%- if partition_config.data_type | lower in ('date','timestamp','datetime') %}
   .option("partitionField", "{{- partition_config.field -}}") \

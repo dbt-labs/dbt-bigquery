@@ -76,9 +76,7 @@ class TestDataProfileScanWithProjectProfileScanSetting:
         }
 
     def test_create_data_profile_scan(self, project):
-        with patch(
-            "dbt.adapters.bigquery.impl.dataplex_v1.DataScanServiceClient"
-        ) as MockDataScanClient:
+        with patch("google.cloud.dataplex_v1.DataScanServiceClient") as MockDataScanClient:
             mock_data_scan_client = MockDataScanClient.return_value
 
             results = run_dbt()
@@ -122,9 +120,7 @@ class TestDataProfileScanWithProjectProfileScanSettingAndCron:
         }
 
     def test_create_data_profile_scan(self, project):
-        with patch(
-            "dbt.adapters.bigquery.impl.dataplex_v1.DataScanServiceClient"
-        ) as MockDataScanClient:
+        with patch("google.cloud.dataplex_v1.DataScanServiceClient") as MockDataScanClient:
             mock_data_scan_client = MockDataScanClient.return_value
 
             results = run_dbt()
@@ -164,9 +160,7 @@ class TestDataProfileScanWithModelProfileScanSetting:
         }
 
     def test_create_data_profile_scan(self, project):
-        with patch(
-            "dbt.adapters.bigquery.impl.dataplex_v1.DataScanServiceClient"
-        ) as MockDataScanClient:
+        with patch("google.cloud.dataplex_v1.DataScanServiceClient") as MockDataScanClient:
             mock_data_scan_client = MockDataScanClient.return_value
 
             results = run_dbt()
@@ -195,9 +189,7 @@ class TestDataProfileScanWithoutProfileScanSetting:
         }
 
     def test_create_data_profile_scan(self, project):
-        with patch(
-            "dbt.adapters.bigquery.impl.dataplex_v1.DataScanServiceClient"
-        ) as MockDataScanClient:
+        with patch("google.cloud.dataplex_v1.DataScanServiceClient") as MockDataScanClient:
             mock_data_scan_client = MockDataScanClient.return_value
 
             results = run_dbt()
@@ -238,9 +230,7 @@ class TestDataProfileScanDisabledProfileScanSetting:
         }
 
     def test_create_data_profile_scan(self, project):
-        with patch(
-            "dbt.adapters.bigquery.impl.dataplex_v1.DataScanServiceClient"
-        ) as MockDataScanClient:
+        with patch("google.cloud.dataplex_v1.DataScanServiceClient") as MockDataScanClient:
             mock_data_scan_client = MockDataScanClient.return_value
 
             results = run_dbt()
@@ -286,9 +276,7 @@ class TestDataProfileScanUpdatedMidway:
         }
 
     def test_create_data_profile_scan(self, project):
-        with patch(
-            "dbt.adapters.bigquery.impl.dataplex_v1.DataScanServiceClient"
-        ) as MockDataScanClient:
+        with patch("google.cloud.dataplex_v1.DataScanServiceClient") as MockDataScanClient:
             mock_data_scan_client = MockDataScanClient.return_value
 
             results = run_dbt()
@@ -347,9 +335,7 @@ class TestDataProfileScanDisabledMidway:
         }
 
     def test_create_data_profile_scan(self, project):
-        with patch(
-            "dbt.adapters.bigquery.impl.dataplex_v1.DataScanServiceClient"
-        ) as MockDataScanClient:
+        with patch("google.cloud.dataplex_v1.DataScanServiceClient") as MockDataScanClient:
             mock_data_scan_client = MockDataScanClient.return_value
 
             results = run_dbt()

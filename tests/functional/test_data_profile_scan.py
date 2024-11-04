@@ -46,7 +46,7 @@ models:
     config:
       data_profile_scan:
         location: us-central1
-        scan_id: yasuhisa-test4
+        scan_id: {SCAN_ID}
         sampling_percent: 10
         row_filter: "TRUE"
         cron: "CRON_TZ=Asia/New_York 0 9 * * *"
@@ -61,7 +61,6 @@ class TestDataProfileScanWithProjectProfileScanSetting:
                 "+labels": ORIGINAL_LABELS,
                 "+data_profile_scan": {
                     "location": SCAN_LOCATION,
-                    "scan_id": SCAN_ID,
                     "sampling_percent": 10,
                     "row_filter": "TRUE",
                 },

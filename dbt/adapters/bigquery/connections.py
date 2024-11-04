@@ -12,12 +12,6 @@ from google.api_core import client_info, client_options, retry
 import google.auth
 from google.auth import impersonated_credentials
 import google.auth.exceptions
-import google.cloud.bigquery
-import google.cloud.exceptions
-from google.oauth2 import (
-    credentials as GoogleCredentials,
-    service_account as GoogleServiceAccountCredentials,
-)
 from google.cloud.bigquery import (
     Client,
     CopyJobConfig,
@@ -27,6 +21,12 @@ from google.cloud.bigquery import (
     TableReference,
     WriteDisposition,
 )
+import google.cloud.exceptions
+from google.oauth2 import (
+    credentials as GoogleCredentials,
+    service_account as GoogleServiceAccountCredentials,
+)
+from requests.exceptions import ConnectionError
 
 from dbt_common.events.contextvars import get_node_info
 from dbt_common.events.functions import fire_event
@@ -622,7 +622,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
         client: Client = conn.handle
         """Query the client and wait for results."""
         # Cannot reuse job_config if destination is set and ddl is used
-        job_config = QueryJobConfig(**job_params)
+        job_factory = QueryJobConfig
+        job_config = job_factory(**job_params)
         query_job = client.query(
             query=sql,
             job_config=job_config,

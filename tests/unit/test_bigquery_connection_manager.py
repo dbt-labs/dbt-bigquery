@@ -5,25 +5,27 @@ from requests.exceptions import ConnectionError
 from unittest.mock import patch, MagicMock, Mock, ANY
 
 import dbt.adapters
+import google.cloud.bigquery
 
 from dbt.adapters.bigquery import BigQueryCredentials
 from dbt.adapters.bigquery import BigQueryRelation
 from dbt.adapters.bigquery.connections import BigQueryConnectionManager
+from dbt.adapters.bigquery.retry import RetryFactory
 
 
 class TestBigQueryConnectionManager(unittest.TestCase):
     def setUp(self):
-        credentials = Mock(BigQueryCredentials)
-        profile = Mock(query_comment=None, credentials=credentials)
+        self.credentials = Mock(BigQueryCredentials)
+        self.credentials.job_retries = 1
+        profile = Mock(query_comment=None, credentials=self.credentials)
         self.connections = BigQueryConnectionManager(profile=profile, mp_context=Mock())
 
-        self.mock_client = Mock(dbt.adapters.bigquery.impl.google.cloud.bigquery.Client)
+        self.mock_client = Mock(google.cloud.bigquery.Client)
         self.mock_connection = MagicMock()
 
         self.mock_connection.handle = self.mock_client
 
         self.connections.get_thread_connection = lambda: self.mock_connection
-        self.connections.get_job_retries = lambda x: 1
 
     @patch("dbt.adapters.bigquery.retry._is_retryable", return_value=True)
     def test_retry_connection_reset(self, is_retryable):
@@ -37,8 +39,18 @@ class TestBigQueryConnectionManager(unittest.TestCase):
 
         self.connections.exception_handler = dummy_handler
 
-        mock_conn = Mock(credentials=Mock(retries=1))
-        # do something that will raise a ConnectionResetError
+        retry = RetryFactory(Mock(job_retries=1, job_execution_timeout_seconds=60))
+        mock_conn = Mock()
+
+        on_error = self.connections._reopen_on_error(mock_conn)
+
+        @retry.job_execution(on_error)
+        def generate_connection_reset_error():
+            raise ConnectionResetError
+
+        with self.assertRaises(ConnectionResetError):
+            # this will always raise the error, we just want to test that the connection was reopening in between
+            generate_connection_reset_error()
         self.connections.close.assert_called_once_with(mock_conn)
         self.connections.open.assert_called_once_with(mock_conn)
 
@@ -72,20 +84,21 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.mock_client.delete_table.assert_not_called()
         self.mock_client.delete_dataset.assert_called_once()
 
-    @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")
-    def test_query_and_results(self, mock_bq):
+    @patch("dbt.adapters.bigquery.connections.QueryJobConfig")
+    def test_query_and_results(self, MockQueryJobConfig):
         self.connections._query_and_results(
-            self.mock_client,
+            self.mock_connection,
             "sql",
-            {"job_param_1": "blah"},
+            {"dry_run": True},
             job_id=1,
-            job_creation_timeout=15,
-            job_execution_timeout=100,
         )
 
-        mock_bq.QueryJobConfig.assert_called_once()
+        MockQueryJobConfig.assert_called_once()
         self.mock_client.query.assert_called_once_with(
-            query="sql", job_config=mock_bq.QueryJobConfig(), job_id=1, timeout=15
+            query="sql",
+            job_config=MockQueryJobConfig(),
+            job_id=1,
+            timeout=self.credentials.job_creation_timeout_seconds,
         )
 
     def test_copy_bq_table_appends(self):
@@ -95,6 +108,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
             [self._table_ref("project", "dataset", "table1")],
             self._table_ref("project", "dataset", "table2"),
             job_config=ANY,
+            retry=ANY,
         )
         args, kwargs = self.mock_client.copy_table.call_args
         self.assertEqual(
@@ -108,6 +122,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
             [self._table_ref("project", "dataset", "table1")],
             self._table_ref("project", "dataset", "table2"),
             job_config=ANY,
+            retry=ANY,
         )
         args, kwargs = self.mock_client.copy_table.call_args
         self.assertEqual(
@@ -129,7 +144,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.mock_client.list_datasets = mock_list_dataset
         result = self.connections.list_dataset("project")
         self.mock_client.list_datasets.assert_called_once_with(
-            project="project", max_results=10000
+            project="project", max_results=10000, retry=ANY
         )
         assert result == ["d1"]
 

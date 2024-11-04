@@ -3,10 +3,10 @@ from typing import Callable
 from google.api_core import retry
 from google.api_core.exceptions import Forbidden
 from google.cloud.exceptions import BadGateway, BadRequest, ServerError
+from requests.exceptions import ConnectionError
 
 from dbt.adapters.events.logging import AdapterLogger
 
-from dbt.adapters.bigquery.connections import logger
 from dbt.adapters.bigquery.credentials import BigQueryCredentials
 
 
@@ -124,7 +124,7 @@ class _BufferedPredicate:
             return False  # Don't log
         self._error_count += 1
         if _is_retryable(error) and self._error_count <= self._retries:
-            logger.debug(
+            _logger.debug(
                 "Retry attempt {} of {} after error: {}".format(
                     self._error_count, self._retries, repr(error)
                 )

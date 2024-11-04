@@ -27,7 +27,6 @@ from google.cloud.bigquery import (
     TableReference,
     WriteDisposition,
 )
-import google.cloud.exceptions
 
 from dbt_common.events.contextvars import get_node_info
 from dbt_common.events.functions import fire_event
@@ -568,11 +567,14 @@ class BigQueryConnectionManager(BaseConnectionManager):
     def get_bq_table(self, database, schema, identifier):
         """Get a bigquery table for a schema/model."""
         conn = self.get_thread_connection()
+        client: Client = conn.handle
         # backwards compatibility: fill in with defaults if not specified
         database = database or conn.credentials.database
         schema = schema or conn.credentials.schema
-        table_ref = self.table_ref(database, schema, identifier)
-        return conn.handle.get_table(table_ref)
+        return client.get_table(
+            table=self.table_ref(database, schema, identifier),
+            retry=self._retry.deadline(self._reopen_on_error(conn)),
+        )
 
     def drop_dataset(self, database, schema):
         conn = self.get_thread_connection()

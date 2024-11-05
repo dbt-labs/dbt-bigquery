@@ -1,6 +1,8 @@
 import json
 import unittest
 from contextlib import contextmanager
+
+from google.auth.credentials import AnonymousCredentials
 from requests.exceptions import ConnectionError
 from unittest.mock import patch, MagicMock, Mock, ANY
 
@@ -8,7 +10,7 @@ import dbt.adapters
 
 from dbt.adapters.bigquery import BigQueryCredentials
 from dbt.adapters.bigquery import BigQueryRelation
-from dbt.adapters.bigquery.connections import BigQueryConnectionManager
+from dbt.adapters.bigquery.connections import BigQueryConnectionManager, BigQueryConnectionMethod
 
 
 class TestBigQueryConnectionManager(unittest.TestCase):
@@ -174,3 +176,17 @@ class TestBigQueryConnectionManager(unittest.TestCase):
             database="project", schema="dataset", identifier="table2"
         )
         self.connections.copy_bq_table(source, destination, write_disposition)
+
+    def test_local_test_container_connection(self):
+        # Create a BigQueryCredentials instance with the anonymous method
+        credentials = BigQueryCredentials(
+            method=BigQueryConnectionMethod.ANONYMOUS,
+            database="test-database",
+            schema="test-schema",
+        )
+
+        # Get the Google credentials using the connection manager
+        google_credentials = BigQueryConnectionManager.get_google_credentials(credentials)
+
+        # Assert that the credentials are an instance of AnonymousCredentials
+        self.assertIsInstance(google_credentials, AnonymousCredentials)

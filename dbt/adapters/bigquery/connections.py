@@ -5,6 +5,8 @@ import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 import uuid
+
+from google.auth.credentials import AnonymousCredentials
 from mashumaro.helper import pass_through
 
 from functools import lru_cache
@@ -98,6 +100,7 @@ class BigQueryConnectionMethod(StrEnum):
     SERVICE_ACCOUNT = "service-account"
     SERVICE_ACCOUNT_JSON = "service-account-json"
     OAUTH_SECRETS = "oauth-secrets"
+    ANONYMOUS = "anonymous"
 
 
 @dataclass
@@ -126,6 +129,7 @@ class BigQueryCredentials(Credentials):
     schema: Optional[str] = None
     execution_project: Optional[str] = None
     quota_project: Optional[str] = None
+    api_endpoint: Optional[str] = None
     location: Optional[str] = None
     priority: Optional[Priority] = None
     maximum_bytes_billed: Optional[int] = None
@@ -201,6 +205,7 @@ class BigQueryCredentials(Credentials):
             "schema",
             "location",
             "priority",
+            "api_endpoint",
             "maximum_bytes_billed",
             "impersonate_service_account",
             "job_retry_deadline_seconds",
@@ -384,6 +389,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 token_uri=profile_credentials.token_uri,
                 scopes=profile_credentials.scopes,
             )
+        elif method == BigQueryConnectionMethod.ANONYMOUS:
+            return AnonymousCredentials()
 
         error = 'Invalid `method` in profile: "{}"'.format(method)
         raise FailedToConnectError(error)
@@ -411,9 +418,12 @@ class BigQueryConnectionManager(BaseConnectionManager):
         execution_project = profile_credentials.execution_project
         quota_project = profile_credentials.quota_project
         location = getattr(profile_credentials, "location", None)
+        api_endpoint = getattr(profile_credentials, "api_endpoint", None)
 
         info = client_info.ClientInfo(user_agent=f"dbt-bigquery-{dbt_version.version}")
-        options = client_options.ClientOptions(quota_project_id=quota_project)
+        options = client_options.ClientOptions(
+            api_endpoint=api_endpoint, quota_project_id=quota_project
+        )
         return google.cloud.bigquery.Client(
             execution_project,
             creds,
@@ -602,8 +612,11 @@ class BigQueryConnectionManager(BaseConnectionManager):
             conn = self.get_thread_connection()
             client = conn.handle
             # use anonymous table for num_rows
-            query_table = client.get_table(query_job.destination)
-            num_rows = query_table.num_rows
+            if query_job.destination:
+                query_table = client.get_table(query_job.destination)
+                num_rows = query_table.num_rows
+            else:
+                num_rows = None
 
         # set common attributes
         bytes_processed = query_job.total_bytes_processed

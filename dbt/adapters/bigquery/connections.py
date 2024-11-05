@@ -66,8 +66,8 @@ BQ_QUERY_JOB_SPLIT = "-----Query Job SQL Follows-----"
 WRITE_TRUNCATE = WriteDisposition.WRITE_TRUNCATE
 
 REOPENABLE_ERRORS = (
-    ConnectionError,
     ConnectionResetError,
+    ConnectionError,
 )
 
 

@@ -457,31 +457,15 @@ class BigQueryConnectionManager(BaseConnectionManager):
         identifier: str,
         table_schema: List[SchemaField],
         field_delimiter: str,
+        fallback_timeout: Optional[float] = None,
     ) -> None:
-
         load_config = LoadJobConfig(
             skip_leading_rows=1,
             schema=table_schema,
             field_delimiter=field_delimiter,
         )
-
-        with self.exception_handler("LOAD TABLE"):
-            with open(file_path, "rb") as f:
-                job = client.load_table_from_file(
-                    f,
-                    self.table_ref(database, schema, identifier),
-                    rewind=True,
-                    job_config=load_config,
-                    job_id=self.generate_job_id(),
-                    timeout=self._retry.job_execution_timeout or 300,
-                )
-
-        if job.state != "DONE":
-            raise DbtRuntimeError("BigQuery Timeout Exceeded")
-
-        elif job.error_result:
-            message = "\n".join(error["message"].strip() for error in job.errors)
-            raise DbtRuntimeError(message)
+        table = self.table_ref(database, schema, identifier)
+        self._load_table_from_file(client, file_path, table, load_config, fallback_timeout)
 
     def upload_file(
         self,
@@ -490,25 +474,30 @@ class BigQueryConnectionManager(BaseConnectionManager):
         database: str,
         schema: str,
         identifier: str,
+        fallback_timeout: Optional[float] = None,
         **kwargs,
     ) -> None:
-
         config = kwargs["kwargs"]
         if "schema" in config:
             config["schema"] = json.load(config["schema"])
         load_config = LoadJobConfig(**config)
+        table = self.table_ref(database, schema, identifier)
+        self._load_table_from_file(client, file_path, table, load_config, fallback_timeout)
+
+    def _load_table_from_file(
+        self,
+        client: Client,
+        file_path: str,
+        table: TableReference,
+        config: LoadJobConfig,
+        fallback_timeout: Optional[float] = None,
+    ) -> None:
 
         with self.exception_handler("LOAD TABLE"):
             with open(file_path, "rb") as f:
-                job = client.load_table_from_file(
-                    f,
-                    self.table_ref(database, schema, identifier),
-                    rewind=True,
-                    job_config=load_config,
-                    timeout=self._retry.job_execution_timeout or 300,
-                )
+                job = client.load_table_from_file(f, table, rewind=True, job_config=config)
 
-        if job.state != "DONE":
+        if not job.done(retry=self._retry.polling_done(fallback_timeout=fallback_timeout)):
             raise DbtRuntimeError("BigQuery Timeout Exceeded")
 
         elif job.error_result:

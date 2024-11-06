@@ -1,8 +1,9 @@
 from typing import Callable, Optional
 
-from google.api_core import retry
+from google.api_core.retry import Retry
 from google.api_core.exceptions import Forbidden
 from google.api_core.future.polling import POLLING_PREDICATE
+from google.cloud.bigquery.retry import DEFAULT_RETRY
 from google.cloud.exceptions import BadGateway, BadRequest, ServerError
 from requests.exceptions import ConnectionError
 
@@ -16,19 +17,22 @@ from dbt.adapters.bigquery.clients import bigquery_client
 _logger = AdapterLogger("BigQuery")
 
 
-REOPENABLE_ERRORS = (
+_REOPENABLE_ERRORS = (
     ConnectionResetError,
     ConnectionError,
 )
 
 
-RETRYABLE_ERRORS = (
+_RETRYABLE_ERRORS = (
     ServerError,
     BadRequest,
     BadGateway,
     ConnectionResetError,
     ConnectionError,
 )
+
+
+_ONE_DAY = 60 * 60 * 24
 
 
 class RetryFactory:
@@ -42,11 +46,11 @@ class RetryFactory:
         self.job_execution_timeout = credentials.job_execution_timeout_seconds
         self.job_deadline = credentials.job_retry_deadline_seconds
 
-    def deadline(self, connection: Connection) -> retry.Retry:
+    def deadline(self, connection: Connection) -> Retry:
         """
         This strategy mimics what was accomplished with _retry_and_handle
         """
-        return retry.Retry(
+        return Retry(
             predicate=self._buffered_predicate(),
             initial=self._DEFAULT_INITIAL_DELAY,
             maximum=self._DEFAULT_MAXIMUM_DELAY,
@@ -54,11 +58,11 @@ class RetryFactory:
             on_error=_on_error(connection),
         )
 
-    def job_execution(self, connection: Connection) -> retry.Retry:
+    def job_execution(self, connection: Connection) -> Retry:
         """
         This strategy mimics what was accomplished with _retry_and_handle
         """
-        return retry.Retry(
+        return Retry(
             predicate=self._buffered_predicate(),
             initial=self._DEFAULT_INITIAL_DELAY,
             maximum=self._DEFAULT_MAXIMUM_DELAY,
@@ -66,25 +70,34 @@ class RetryFactory:
             on_error=_on_error(connection),
         )
 
-    def job_execution_capped(self, connection: Connection) -> retry.Retry:
+    def job_execution_capped(self, connection: Connection) -> Retry:
         """
         This strategy mimics what was accomplished with _retry_and_handle
         """
-        return retry.Retry(
+        return Retry(
             predicate=self._buffered_predicate(),
             timeout=self.job_execution_timeout or 300,
             on_error=_on_error(connection),
         )
 
-    def polling(self, timeout: Optional[float] = None) -> retry.Retry:
+    def polling(
+        self, timeout: Optional[float] = None, fallback_timeout: Optional[float] = None
+    ) -> Retry:
         """
         This strategy mimics what was accomplished with _retry_and_handle
         """
-        return retry.Retry(
+        return Retry(
             predicate=POLLING_PREDICATE,
             minimum=1.0,
             maximum=10.0,
-            timeout=timeout or self.job_execution_timeout or 60 * 60 * 24,
+            timeout=timeout or self.job_execution_timeout or fallback_timeout or _ONE_DAY,
+        )
+
+    def polling_done(
+        self, timeout: Optional[float] = None, fallback_timeout: Optional[float] = None
+    ) -> Retry:
+        return DEFAULT_RETRY.with_timeout(
+            timeout or self.job_execution_timeout or fallback_timeout or _ONE_DAY
         )
 
     def _buffered_predicate(self) -> Callable[[Exception], bool]:
@@ -124,7 +137,7 @@ class RetryFactory:
 def _on_error(connection: Connection) -> Callable[[Exception], None]:
 
     def on_error(error: Exception):
-        if isinstance(error, REOPENABLE_ERRORS):
+        if isinstance(error, _REOPENABLE_ERRORS):
             _logger.warning("Reopening connection after {!r}".format(error))
             connection.handle.close()
 
@@ -145,7 +158,7 @@ def _on_error(connection: Connection) -> Callable[[Exception], None]:
 
 def _is_retryable(error: Exception) -> bool:
     """Return true for errors that are unlikely to occur again if retried."""
-    if isinstance(error, RETRYABLE_ERRORS):
+    if isinstance(error, _RETRYABLE_ERRORS):
         return True
     elif isinstance(error, Forbidden) and any(
         e["reason"] == "rateLimitExceeded" for e in error.errors

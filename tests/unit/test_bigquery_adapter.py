@@ -388,9 +388,9 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         adapter.connections.thread_connections.update({key: master, 1: model})
         self.assertEqual(len(list(adapter.cancel_open_connections())), 1)
 
-    @patch("dbt.adapters.bigquery.credentials.ClientOptions")
+    @patch("dbt.adapters.bigquery.clients.ClientOptions")
     @patch("dbt.adapters.bigquery.credentials.default")
-    @patch("dbt.adapters.bigquery.credentials.BigQueryClient")
+    @patch("dbt.adapters.bigquery.clients.BigQueryClient")
     def test_location_user_agent(self, MockClient, mock_auth_default, MockClientOptions):
         creds = MagicMock()
         mock_auth_default.return_value = (creds, MagicMock())

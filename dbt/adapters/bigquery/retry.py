@@ -9,8 +9,8 @@ from dbt.adapters.contracts.connection import Connection, ConnectionState
 from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.exceptions.connection import FailedToConnectError
 
-from dbt.adapters.bigquery.credentials import BigQueryCredentials, bigquery_client
-
+from dbt.adapters.bigquery.credentials import BigQueryCredentials
+from dbt.adapters.bigquery.clients import bigquery_client
 
 _logger = AdapterLogger("BigQuery")
 

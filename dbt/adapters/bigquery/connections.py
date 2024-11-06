@@ -38,7 +38,8 @@ from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery
 from dbt.adapters.exceptions.connection import FailedToConnectError
 
-from dbt.adapters.bigquery.credentials import BigQueryCredentials, Priority, bigquery_client
+from dbt.adapters.bigquery.clients import bigquery_client
+from dbt.adapters.bigquery.credentials import BigQueryCredentials, Priority
 from dbt.adapters.bigquery.retry import RetryFactory
 
 if TYPE_CHECKING:

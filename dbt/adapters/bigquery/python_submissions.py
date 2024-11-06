@@ -11,8 +11,8 @@ from google.cloud.dataproc_v1.types import Batch, Job
 from dbt.adapters.base import PythonJobHelper
 from dbt.adapters.events.logging import AdapterLogger
 
-from dbt.adapters.bigquery.credentials import (
-    BigQueryCredentials,
+from dbt.adapters.bigquery.credentials import BigQueryCredentials
+from dbt.adapters.bigquery.clients import (
     batch_controller_client,
     job_controller_client,
     storage_client,

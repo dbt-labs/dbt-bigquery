@@ -203,7 +203,7 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
 
 class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
     @patch(
-        "dbt.adapters.bigquery.connections.get_bigquery_defaults",
+        "dbt.adapters.bigquery.credentials.get_bigquery_defaults",
         return_value=("credentials", "project_id"),
     )
     @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())
@@ -244,7 +244,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         mock_open_connection.assert_called_once()
 
     @patch(
-        "dbt.adapters.bigquery.connections.get_bigquery_defaults",
+        "dbt.adapters.bigquery.credentials.get_bigquery_defaults",
         return_value=("credentials", "project_id"),
     )
     @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())

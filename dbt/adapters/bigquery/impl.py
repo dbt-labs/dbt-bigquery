@@ -1,27 +1,41 @@
 from dataclasses import dataclass
 from datetime import datetime
 import json
-import threading
 from multiprocessing.context import SpawnContext
-
+import threading
 import time
 from typing import (
     Any,
     Dict,
+    FrozenSet,
+    Iterable,
     List,
     Optional,
+    Tuple,
+    TYPE_CHECKING,
     Type,
     Set,
     Union,
-    FrozenSet,
-    Tuple,
-    Iterable,
-    TYPE_CHECKING,
 )
 
-from dbt.adapters.contracts.relation import RelationConfig
+import google.api_core
+import google.auth
+import google.oauth2
+import google.cloud.bigquery
+from google.cloud.bigquery import AccessEntry, SchemaField, Table as BigQueryTable
+import google.cloud.exceptions
+import pytz
 
+from dbt_common.contracts.constraints import (
+    ColumnLevelConstraint,
+    ConstraintType,
+    ModelLevelConstraint,
+)
+from dbt_common.dataclass_schema import dbtClassMixin
+from dbt_common.events.functions import fire_event
+import dbt_common.exceptions
 import dbt_common.exceptions.base
+from dbt_common.utils import filter_null_values
 from dbt.adapters.base import (
     AdapterConfig,
     BaseAdapter,
@@ -37,28 +51,12 @@ from dbt.adapters.cache import _make_ref_key_dict
 from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
 from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.adapters.contracts.macros import MacroResolverProtocol
-from dbt_common.contracts.constraints import (
-    ColumnLevelConstraint,
-    ConstraintType,
-    ModelLevelConstraint,
-)
-from dbt_common.dataclass_schema import dbtClassMixin
+from dbt.adapters.contracts.relation import RelationConfig
 from dbt.adapters.events.logging import AdapterLogger
-from dbt_common.events.functions import fire_event
 from dbt.adapters.events.types import SchemaCreation, SchemaDrop
-import dbt_common.exceptions
-from dbt_common.utils import filter_null_values
-import google.api_core
-import google.auth
-import google.oauth2
-import google.cloud.bigquery
-from google.cloud.bigquery import AccessEntry, SchemaField, Table as BigQueryTable
-import google.cloud.exceptions
-import pytz
 
-from dbt.adapters.bigquery import BigQueryColumn, BigQueryConnectionManager
-from dbt.adapters.bigquery.column import get_nested_column_data_types
-from dbt.adapters.bigquery.connections import BigQueryAdapterResponse
+from dbt.adapters.bigquery.column import BigQueryColumn, get_nested_column_data_types
+from dbt.adapters.bigquery.connections import BigQueryAdapterResponse, BigQueryConnectionManager
 from dbt.adapters.bigquery.dataplex import DataProfileScan
 from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset, is_access_entry_in_dataset
 from dbt.adapters.bigquery.python_submissions import (
@@ -77,6 +75,7 @@ if TYPE_CHECKING:
     # Indirectly imported via agate_helper, which is lazy loaded further downfile.
     # Used by mypy for earlier type hints.
     import agate
+
 
 logger = AdapterLogger("BigQuery")
 

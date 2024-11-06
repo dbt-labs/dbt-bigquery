@@ -1,7 +1,8 @@
-from typing import Callable
+from typing import Callable, Optional
 
 from google.api_core import retry
 from google.api_core.exceptions import Forbidden
+from google.api_core.future.polling import POLLING_PREDICATE
 from google.cloud.exceptions import BadGateway, BadRequest, ServerError
 from requests.exceptions import ConnectionError
 
@@ -73,6 +74,17 @@ class RetryFactory:
             predicate=self._buffered_predicate(),
             timeout=self.job_execution_timeout or 300,
             on_error=_on_error(connection),
+        )
+
+    def polling(self, timeout: Optional[float] = None) -> retry.Retry:
+        """
+        This strategy mimics what was accomplished with _retry_and_handle
+        """
+        return retry.Retry(
+            predicate=POLLING_PREDICATE,
+            minimum=1.0,
+            maximum=10.0,
+            timeout=timeout or self.job_execution_timeout or 60 * 60 * 24,
         )
 
     def _buffered_predicate(self) -> Callable[[Exception], bool]:

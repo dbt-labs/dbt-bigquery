@@ -1,9 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
-import json
 from multiprocessing.context import SpawnContext
 import threading
-import time
 from typing import (
     Any,
     Dict,
@@ -460,22 +458,6 @@ class BigQueryAdapter(BaseAdapter):
             logger.debug("get_columns_in_select_sql error: {}".format(e))
             return []
 
-    @classmethod
-    def poll_until_job_completes(cls, job, timeout):
-        retry_count = timeout
-
-        while retry_count > 0 and job.state != "DONE":
-            retry_count -= 1
-            time.sleep(1)
-            job.reload()
-
-        if job.state != "DONE":
-            raise dbt_common.exceptions.DbtRuntimeError("BigQuery Timeout Exceeded")
-
-        elif job.error_result:
-            message = "\n".join(error["message"].strip() for error in job.errors)
-            raise dbt_common.exceptions.DbtRuntimeError(message)
-
     def _bq_table_to_relation(self, bq_table) -> Union[BigQueryRelation, None]:
         if bq_table is None:
             return None
@@ -689,36 +671,34 @@ class BigQueryAdapter(BaseAdapter):
 
         self.connections.load_dataframe(
             client,
+            file_path,
             database,
             schema,
             table_name,
             table_schema,
             field_delimiter,
-            file_path,
         )
 
     @available.parse_none
     def upload_file(
-        self, local_file_path: str, database: str, table_schema: str, table_name: str, **kwargs
+        self,
+        local_file_path: str,
+        database: str,
+        table_schema: str,
+        table_name: str,
+        **kwargs,
     ) -> None:
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
+        connection = self.connections.get_thread_connection()
+        client: Client = connection.handle
 
-        table_ref = self.connections.table_ref(database, table_schema, table_name)
-
-        load_config = google.cloud.bigquery.LoadJobConfig()
-        for k, v in kwargs["kwargs"].items():
-            if k == "schema":
-                setattr(load_config, k, json.loads(v))
-            else:
-                setattr(load_config, k, v)
-
-        with open(local_file_path, "rb") as f:
-            job = client.load_table_from_file(f, table_ref, rewind=True, job_config=load_config)
-
-        timeout = conn.credentials.job_execution_timeout_seconds or 300
-        with self.connections.exception_handler("LOAD TABLE"):
-            self.poll_until_job_completes(job, timeout)
+        self.connections.upload_file(
+            client,
+            local_file_path,
+            database,
+            table_schema,
+            table_name,
+            **kwargs,
+        )
 
     @classmethod
     def _catalog_filter_table(

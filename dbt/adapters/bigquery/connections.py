@@ -38,7 +38,7 @@ from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery
 from dbt.adapters.exceptions.connection import FailedToConnectError
 
-from dbt.adapters.bigquery.credentials import BigQueryCredentials, Priority, get_bigquery_client
+from dbt.adapters.bigquery.credentials import BigQueryCredentials, Priority, bigquery_client
 from dbt.adapters.bigquery.retry import RetryFactory
 
 if TYPE_CHECKING:
@@ -192,7 +192,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
     @classmethod
     @retry.Retry()  # google decorator. retries on transient errors with exponential backoff
     def bigquery_client(cls, credentials: BigQueryCredentials) -> Client:
-        return get_bigquery_client(credentials)
+        return bigquery_client(credentials)
 
     @classmethod
     def open(cls, connection):

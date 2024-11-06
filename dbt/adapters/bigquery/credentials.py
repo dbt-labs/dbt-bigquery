@@ -2,7 +2,7 @@ import base64
 import binascii
 from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import Any, Dict, Optional, Tuple, Union, Iterable
+from typing import Any, Dict, Iterable, Optional, Tuple, Union
 
 from google.api_core.client_info import ClientInfo
 from google.api_core.client_options import ClientOptions
@@ -10,6 +10,8 @@ from google.auth import default
 from google.auth.exceptions import DefaultCredentialsError
 from google.auth.impersonated_credentials import Credentials as ImpersonatedCredentials
 from google.cloud.bigquery.client import Client as BigQueryClient
+from google.cloud.dataproc_v1 import JobControllerClient, BatchControllerClient
+from google.cloud.storage.client import Client as StorageClient
 from google.oauth2.credentials import Credentials as GoogleCredentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from mashumaro import pass_through
@@ -161,7 +163,7 @@ class BigQueryCredentials(Credentials):
         return d
 
 
-def get_bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
+def bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
     try:
         return _bigquery_client(credentials)
     except DefaultCredentialsError:
@@ -170,10 +172,37 @@ def get_bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
         return _bigquery_client(credentials)
 
 
+def storage_client(credentials: BigQueryCredentials) -> StorageClient:
+    return StorageClient(
+        project=credentials.execution_project,
+        credentials=_get_credentials(credentials),
+    )
+
+
+def job_controller_client(credentials: BigQueryCredentials) -> JobControllerClient:
+    options = ClientOptions(
+        api_endpoint=f"{credentials.dataproc_region}-dataproc.googleapis.com:443",
+    )
+    return JobControllerClient(
+        credentials=_get_credentials(credentials),
+        client_options=options,
+    )
+
+
+def batch_controller_client(credentials: BigQueryCredentials) -> BatchControllerClient:
+    options = ClientOptions(
+        api_endpoint=f"{credentials.dataproc_region}-dataproc.googleapis.com:443",
+    )
+    return BatchControllerClient(
+        credentials=_get_credentials(credentials),
+        client_options=options,
+    )
+
+
 def _bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
     return BigQueryClient(
         credentials.execution_project,
-        get_credentials(credentials),
+        _get_credentials(credentials),
         location=getattr(credentials, "location", None),
         client_info=ClientInfo(user_agent=f"dbt-bigquery-{dbt_version.version}"),
         client_options=ClientOptions(quota_project_id=credentials.quota_project),
@@ -196,7 +225,7 @@ def _setup_default_credentials() -> None:
     run_cmd(".", ["gcloud", "auth", "application-default", "login"])
 
 
-def get_credentials(credentials: BigQueryCredentials) -> GoogleCredentials:
+def _get_credentials(credentials: BigQueryCredentials) -> GoogleCredentials:
     if credentials.impersonate_service_account:
         return _impersonated_credentials(credentials)
     return _google_credentials(credentials)

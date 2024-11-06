@@ -8,7 +8,6 @@ import re
 from typing import Dict, Hashable, List, Optional, Tuple, TYPE_CHECKING
 import uuid
 
-from google.api_core import retry
 import google.auth
 import google.auth.exceptions
 from google.cloud.bigquery import (
@@ -39,7 +38,7 @@ from dbt.adapters.events.types import SQLQuery
 from dbt.adapters.exceptions.connection import FailedToConnectError
 
 from dbt.adapters.bigquery.clients import bigquery_client
-from dbt.adapters.bigquery.credentials import BigQueryCredentials, Priority
+from dbt.adapters.bigquery.credentials import Priority
 from dbt.adapters.bigquery.retry import RetryFactory
 
 if TYPE_CHECKING:
@@ -67,9 +66,6 @@ class BigQueryAdapterResponse(AdapterResponse):
 
 class BigQueryConnectionManager(BaseConnectionManager):
     TYPE = "bigquery"
-
-    DEFAULT_INITIAL_DELAY = 1.0  # Seconds
-    DEFAULT_MAXIMUM_DELAY = 3.0  # Seconds
 
     def __init__(self, profile: AdapterRequiredConfig, mp_context: SpawnContext):
         super().__init__(profile, mp_context)
@@ -191,18 +187,13 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return f"{rows_number:3.1f}{unit}".strip()
 
     @classmethod
-    @retry.Retry()  # google decorator. retries on transient errors with exponential backoff
-    def bigquery_client(cls, credentials: BigQueryCredentials) -> Client:
-        return bigquery_client(credentials)
-
-    @classmethod
     def open(cls, connection):
         if connection.state == ConnectionState.OPEN:
             logger.debug("Connection is already open, skipping open.")
             return connection
 
         try:
-            connection.handle = cls.bigquery_client(connection.credentials)
+            connection.handle = bigquery_client(connection.credentials)
             connection.state = ConnectionState.OPEN
             return connection
 

@@ -1,9 +1,17 @@
+import base64
+import binascii
 from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 
-import google.auth
+from google.api_core.client_info import ClientInfo
+from google.api_core.client_options import ClientOptions
+from google.auth import default
 from google.auth.exceptions import DefaultCredentialsError
+from google.auth.impersonated_credentials import Credentials as ImpersonatedCredentials
+from google.cloud.bigquery.client import Client as BigQueryClient
+from google.oauth2.credentials import Credentials as GoogleCredentials
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from mashumaro import pass_through
 
 from dbt_common.clients.system import run_cmd
@@ -11,6 +19,9 @@ from dbt_common.dataclass_schema import ExtensibleDbtClassMixin, StrEnum
 from dbt_common.exceptions import DbtConfigError, DbtRuntimeError
 from dbt.adapters.contracts.connection import Credentials
 from dbt.adapters.events.logging import AdapterLogger
+from dbt.adapters.exceptions.connection import FailedToConnectError
+
+import dbt.adapters.bigquery.__version__ as dbt_version
 
 
 _logger = AdapterLogger("BigQuery")
@@ -21,7 +32,13 @@ class Priority(StrEnum):
     Batch = "batch"
 
 
-class BigQueryConnectionMethod(StrEnum):
+@dataclass
+class DataprocBatchConfig(ExtensibleDbtClassMixin):
+    def __init__(self, batch_config):
+        self.batch_config = batch_config
+
+
+class _BigQueryConnectionMethod(StrEnum):
     OAUTH = "oauth"
     SERVICE_ACCOUNT = "service-account"
     SERVICE_ACCOUNT_JSON = "service-account-json"
@@ -29,51 +46,8 @@ class BigQueryConnectionMethod(StrEnum):
 
 
 @dataclass
-class DataprocBatchConfig(ExtensibleDbtClassMixin):
-    def __init__(self, batch_config):
-        self.batch_config = batch_config
-
-
-@lru_cache()
-def get_bigquery_defaults(scopes=None) -> Tuple[Any, Optional[str]]:
-    """
-    Returns (credentials, project_id)
-
-    project_id is returned available from the environment; otherwise None
-    """
-    # Cached, because the underlying implementation shells out, taking ~1s
-    try:
-        credentials, _ = google.auth.default(scopes=scopes)
-        return credentials, _
-    except DefaultCredentialsError as e:
-        raise DbtConfigError(f"Failed to authenticate with supplied credentials\nerror:\n{e}")
-
-
-def setup_default_credentials():
-    if _gcloud_installed():
-        run_cmd(".", ["gcloud", "auth", "application-default", "login"])
-    else:
-        msg = """
-        dbt requires the gcloud SDK to be installed to authenticate with BigQuery.
-        Please download and install the SDK, or use a Service Account instead.
-
-        https://cloud.google.com/sdk/
-        """
-        raise DbtRuntimeError(msg)
-
-
-def _gcloud_installed():
-    try:
-        run_cmd(".", ["gcloud", "--version"])
-        return True
-    except OSError as e:
-        _logger.debug(e)
-        return False
-
-
-@dataclass
 class BigQueryCredentials(Credentials):
-    method: BigQueryConnectionMethod = None  # type: ignore
+    method: _BigQueryConnectionMethod = None  # type: ignore
 
     # BigQuery allows an empty database / project, where it defers to the
     # environment for the project
@@ -179,9 +153,143 @@ class BigQueryCredentials(Credentials):
 
         # `database` is an alias of `project` in BigQuery
         if "database" not in d:
-            _, database = get_bigquery_defaults()
+            _, database = _bigquery_defaults()
             d["database"] = database
         # `execution_project` default to dataset/project
         if "execution_project" not in d:
             d["execution_project"] = d["database"]
         return d
+
+
+def get_bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
+    try:
+        return _bigquery_client(credentials)
+    except DefaultCredentialsError:
+        _logger.info("Please log into GCP to continue")
+        _setup_default_credentials()
+        return _bigquery_client(credentials)
+
+
+def _bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
+    return BigQueryClient(
+        credentials.execution_project,
+        get_credentials(credentials),
+        location=getattr(credentials, "location", None),
+        client_info=ClientInfo(user_agent=f"dbt-bigquery-{dbt_version.version}"),
+        client_options=ClientOptions(quota_project_id=credentials.quota_project),
+    )
+
+
+def _setup_default_credentials() -> None:
+    try:
+        run_cmd(".", ["gcloud", "--version"])
+    except OSError as e:
+        _logger.debug(e)
+        msg = """
+        dbt requires the gcloud SDK to be installed to authenticate with BigQuery.
+        Please download and install the SDK, or use a Service Account instead.
+
+        https://cloud.google.com/sdk/
+        """
+        raise DbtRuntimeError(msg)
+
+    run_cmd(".", ["gcloud", "auth", "application-default", "login"])
+
+
+def get_credentials(credentials: BigQueryCredentials) -> GoogleCredentials:
+    if credentials.impersonate_service_account:
+        return _impersonated_credentials(credentials)
+    return _google_credentials(credentials)
+
+
+def _impersonated_credentials(credentials: BigQueryCredentials) -> ImpersonatedCredentials:
+    if scopes := credentials.scopes:
+        target_scopes = list(scopes)
+    else:
+        target_scopes = []
+
+    return ImpersonatedCredentials(
+        source_credentials=_google_credentials(credentials),
+        target_principal=credentials.impersonate_service_account,
+        target_scopes=target_scopes,
+    )
+
+
+def _google_credentials(credentials: BigQueryCredentials) -> GoogleCredentials:
+
+    if credentials.method == _BigQueryConnectionMethod.OAUTH:
+        creds, _ = _bigquery_defaults(scopes=credentials.scopes)
+
+    elif credentials.method == _BigQueryConnectionMethod.SERVICE_ACCOUNT:
+        creds = ServiceAccountCredentials.from_service_account_file(
+            credentials.keyfile, scopes=credentials.scopes
+        )
+
+    elif credentials.method == _BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON:
+        details = credentials.keyfile_json
+        if _is_base64(details):  # type:ignore
+            details = _base64_to_string(details)
+        creds = ServiceAccountCredentials.from_service_account_info(
+            details, scopes=credentials.scopes
+        )
+
+    elif credentials.method == _BigQueryConnectionMethod.OAUTH_SECRETS:
+        creds = GoogleCredentials(
+            token=credentials.token,
+            refresh_token=credentials.refresh_token,
+            client_id=credentials.client_id,
+            client_secret=credentials.client_secret,
+            token_uri=credentials.token_uri,
+            scopes=credentials.scopes,
+        )
+
+    else:
+        raise FailedToConnectError(f"Invalid `method` in profile: '{credentials.method}'")
+
+    return creds
+
+
+@lru_cache()
+def _bigquery_defaults(scopes=None) -> Tuple[Any, Optional[str]]:
+    """
+    Returns (credentials, project_id)
+
+    project_id is returned available from the environment; otherwise None
+    """
+    # Cached, because the underlying implementation shells out, taking ~1s
+    try:
+        return default(scopes=scopes)
+    except DefaultCredentialsError as e:
+        raise DbtConfigError(f"Failed to authenticate with supplied credentials\nerror:\n{e}")
+
+
+def _is_base64(s: Union[str, bytes]) -> bool:
+    """
+    Checks if the given string or bytes object is valid Base64 encoded.
+
+    Args:
+        s: The string or bytes object to check.
+
+    Returns:
+        True if the input is valid Base64, False otherwise.
+    """
+
+    if isinstance(s, str):
+        # For strings, ensure they consist only of valid Base64 characters
+        if not s.isascii():
+            return False
+        # Convert to bytes for decoding
+        s = s.encode("ascii")
+
+    try:
+        # Use the 'validate' parameter to enforce strict Base64 decoding rules
+        base64.b64decode(s, validate=True)
+        return True
+    except TypeError:
+        return False
+    except binascii.Error:  # Catch specific errors from the base64 module
+        return False
+
+
+def _base64_to_string(b):
+    return base64.b64decode(b).decode("utf-8")

@@ -8,24 +8,21 @@ import re
 from typing import Callable, Dict, Hashable, List, Optional, Tuple, TYPE_CHECKING
 import uuid
 
-from google.api_core import client_info, client_options, retry
+from google.api_core import retry
 import google.auth
-from google.auth import impersonated_credentials
 import google.auth.exceptions
 from google.cloud.bigquery import (
     Client,
     CopyJobConfig,
+    Dataset,
     DatasetReference,
     QueryJobConfig,
     QueryPriority,
+    Table,
     TableReference,
     WriteDisposition,
 )
 import google.cloud.exceptions
-from google.oauth2 import (
-    credentials as GoogleCredentials,
-    service_account as GoogleServiceAccountCredentials,
-)
 from requests.exceptions import ConnectionError
 
 from dbt_common.events.contextvars import get_node_info
@@ -43,15 +40,8 @@ from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery
 from dbt.adapters.exceptions.connection import FailedToConnectError
 
-import dbt.adapters.bigquery.__version__ as dbt_version
-from dbt.adapters.bigquery.credentials import (
-    BigQueryConnectionMethod,
-    Priority,
-    get_bigquery_defaults,
-    setup_default_credentials,
-)
+from dbt.adapters.bigquery.credentials import BigQueryCredentials, Priority, get_bigquery_client
 from dbt.adapters.bigquery.retry import RetryFactory
-from dbt.adapters.bigquery.utility import is_base64, base64_to_string
 
 if TYPE_CHECKING:
     # Indirectly imported via agate_helper, which is lazy loaded further downfile.
@@ -218,99 +208,26 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return f"{rows_number:3.1f}{unit}".strip()
 
     @classmethod
-    def get_google_credentials(cls, profile_credentials) -> GoogleCredentials:
-        method = profile_credentials.method
-        creds = GoogleServiceAccountCredentials.Credentials
-
-        if method == BigQueryConnectionMethod.OAUTH:
-            credentials, _ = get_bigquery_defaults(scopes=profile_credentials.scopes)
-            return credentials
-
-        elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT:
-            keyfile = profile_credentials.keyfile
-            return creds.from_service_account_file(keyfile, scopes=profile_credentials.scopes)
-
-        elif method == BigQueryConnectionMethod.SERVICE_ACCOUNT_JSON:
-            details = profile_credentials.keyfile_json
-            if is_base64(profile_credentials.keyfile_json):
-                details = base64_to_string(details)
-            return creds.from_service_account_info(details, scopes=profile_credentials.scopes)
-
-        elif method == BigQueryConnectionMethod.OAUTH_SECRETS:
-            return GoogleCredentials.Credentials(
-                token=profile_credentials.token,
-                refresh_token=profile_credentials.refresh_token,
-                client_id=profile_credentials.client_id,
-                client_secret=profile_credentials.client_secret,
-                token_uri=profile_credentials.token_uri,
-                scopes=profile_credentials.scopes,
-            )
-
-        error = 'Invalid `method` in profile: "{}"'.format(method)
-        raise FailedToConnectError(error)
-
-    @classmethod
-    def get_impersonated_credentials(cls, profile_credentials):
-        source_credentials = cls.get_google_credentials(profile_credentials)
-        return impersonated_credentials.Credentials(
-            source_credentials=source_credentials,
-            target_principal=profile_credentials.impersonate_service_account,
-            target_scopes=list(profile_credentials.scopes),
-        )
-
-    @classmethod
-    def get_credentials(cls, profile_credentials):
-        if profile_credentials.impersonate_service_account:
-            return cls.get_impersonated_credentials(profile_credentials)
-        else:
-            return cls.get_google_credentials(profile_credentials)
-
-    @classmethod
     @retry.Retry()  # google decorator. retries on transient errors with exponential backoff
-    def get_bigquery_client(cls, profile_credentials):
-        creds = cls.get_credentials(profile_credentials)
-        execution_project = profile_credentials.execution_project
-        quota_project = profile_credentials.quota_project
-        location = getattr(profile_credentials, "location", None)
-
-        info = client_info.ClientInfo(user_agent=f"dbt-bigquery-{dbt_version.version}")
-        options = client_options.ClientOptions(quota_project_id=quota_project)
-        return Client(
-            execution_project,
-            creds,
-            location=location,
-            client_info=info,
-            client_options=options,
-        )
+    def bigquery_client(cls, credentials: BigQueryCredentials) -> Client:
+        return get_bigquery_client(credentials)
 
     @classmethod
     def open(cls, connection):
-        if connection.state == "open":
+        if connection.state == ConnectionState.OPEN:
             logger.debug("Connection is already open, skipping open.")
             return connection
 
         try:
-            handle = cls.get_bigquery_client(connection.credentials)
-
-        except google.auth.exceptions.DefaultCredentialsError:
-            logger.info("Please log into GCP to continue")
-            setup_default_credentials()
-
-            handle = cls.get_bigquery_client(connection.credentials)
+            connection.handle = cls.bigquery_client(connection.credentials)
+            connection.state = ConnectionState.OPEN
+            return connection
 
         except Exception as e:
-            logger.debug(
-                "Got an error when attempting to create a bigquery " "client: '{}'".format(e)
-            )
-
+            logger.debug(f"""Got an error when attempting to create a bigquery " "client: '{e}'""")
             connection.handle = None
-            connection.state = "fail"
-
+            connection.state = ConnectionState.FAIL
             raise FailedToConnectError(str(e))
-
-        connection.handle = handle
-        connection.state = "open"
-        return connection
 
     @classmethod
     def get_table_from_response(cls, resp) -> "agate.Table":
@@ -512,7 +429,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         _, iterator = self.raw_execute(sql, use_legacy_sql=True)
         return self.get_table_from_response(iterator)
 
-    def copy_bq_table(self, source, destination, write_disposition):
+    def copy_bq_table(self, source, destination, write_disposition) -> None:
         conn = self.get_thread_connection()
         client: Client = conn.handle
 
@@ -564,7 +481,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         dataset_ref = DatasetReference(database, schema)
         return TableReference(dataset_ref, table_name)
 
-    def get_bq_table(self, database, schema, identifier):
+    def get_bq_table(self, database, schema, identifier) -> Table:
         """Get a bigquery table for a schema/model."""
         conn = self.get_thread_connection()
         client: Client = conn.handle
@@ -576,18 +493,18 @@ class BigQueryConnectionManager(BaseConnectionManager):
             retry=self._retry.deadline(self._reopen_on_error(conn)),
         )
 
-    def drop_dataset(self, database, schema):
+    def drop_dataset(self, database, schema) -> None:
         conn = self.get_thread_connection()
         client: Client = conn.handle
         with self.exception_handler("drop dataset"):
-            return client.delete_dataset(
+            client.delete_dataset(
                 dataset=self.dataset_ref(database, schema),
                 delete_contents=True,
                 not_found_ok=True,
                 retry=self._retry.deadline(self._reopen_on_error(conn)),
             )
 
-    def create_dataset(self, database, schema):
+    def create_dataset(self, database, schema) -> Dataset:
         conn = self.get_thread_connection()
         client: Client = conn.handle
         with self.exception_handler("create dataset"):

@@ -10,8 +10,7 @@ from google.cloud.dataproc_v1.types.batches import Batch
 from dbt.adapters.base import PythonJobHelper
 from dbt.adapters.events.logging import AdapterLogger
 
-from dbt.adapters.bigquery.connections import BigQueryConnectionManager
-from dbt.adapters.bigquery.credentials import BigQueryCredentials
+from dbt.adapters.bigquery.credentials import BigQueryCredentials, get_credentials
 from dbt.adapters.bigquery.dataproc.batch import (
     DEFAULT_JAR_FILE_URI,
     create_batch_request,
@@ -45,7 +44,7 @@ class BaseDataProcHelper(PythonJobHelper):
                 )
         self.model_file_name = f"{schema}/{identifier}.py"
         self.credential = credential
-        self.GoogleCredentials = BigQueryConnectionManager.get_credentials(credential)
+        self.GoogleCredentials = get_credentials(credential)
         self.storage_client = storage.Client(
             project=self.credential.execution_project, credentials=self.GoogleCredentials
         )

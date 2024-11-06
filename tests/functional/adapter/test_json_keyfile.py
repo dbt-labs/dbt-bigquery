@@ -1,6 +1,11 @@
+import base64
 import json
 import pytest
-from dbt.adapters.bigquery.utility import string_to_base64, is_base64
+from dbt.adapters.bigquery.credentials import is_base64
+
+
+def string_to_base64(s):
+    return base64.b64encode(s.encode("utf-8"))
 
 
 @pytest.fixture

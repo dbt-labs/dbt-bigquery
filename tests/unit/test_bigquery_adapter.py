@@ -203,7 +203,7 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
 
 class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
     @patch(
-        "dbt.adapters.bigquery.credentials.get_bigquery_defaults",
+        "dbt.adapters.bigquery.credentials._bigquery_defaults",
         return_value=("credentials", "project_id"),
     )
     @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())
@@ -244,10 +244,12 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         mock_open_connection.assert_called_once()
 
     @patch(
-        "dbt.adapters.bigquery.credentials.get_bigquery_defaults",
+        "dbt.adapters.bigquery.credentials._bigquery_defaults",
         return_value=("credentials", "project_id"),
     )
-    @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())
+    @patch(
+        "dbt.adapters.bigquery.connections.BigQueryConnectionManager.open", return_value=_bq_conn()
+    )
     def test_acquire_connection_dataproc_serverless(
         self, mock_open_connection, mock_get_bigquery_defaults
     ):
@@ -386,9 +388,9 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         adapter.connections.thread_connections.update({key: master, 1: model})
         self.assertEqual(len(list(adapter.cancel_open_connections())), 1)
 
-    @patch("dbt.adapters.bigquery.connections.client_options.ClientOptions")
-    @patch("dbt.adapters.bigquery.credentials.google.auth.default")
-    @patch("dbt.adapters.bigquery.connections.Client")
+    @patch("dbt.adapters.bigquery.credentials.ClientOptions")
+    @patch("dbt.adapters.bigquery.credentials.default")
+    @patch("dbt.adapters.bigquery.credentials.BigQueryClient")
     def test_location_user_agent(self, MockClient, mock_auth_default, MockClientOptions):
         creds = MagicMock()
         mock_auth_default.return_value = (creds, MagicMock())

@@ -2,7 +2,7 @@ import base64
 import binascii
 from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union, Iterable
 
 from google.api_core.client_info import ClientInfo
 from google.api_core.client_options import ClientOptions
@@ -203,8 +203,8 @@ def get_credentials(credentials: BigQueryCredentials) -> GoogleCredentials:
 
 
 def _impersonated_credentials(credentials: BigQueryCredentials) -> ImpersonatedCredentials:
-    if scopes := credentials.scopes:
-        target_scopes = list(scopes)
+    if credentials.scopes and isinstance(credentials.scopes, Iterable):
+        target_scopes = list(credentials.scopes)
     else:
         target_scopes = []
 

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import json
 from multiprocessing.context import SpawnContext
 import re
-from typing import Callable, Dict, Hashable, List, Optional, Tuple, TYPE_CHECKING
+from typing import Dict, Hashable, List, Optional, Tuple, TYPE_CHECKING
 import uuid
 
 from google.api_core import retry
@@ -23,7 +23,6 @@ from google.cloud.bigquery import (
     WriteDisposition,
 )
 import google.cloud.exceptions
-from requests.exceptions import ConnectionError
 
 from dbt_common.events.contextvars import get_node_info
 from dbt_common.events.functions import fire_event
@@ -33,7 +32,6 @@ from dbt.adapters.base import BaseConnectionManager
 from dbt.adapters.contracts.connection import (
     AdapterRequiredConfig,
     AdapterResponse,
-    Connection,
     ConnectionState,
 )
 from dbt.adapters.events.logging import AdapterLogger
@@ -54,11 +52,6 @@ logger = AdapterLogger("BigQuery")
 BQ_QUERY_JOB_SPLIT = "-----Query Job SQL Follows-----"
 
 WRITE_TRUNCATE = WriteDisposition.WRITE_TRUNCATE
-
-REOPENABLE_ERRORS = (
-    ConnectionResetError,
-    ConnectionError,
-)
 
 
 @dataclass
@@ -81,17 +74,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         super().__init__(profile, mp_context)
         self.jobs_by_thread: Dict[Hashable, List[str]] = defaultdict(list)
         self._retry = RetryFactory(profile.credentials)
-
-    def _reopen_on_error(self, connection: Connection) -> Callable[[Exception], None]:
-
-        def _on_error(error: Exception):
-            if isinstance(error, REOPENABLE_ERRORS):
-                logger.warning("Reopening connection after {!r}".format(error))
-                self.close(connection)
-                self.open(connection)
-            return
-
-        return _on_error
 
     @classmethod
     def handle_error(cls, error, message):
@@ -164,7 +146,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                         with self.exception_handler(f"Cancel job: {job_id}"):
                             client.cancel_job(
                                 job_id,
-                                retry=self._retry.deadline(self._reopen_on_error(connection)),
+                                retry=self._retry.deadline(connection),
                             )
                     self.close(connection)
 
@@ -468,9 +450,9 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 source_ref_array,
                 destination_ref,
                 job_config=CopyJobConfig(write_disposition=write_disposition),
-                retry=self._retry.deadline(self._reopen_on_error(conn)),
+                retry=self._retry.deadline(conn),
             )
-            copy_job.result(retry=self._retry.job_execution_capped(self._reopen_on_error(conn)))
+            copy_job.result(retry=self._retry.job_execution_capped(conn))
 
     @staticmethod
     def dataset_ref(database, schema):
@@ -490,7 +472,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         schema = schema or conn.credentials.schema
         return client.get_table(
             table=self.table_ref(database, schema, identifier),
-            retry=self._retry.deadline(self._reopen_on_error(conn)),
+            retry=self._retry.deadline(conn),
         )
 
     def drop_dataset(self, database, schema) -> None:
@@ -501,7 +483,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 dataset=self.dataset_ref(database, schema),
                 delete_contents=True,
                 not_found_ok=True,
-                retry=self._retry.deadline(self._reopen_on_error(conn)),
+                retry=self._retry.deadline(conn),
             )
 
     def create_dataset(self, database, schema) -> Dataset:
@@ -511,7 +493,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             return client.create_dataset(
                 dataset=self.dataset_ref(database, schema),
                 exists_ok=True,
-                retry=self._retry.deadline(self._reopen_on_error(conn)),
+                retry=self._retry.deadline(conn),
             )
 
     def list_dataset(self, database: str):
@@ -524,7 +506,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             all_datasets = client.list_datasets(
                 project=database.strip("`"),
                 max_results=10000,
-                retry=self._retry.deadline(self._reopen_on_error(conn)),
+                retry=self._retry.deadline(conn),
             )
             return [ds.dataset_id for ds in all_datasets]
 

@@ -5,12 +5,20 @@ from google.api_core.exceptions import Forbidden
 from google.cloud.exceptions import BadGateway, BadRequest, ServerError
 from requests.exceptions import ConnectionError
 
+from dbt.adapters.contracts.connection import Connection, ConnectionState
 from dbt.adapters.events.logging import AdapterLogger
+from dbt.adapters.exceptions.connection import FailedToConnectError
 
-from dbt.adapters.bigquery.credentials import BigQueryCredentials
+from dbt.adapters.bigquery.credentials import BigQueryCredentials, get_bigquery_client
 
 
 _logger = AdapterLogger("BigQuery")
+
+
+REOPENABLE_ERRORS = (
+    ConnectionResetError,
+    ConnectionError,
+)
 
 
 RETRYABLE_ERRORS = (
@@ -33,7 +41,7 @@ class RetryFactory:
         self.job_execution_timeout = credentials.job_execution_timeout_seconds
         self.job_deadline = credentials.job_retry_deadline_seconds
 
-    def deadline(self, on_error: Callable[[Exception], None]) -> retry.Retry:
+    def deadline(self, connection: Connection) -> retry.Retry:
         """
         This strategy mimics what was accomplished with _retry_and_handle
         """
@@ -42,10 +50,10 @@ class RetryFactory:
             initial=self._DEFAULT_INITIAL_DELAY,
             maximum=self._DEFAULT_MAXIMUM_DELAY,
             timeout=self.job_deadline,
-            on_error=on_error,
+            on_error=_on_error(connection),
         )
 
-    def job_execution(self, on_error: Callable[[Exception], None]) -> retry.Retry:
+    def job_execution(self, connection: Connection) -> retry.Retry:
         """
         This strategy mimics what was accomplished with _retry_and_handle
         """
@@ -54,17 +62,17 @@ class RetryFactory:
             initial=self._DEFAULT_INITIAL_DELAY,
             maximum=self._DEFAULT_MAXIMUM_DELAY,
             timeout=self.job_execution_timeout,
-            on_error=on_error,
+            on_error=_on_error(connection),
         )
 
-    def job_execution_capped(self, on_error: Callable[[Exception], None]) -> retry.Retry:
+    def job_execution_capped(self, connection: Connection) -> retry.Retry:
         """
         This strategy mimics what was accomplished with _retry_and_handle
         """
         return retry.Retry(
             predicate=self._buffered_predicate(),
             timeout=self.job_execution_timeout or 300,
-            on_error=on_error,
+            on_error=_on_error(connection),
         )
 
     def _buffered_predicate(self) -> Callable[[Exception], bool]:
@@ -99,6 +107,28 @@ class RetryFactory:
                 return False
 
         return BufferedPredicate(self._retries)
+
+
+def _on_error(connection: Connection) -> Callable[[Exception], None]:
+
+    def on_error(error: Exception):
+        if isinstance(error, REOPENABLE_ERRORS):
+            _logger.warning("Reopening connection after {!r}".format(error))
+            connection.handle.close()
+
+            try:
+                connection.handle = get_bigquery_client(connection.credentials)
+                connection.state = ConnectionState.OPEN
+
+            except Exception as e:
+                _logger.debug(
+                    f"""Got an error when attempting to create a bigquery " "client: '{e}'"""
+                )
+                connection.handle = None
+                connection.state = ConnectionState.FAIL
+                raise FailedToConnectError(str(e))
+
+    return on_error
 
 
 def _is_retryable(error: Exception) -> bool:

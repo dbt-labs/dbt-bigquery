@@ -1,6 +1,5 @@
 import json
 import unittest
-from contextlib import contextmanager
 from requests.exceptions import ConnectionError
 from unittest.mock import patch, MagicMock, Mock, ANY
 
@@ -16,43 +15,39 @@ from dbt.adapters.bigquery.retry import RetryFactory
 class TestBigQueryConnectionManager(unittest.TestCase):
     def setUp(self):
         self.credentials = Mock(BigQueryCredentials)
+        self.credentials.method = "oauth"
         self.credentials.job_retries = 1
-        profile = Mock(query_comment=None, credentials=self.credentials)
-        self.connections = BigQueryConnectionManager(profile=profile, mp_context=Mock())
+        self.credentials.job_execution_timeout_seconds = 1
+        self.credentials.scopes = tuple()
 
         self.mock_client = Mock(google.cloud.bigquery.Client)
+
         self.mock_connection = MagicMock()
-
         self.mock_connection.handle = self.mock_client
+        self.mock_connection.credentials = self.credentials
 
+        self.connections = BigQueryConnectionManager(
+            profile=Mock(credentials=self.credentials, query_comment=None),
+            mp_context=Mock(),
+        )
         self.connections.get_thread_connection = lambda: self.mock_connection
 
-    @patch("dbt.adapters.bigquery.retry._is_retryable", return_value=True)
-    def test_retry_connection_reset(self, is_retryable):
-        self.connections.open = MagicMock()
-        self.connections.close = MagicMock()
-        self.connections._retry.DEFAULT_MAXIMUM_DELAY = 2.0
+    @patch(
+        "dbt.adapters.bigquery.retry.get_bigquery_client",
+        return_value=Mock(google.cloud.bigquery.Client),
+    )
+    def test_retry_connection_reset(self, mock_bigquery_client):
+        original_handle = self.mock_connection.handle
 
-        @contextmanager
-        def dummy_handler(msg):
-            yield
-
-        self.connections.exception_handler = dummy_handler
-
-        retry = RetryFactory(Mock(job_retries=1, job_execution_timeout_seconds=60))
-        mock_conn = Mock()
-
-        on_error = self.connections._reopen_on_error(mock_conn)
-
-        @retry.job_execution(on_error)
+        @self.connections._retry.job_execution(self.mock_connection)
         def generate_connection_reset_error():
             raise ConnectionResetError
 
         with self.assertRaises(ConnectionResetError):
             # this will always raise the error, we just want to test that the connection was reopening in between
             generate_connection_reset_error()
-        self.connections.close.assert_called_once_with(mock_conn)
-        self.connections.open.assert_called_once_with(mock_conn)
+
+        assert not self.mock_connection.handle is original_handle
 
     def test_is_retryable(self):
         _is_retryable = dbt.adapters.bigquery.retry._is_retryable

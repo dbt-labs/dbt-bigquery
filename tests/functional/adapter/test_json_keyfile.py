@@ -1,7 +1,7 @@
 import base64
 import json
 import pytest
-from dbt.adapters.bigquery.credentials import is_base64
+from dbt.adapters.bigquery.credentials import _is_base64
 
 
 def string_to_base64(s):
@@ -58,7 +58,7 @@ def test_valid_base64_strings(example_json_keyfile_b64):
     ]
 
     for s in valid_strings:
-        assert is_base64(s) is True
+        assert _is_base64(s) is True
 
 
 def test_valid_base64_bytes(example_json_keyfile_b64):
@@ -70,7 +70,7 @@ def test_valid_base64_bytes(example_json_keyfile_b64):
         example_json_keyfile_b64,
     ]
     for s in valid_bytes:
-        assert is_base64(s) is True
+        assert _is_base64(s) is True
 
 
 def test_invalid_base64(example_json_keyfile):
@@ -84,4 +84,4 @@ def test_invalid_base64(example_json_keyfile):
         example_json_keyfile,
     ]
     for s in invalid_inputs:
-        assert is_base64(s) is False
+        assert _is_base64(s) is False

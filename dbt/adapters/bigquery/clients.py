@@ -38,23 +38,17 @@ def storage_client(credentials: BigQueryCredentials) -> StorageClient:
 
 @Retry()  # google decorator. retries on transient errors with exponential backoff
 def job_controller_client(credentials: BigQueryCredentials) -> JobControllerClient:
-    options = ClientOptions(
-        api_endpoint=f"{credentials.dataproc_region}-dataproc.googleapis.com:443",
-    )
     return JobControllerClient(
         credentials=google_credentials(credentials),
-        client_options=options,
+        client_options=ClientOptions(api_endpoint=_dataproc_endpoint(credentials)),
     )
 
 
 @Retry()  # google decorator. retries on transient errors with exponential backoff
 def batch_controller_client(credentials: BigQueryCredentials) -> BatchControllerClient:
-    options = ClientOptions(
-        api_endpoint=f"{credentials.dataproc_region}-dataproc.googleapis.com:443",
-    )
     return BatchControllerClient(
         credentials=google_credentials(credentials),
-        client_options=options,
+        client_options=ClientOptions(api_endpoint=_dataproc_endpoint(credentials)),
     )
 
 
@@ -67,3 +61,7 @@ def _bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
         client_info=ClientInfo(user_agent=f"dbt-bigquery-{dbt_version.version}"),
         client_options=ClientOptions(quota_project_id=credentials.quota_project),
     )
+
+
+def _dataproc_endpoint(credentials: BigQueryCredentials) -> str:
+    return f"{credentials.dataproc_region}-dataproc.googleapis.com:443"

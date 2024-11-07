@@ -1,8 +1,8 @@
 from typing import Callable, Optional
 
-from google.api_core.retry import Retry
 from google.api_core.exceptions import Forbidden
-from google.api_core.future.polling import POLLING_PREDICATE
+from google.api_core.future.polling import DEFAULT_POLLING
+from google.api_core.retry import Retry
 from google.cloud.bigquery.retry import DEFAULT_RETRY
 from google.cloud.exceptions import BadGateway, BadRequest, ServerError
 from requests.exceptions import ConnectionError
@@ -15,6 +15,14 @@ from dbt.adapters.bigquery.credentials import BigQueryCredentials
 from dbt.adapters.bigquery.clients import bigquery_client
 
 _logger = AdapterLogger("BigQuery")
+
+
+_ONE_DAY = 60 * 60 * 24  # seconds
+
+
+_DEFAULT_INITIAL_DELAY = 1.0  # seconds
+_DEFAULT_MAXIMUM_DELAY = 3.0  # seconds
+_DEFAULT_POLLING_MAXIMUM_DELAY = 10.0  # seconds
 
 
 _REOPENABLE_ERRORS = (
@@ -32,53 +40,24 @@ _RETRYABLE_ERRORS = (
 )
 
 
-_ONE_DAY = 60 * 60 * 24
-
-
 class RetryFactory:
-
-    _DEFAULT_INITIAL_DELAY = 1.0  # seconds
-    _DEFAULT_MAXIMUM_DELAY = 3.0  # seconds
 
     def __init__(self, credentials: BigQueryCredentials) -> None:
         self._retries = credentials.job_retries or 0
-        self.job_creation_timeout = credentials.job_creation_timeout_seconds
-        self.job_execution_timeout = credentials.job_execution_timeout_seconds
-        self.job_deadline = credentials.job_retry_deadline_seconds
+        self._job_creation_timeout = credentials.job_creation_timeout_seconds
+        self._job_execution_timeout = credentials.job_execution_timeout_seconds
+        self._job_deadline = credentials.job_retry_deadline_seconds
 
-    def deadline(self, connection: Connection) -> Retry:
-        """
-        This strategy mimics what was accomplished with _retry_and_handle
-        """
-        return Retry(
-            predicate=self._buffered_predicate(),
-            initial=self._DEFAULT_INITIAL_DELAY,
-            maximum=self._DEFAULT_MAXIMUM_DELAY,
-            timeout=self.job_deadline,
-            on_error=_on_error(connection),
-        )
+    def job_creation_timeout(self, fallback: Optional[float] = None) -> Optional[float]:
+        return self._job_creation_timeout or fallback or _ONE_DAY
 
-    def job_execution(self, connection: Connection) -> Retry:
-        """
-        This strategy mimics what was accomplished with _retry_and_handle
-        """
-        return Retry(
-            predicate=self._buffered_predicate(),
-            initial=self._DEFAULT_INITIAL_DELAY,
-            maximum=self._DEFAULT_MAXIMUM_DELAY,
-            timeout=self.job_execution_timeout,
-            on_error=_on_error(connection),
-        )
+    def job_execution_timeout(self, fallback: Optional[float] = None) -> Optional[float]:
+        return self._job_execution_timeout or fallback or _ONE_DAY
 
-    def job_execution_capped(self, connection: Connection) -> Retry:
-        """
-        This strategy mimics what was accomplished with _retry_and_handle
-        """
-        return Retry(
-            predicate=self._buffered_predicate(),
-            timeout=self.job_execution_timeout or 300,
-            on_error=_on_error(connection),
-        )
+    def retry(
+        self, timeout: Optional[float] = None, fallback_timeout: Optional[float] = None
+    ) -> Retry:
+        return DEFAULT_RETRY.with_timeout(timeout or self.job_execution_timeout(fallback_timeout))
 
     def polling(
         self, timeout: Optional[float] = None, fallback_timeout: Optional[float] = None
@@ -86,55 +65,53 @@ class RetryFactory:
         """
         This strategy mimics what was accomplished with _retry_and_handle
         """
+        return DEFAULT_POLLING.with_timeout(
+            timeout or self.job_execution_timeout(fallback_timeout)
+        )
+
+    def reopen_with_deadline(self, connection: Connection) -> Retry:
+        """
+        This strategy mimics what was accomplished with _retry_and_handle
+        """
         return Retry(
-            predicate=POLLING_PREDICATE,
-            minimum=1.0,
-            maximum=10.0,
-            timeout=timeout or self.job_execution_timeout or fallback_timeout or _ONE_DAY,
+            predicate=_BufferedPredicate(self._retries),
+            initial=_DEFAULT_INITIAL_DELAY,
+            maximum=_DEFAULT_MAXIMUM_DELAY,
+            deadline=self._job_deadline,
+            on_error=_reopen_on_error(connection),
         )
 
-    def polling_done(
-        self, timeout: Optional[float] = None, fallback_timeout: Optional[float] = None
-    ) -> Retry:
-        return DEFAULT_RETRY.with_timeout(
-            timeout or self.job_execution_timeout or fallback_timeout or _ONE_DAY
-        )
 
-    def _buffered_predicate(self) -> Callable[[Exception], bool]:
-        class BufferedPredicate:
-            """
-            Count ALL errors, not just retryable errors, up to a threshold
-            then raises the next error, regardless of whether it is retryable.
+class _BufferedPredicate:
+    """
+    Count ALL errors, not just retryable errors, up to a threshold.
+    Raise the next error, regardless of whether it is retryable.
+    """
 
-            Was previously called _ErrorCounter.
-            """
+    def __init__(self, retries: int) -> None:
+        self._retries: int = retries
+        self._error_count = 0
 
-            def __init__(self, retries: int) -> None:
-                self._retries: int = retries
-                self._error_count = 0
+    def __call__(self, error: Exception) -> bool:
+        # exit immediately if the user does not want retries
+        if self._retries == 0:
+            return False
 
-            def __call__(self, error: Exception) -> bool:
-                # exit immediately if the user does not want retries
-                if self._retries == 0:
-                    return False
+        # count all errors
+        self._error_count += 1
 
-                # count all errors
-                self._error_count += 1
+        # if the error is retryable, and we haven't breached the threshold, log and continue
+        if _is_retryable(error) and self._error_count <= self._retries:
+            _logger.debug(
+                f"Retry attempt {self._error_count} of { self._retries} after error: {repr(error)}"
+            )
+            return True
 
-                # if the error is retryable and we haven't breached the threshold, log and continue
-                if _is_retryable(error) and self._error_count <= self._retries:
-                    _logger.debug(
-                        f"Retry attempt {self._error_count} of { self._retries} after error: {repr(error)}"
-                    )
-                    return True
-
-                # otherwise raise
-                return False
-
-        return BufferedPredicate(self._retries)
+        # otherwise raise
+        return False
 
 
-def _on_error(connection: Connection) -> Callable[[Exception], None]:
+def _reopen_on_error(connection: Connection) -> Callable[[Exception], None]:
 
     def on_error(error: Exception):
         if isinstance(error, _REOPENABLE_ERRORS):
@@ -165,25 +142,3 @@ def _is_retryable(error: Exception) -> bool:
     ):
         return True
     return False
-
-
-class _BufferedPredicate:
-    """Counts errors seen up to a threshold then raises the next error."""
-
-    def __init__(self, retries: int) -> None:
-        self._retries = retries
-        self._error_count = 0
-
-    def count_error(self, error):
-        if self._retries == 0:
-            return False  # Don't log
-        self._error_count += 1
-        if _is_retryable(error) and self._error_count <= self._retries:
-            _logger.debug(
-                "Retry attempt {} of {} after error: {}".format(
-                    self._error_count, self._retries, repr(error)
-                )
-            )
-            return True
-        else:
-            return False

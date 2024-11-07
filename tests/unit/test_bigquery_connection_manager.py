@@ -17,7 +17,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.credentials = Mock(BigQueryCredentials)
         self.credentials.method = "oauth"
         self.credentials.job_retries = 1
-        self.credentials.job_execution_timeout_seconds = 1
+        self.credentials.job_retry_deadline_seconds = 1
         self.credentials.scopes = tuple()
 
         self.mock_client = Mock(google.cloud.bigquery.Client)
@@ -36,18 +36,21 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         "dbt.adapters.bigquery.retry.bigquery_client",
         return_value=Mock(google.cloud.bigquery.Client),
     )
-    def test_retry_connection_reset(self, mock_bigquery_client):
-        original_handle = self.mock_connection.handle
+    def test_retry_connection_reset(self, mock_client_factory):
+        new_mock_client = mock_client_factory.return_value
 
-        @self.connections._retry.job_execution(self.mock_connection)
+        @self.connections._retry.reopen_with_deadline(self.mock_connection)
         def generate_connection_reset_error():
             raise ConnectionResetError
+
+        assert self.mock_connection.handle is self.mock_client
 
         with self.assertRaises(ConnectionResetError):
             # this will always raise the error, we just want to test that the connection was reopening in between
             generate_connection_reset_error()
 
-        assert not self.mock_connection.handle is original_handle
+        assert self.mock_connection.handle is new_mock_client
+        assert new_mock_client is not self.mock_client
 
     def test_is_retryable(self):
         _is_retryable = dbt.adapters.bigquery.retry._is_retryable
@@ -98,12 +101,10 @@ class TestBigQueryConnectionManager(unittest.TestCase):
 
     def test_copy_bq_table_appends(self):
         self._copy_table(write_disposition=dbt.adapters.bigquery.impl.WRITE_APPEND)
-        args, kwargs = self.mock_client.copy_table.call_args
         self.mock_client.copy_table.assert_called_once_with(
             [self._table_ref("project", "dataset", "table1")],
             self._table_ref("project", "dataset", "table2"),
             job_config=ANY,
-            retry=ANY,
         )
         args, kwargs = self.mock_client.copy_table.call_args
         self.assertEqual(
@@ -117,7 +118,6 @@ class TestBigQueryConnectionManager(unittest.TestCase):
             [self._table_ref("project", "dataset", "table1")],
             self._table_ref("project", "dataset", "table2"),
             job_config=ANY,
-            retry=ANY,
         )
         args, kwargs = self.mock_client.copy_table.call_args
         self.assertEqual(

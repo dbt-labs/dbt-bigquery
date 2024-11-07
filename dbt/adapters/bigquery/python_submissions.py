@@ -4,7 +4,6 @@ import uuid
 from google.cloud.dataproc_v1 import (
     Batch,
     CreateBatchRequest,
-    GetBatchRequest,
     Job,
     RuntimeConfig,
 )
@@ -30,11 +29,6 @@ _DEFAULT_JAR_FILE_URI = "gs://spark-lib/bigquery/spark-bigquery-with-dependencie
 
 class BaseDataProcHelper(PythonJobHelper):
     def __init__(self, parsed_model: Dict, credentials: BigQueryCredentials) -> None:
-        """_summary_
-
-        Args:
-            credentials (_type_): _description_
-        """
         # validate all additional stuff for python is set
         for required_config in ["dataproc_region", "gcs_bucket"]:
             if not getattr(credentials, required_config):
@@ -83,23 +77,26 @@ class ClusterDataprocHelper(BaseDataProcHelper):
             )
 
     def _submit_dataproc_job(self) -> Job:
-        job = {
-            "placement": {"cluster_name": self._cluster_name},
-            "pyspark_job": {
-                "main_python_file_uri": self._gcs_path,
+        request = {
+            "project_id": self._project,
+            "region": self._region,
+            "job": {
+                "placement": {"cluster_name": self._cluster_name},
+                "pyspark_job": {
+                    "main_python_file_uri": self._gcs_path,
+                },
             },
         }
-        operation = self._job_controller_client.submit_job_as_operation(
-            request={
-                "project_id": self._project,
-                "region": self._region,
-                "job": job,
-            }
-        )
-        # check if job failed
+
+        # submit the job
+        operation = self._job_controller_client.submit_job_as_operation(request)
+
+        # wait for the job to complete
         response = operation.result(polling=self._polling_retry)
+
         if response.status.state == 6:
             raise ValueError(response.status.details)
+
         return response
 
 
@@ -114,29 +111,21 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
     def _submit_dataproc_job(self) -> Batch:
         _logger.info(f"Submitting batch job with id: {self._batch_id}")
 
-        # make the request
         request = CreateBatchRequest(
             parent=f"projects/{self._project}/locations/{self._region}",
-            batch=self._configure_batch(),
+            batch=self._batch(),
             batch_id=self._batch_id,
         )
-        self._batch_controller_client.create_batch(request=request)
 
-        # return the response
-        batch = GetBatchRequest(f"{request.parent}/batches/{self._batch_id}")
-        return self._batch_controller_client.get_batch(batch, retry=self._polling_retry)
-        # there might be useful results here that we can parse and return
-        # Dataproc job output is saved to the Cloud Storage bucket
-        # allocated to the job. Use regex to obtain the bucket and blob info.
-        # matches = re.match("gs://(.*?)/(.*)", response.driver_output_resource_uri)
-        # output = (
-        #     self.storage_client
-        #     .get_bucket(matches.group(1))
-        #     .blob(f"{matches.group(2)}.000000000")
-        #     .download_as_string()
-        # )
+        # submit the batch
+        operation = self._batch_controller_client.create_batch(request)
 
-    def _configure_batch(self) -> Batch:
+        # wait for the batch to complete
+        response = operation.result(polling=self._polling_retry)
+
+        return response
+
+    def _batch(self) -> Batch:
         # create the Dataproc Serverless job config
         # need to pin dataproc version to 1.1 as it now defaults to 2.0
         # https://cloud.google.com/dataproc-serverless/docs/concepts/properties

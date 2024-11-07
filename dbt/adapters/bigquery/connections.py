@@ -496,11 +496,13 @@ class BigQueryConnectionManager(BaseConnectionManager):
             with open(file_path, "rb") as f:
                 job = client.load_table_from_file(f, table, rewind=True, job_config=config)
 
-        if not job.done(retry=self._retry.retry(fallback_timeout=fallback_timeout)):
+        response = job.result(retry=self._retry.retry(fallback_timeout=fallback_timeout))
+
+        if response.state != "DONE":
             raise DbtRuntimeError("BigQuery Timeout Exceeded")
 
-        elif job.error_result:
-            message = "\n".join(error["message"].strip() for error in job.errors)
+        elif response.error_result:
+            message = "\n".join(error["message"].strip() for error in response.errors)
             raise DbtRuntimeError(message)
 
     @staticmethod

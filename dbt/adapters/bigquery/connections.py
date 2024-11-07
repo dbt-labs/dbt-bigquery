@@ -8,8 +8,7 @@ import re
 from typing import Dict, Hashable, List, Optional, Tuple, TYPE_CHECKING
 import uuid
 
-import google.auth
-import google.auth.exceptions
+from google.auth.exceptions import RefreshError
 from google.cloud.bigquery import (
     Client,
     CopyJobConfig,
@@ -21,9 +20,8 @@ from google.cloud.bigquery import (
     SchemaField,
     Table,
     TableReference,
-    WriteDisposition,
 )
-import google.cloud.exceptions
+from google.cloud.exceptions import BadRequest, Forbidden, NotFound
 
 from dbt_common.events.contextvars import get_node_info
 from dbt_common.events.functions import fire_event
@@ -51,9 +49,8 @@ if TYPE_CHECKING:
 
 logger = AdapterLogger("BigQuery")
 
-BQ_QUERY_JOB_SPLIT = "-----Query Job SQL Follows-----"
 
-WRITE_TRUNCATE = WriteDisposition.WRITE_TRUNCATE
+BQ_QUERY_JOB_SPLIT = "-----Query Job SQL Follows-----"
 
 
 @dataclass
@@ -93,19 +90,19 @@ class BigQueryConnectionManager(BaseConnectionManager):
         try:
             yield
 
-        except google.cloud.exceptions.BadRequest as e:
+        except BadRequest as e:
             message = "Bad request while running query"
             self.handle_error(e, message)
 
-        except google.cloud.exceptions.Forbidden as e:
+        except Forbidden as e:
             message = "Access denied while running query"
             self.handle_error(e, message)
 
-        except google.cloud.exceptions.NotFound as e:
+        except NotFound as e:
             message = "Not found while running query"
             self.handle_error(e, message)
 
-        except google.auth.exceptions.RefreshError as e:
+        except RefreshError as e:
             message = (
                 "Unable to generate access token, if you're using "
                 "impersonate_service_account, make sure your "

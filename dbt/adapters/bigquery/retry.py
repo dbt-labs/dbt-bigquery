@@ -11,18 +11,20 @@ from dbt.adapters.contracts.connection import Connection, ConnectionState
 from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.exceptions.connection import FailedToConnectError
 
-from dbt.adapters.bigquery.credentials import BigQueryCredentials
 from dbt.adapters.bigquery.clients import bigquery_client
+from dbt.adapters.bigquery.credentials import BigQueryCredentials
+
 
 _logger = AdapterLogger("BigQuery")
 
 
-_ONE_DAY = 60 * 60 * 24  # seconds
-
-
-_DEFAULT_INITIAL_DELAY = 1.0  # seconds
-_DEFAULT_MAXIMUM_DELAY = 3.0  # seconds
-_DEFAULT_POLLING_MAXIMUM_DELAY = 10.0  # seconds
+_SECOND = 1.0
+_MINUTE = 60 * _SECOND
+_HOUR = 60 * _MINUTE
+_DAY = 24 * _HOUR
+_DEFAULT_INITIAL_DELAY = _SECOND
+_DEFAULT_MAXIMUM_DELAY = 3 * _SECOND
+_DEFAULT_POLLING_MAXIMUM_DELAY = 10 * _SECOND
 
 
 _REOPENABLE_ERRORS = (
@@ -49,10 +51,14 @@ class RetryFactory:
         self._job_deadline = credentials.job_retry_deadline_seconds
 
     def job_creation_timeout(self, fallback: Optional[float] = None) -> Optional[float]:
-        return self._job_creation_timeout or fallback or _ONE_DAY
+        return (
+            self._job_creation_timeout or fallback or _MINUTE
+        )  # keep _MINUTE here so it's not overridden by passing fallback=None
 
     def job_execution_timeout(self, fallback: Optional[float] = None) -> Optional[float]:
-        return self._job_execution_timeout or fallback or _ONE_DAY
+        return (
+            self._job_execution_timeout or fallback or _DAY
+        )  # keep _DAY here so it's not overridden by passing fallback=None
 
     def retry(
         self, timeout: Optional[float] = None, fallback_timeout: Optional[float] = None
@@ -62,9 +68,6 @@ class RetryFactory:
     def polling(
         self, timeout: Optional[float] = None, fallback_timeout: Optional[float] = None
     ) -> Retry:
-        """
-        This strategy mimics what was accomplished with _retry_and_handle
-        """
         return DEFAULT_POLLING.with_timeout(
             timeout or self.job_execution_timeout(fallback_timeout)
         )

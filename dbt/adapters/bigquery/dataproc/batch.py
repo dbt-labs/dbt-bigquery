@@ -1,16 +1,17 @@
-from typing import Union, Dict
-
-import time
 from datetime import datetime
+import time
+from typing import Dict, Union
+
 from google.cloud.dataproc_v1 import (
-    CreateBatchRequest,
-    BatchControllerClient,
     Batch,
+    BatchControllerClient,
+    CreateBatchRequest,
     GetBatchRequest,
 )
 from google.protobuf.json_format import ParseDict
 
-from dbt.adapters.bigquery.connections import DataprocBatchConfig
+from dbt.adapters.bigquery.credentials import DataprocBatchConfig
+
 
 _BATCH_RUNNING_STATES = [Batch.State.PENDING, Batch.State.RUNNING]
 DEFAULT_JAR_FILE_URI = "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.13-0.34.0.jar"

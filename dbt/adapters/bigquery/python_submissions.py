@@ -1,12 +1,7 @@
 from typing import Dict, Union
 import uuid
 
-from google.cloud.dataproc_v1 import (
-    Batch,
-    CreateBatchRequest,
-    Job,
-    RuntimeConfig,
-)
+from google.cloud.dataproc_v1 import Batch, CreateBatchRequest, Job, RuntimeConfig
 
 from dbt.adapters.base import PythonJobHelper
 from dbt.adapters.events.logging import AdapterLogger
@@ -27,7 +22,7 @@ _logger = AdapterLogger("BigQuery")
 _DEFAULT_JAR_FILE_URI = "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.13-0.34.0.jar"
 
 
-class BaseDataProcHelper(PythonJobHelper):
+class _BaseDataProcHelper(PythonJobHelper):
     def __init__(self, parsed_model: Dict, credentials: BigQueryCredentials) -> None:
         # validate all additional stuff for python is set
         for required_config in ["dataproc_region", "gcs_bucket"]:
@@ -55,15 +50,8 @@ class BaseDataProcHelper(PythonJobHelper):
         blob = bucket.blob(self._model_file_name)
         blob.upload_from_string(compiled_code)
 
-    def submit(self, compiled_code: str) -> Job:
-        self._upload_to_gcs(compiled_code)
-        return self._submit_dataproc_job()
 
-    def _submit_dataproc_job(self) -> Job:
-        raise NotImplementedError("_submit_dataproc_job not implemented")
-
-
-class ClusterDataprocHelper(BaseDataProcHelper):
+class ClusterDataprocHelper(_BaseDataProcHelper):
     def __init__(self, parsed_model: Dict, credentials: BigQueryCredentials) -> None:
         super().__init__(parsed_model, credentials)
         self._job_controller_client = job_controller_client(credentials)
@@ -76,7 +64,11 @@ class ClusterDataprocHelper(BaseDataProcHelper):
                 "Need to supply dataproc_cluster_name in profile or config to submit python job with cluster submission method"
             )
 
-    def _submit_dataproc_job(self) -> Job:
+    def submit(self, compiled_code: str) -> Job:
+        _logger.info(f"Submitting cluster job to: {self._cluster_name}")
+
+        self._upload_to_gcs(compiled_code)
+
         request = {
             "project_id": self._project,
             "region": self._region,
@@ -92,7 +84,7 @@ class ClusterDataprocHelper(BaseDataProcHelper):
         operation = self._job_controller_client.submit_job_as_operation(request)
 
         # wait for the job to complete
-        response = operation.result(polling=self._polling_retry)
+        response: Job = operation.result(polling=self._polling_retry)
 
         if response.status.state == 6:
             raise ValueError(response.status.details)
@@ -100,7 +92,7 @@ class ClusterDataprocHelper(BaseDataProcHelper):
         return response
 
 
-class ServerlessDataProcHelper(BaseDataProcHelper):
+class ServerlessDataProcHelper(_BaseDataProcHelper):
     def __init__(self, parsed_model: Dict, credentials: BigQueryCredentials) -> None:
         super().__init__(parsed_model, credentials)
         self._batch_controller_client = batch_controller_client(credentials)
@@ -108,8 +100,10 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         self._jar_file_uri = parsed_model["config"].get("jar_file_uri", _DEFAULT_JAR_FILE_URI)
         self._dataproc_batch = credentials.dataproc_batch
 
-    def _submit_dataproc_job(self) -> Batch:
+    def submit(self, compiled_code: str) -> Batch:
         _logger.info(f"Submitting batch job with id: {self._batch_id}")
+
+        self._upload_to_gcs(compiled_code)
 
         request = CreateBatchRequest(
             parent=f"projects/{self._project}/locations/{self._region}",
@@ -121,7 +115,7 @@ class ServerlessDataProcHelper(BaseDataProcHelper):
         operation = self._batch_controller_client.create_batch(request)
 
         # wait for the batch to complete
-        response = operation.result(polling=self._polling_retry)
+        response: Batch = operation.result(polling=self._polling_retry)
 
         return response
 

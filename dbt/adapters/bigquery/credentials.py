@@ -18,6 +18,7 @@ from dbt.adapters.contracts.connection import Credentials
 from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.exceptions.connection import FailedToConnectError
 
+
 _logger = AdapterLogger("BigQuery")
 
 
@@ -34,9 +35,9 @@ class DataprocBatchConfig(ExtensibleDbtClassMixin):
 
 class _BigQueryConnectionMethod(StrEnum):
     OAUTH = "oauth"
+    OAUTH_SECRETS = "oauth-secrets"
     SERVICE_ACCOUNT = "service-account"
     SERVICE_ACCOUNT_JSON = "service-account-json"
-    OAUTH_SECRETS = "oauth-secrets"
 
 
 @dataclass
@@ -260,9 +261,7 @@ def _is_base64(s: Union[str, bytes]) -> bool:
         # Use the 'validate' parameter to enforce strict Base64 decoding rules
         base64.b64decode(s, validate=True)
         return True
-    except TypeError:
-        return False
-    except binascii.Error:  # Catch specific errors from the base64 module
+    except (TypeError, binascii.Error):
         return False
 
 

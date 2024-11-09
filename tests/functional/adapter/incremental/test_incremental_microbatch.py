@@ -30,7 +30,6 @@ class TestBigQueryMicrobatchMissingPartitionBy:
             "input_model.sql": microbatch_input_sql,
         }
 
-    @mock.patch.dict(os.environ, {"DBT_EXPERIMENTAL_MICROBATCH": "True"})
     def test_execution_failure_no_partition_by(self, project):
         with patch_microbatch_end_time("2020-01-03 13:57:00"):
             _, stdout = run_dbt_and_capture(["run"], expect_pass=False)
@@ -45,7 +44,6 @@ class TestBigQueryMicrobatchInvalidPartitionByGranularity:
             "input_model.sql": microbatch_input_sql,
         }
 
-    @mock.patch.dict(os.environ, {"DBT_EXPERIMENTAL_MICROBATCH": "True"})
     def test_execution_failure_no_partition_by(self, project):
         with patch_microbatch_end_time("2020-01-03 13:57:00"):
             _, stdout = run_dbt_and_capture(["run"], expect_pass=False)

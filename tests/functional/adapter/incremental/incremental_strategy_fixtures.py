@@ -555,3 +555,59 @@ with data as (
 
 select * from data
 """.lstrip()
+
+microbatch_model_no_unique_id_sql = """
+{{ config(
+    materialized='incremental',
+    incremental_strategy='microbatch',
+    partition_by={
+      'field': 'event_time',
+      'data_type': 'timestamp',
+      'granularity': 'day'
+    },
+    event_time='event_time',
+    batch_size='day',
+    begin=modules.datetime.datetime(2020, 1, 1, 0, 0, 0)
+    )
+}}
+select * from {{ ref('input_model') }}
+"""
+
+microbatch_input_sql = """
+{{ config(materialized='table', event_time='event_time') }}
+select 1 as id, TIMESTAMP '2020-01-01 00:00:00-0' as event_time
+union all
+select 2 as id, TIMESTAMP '2020-01-02 00:00:00-0' as event_time
+union all
+select 3 as id, TIMESTAMP '2020-01-03 00:00:00-0' as event_time
+"""
+
+microbatch_model_no_partition_by_sql = """
+{{ config(
+    materialized='incremental',
+    incremental_strategy='microbatch',
+    event_time='event_time',
+    batch_size='day',
+    begin=modules.datetime.datetime(2020, 1, 1, 0, 0, 0)
+    )
+}}
+select * from {{ ref('input_model') }}
+"""
+
+
+microbatch_model_invalid_partition_by_sql = """
+{{ config(
+    materialized='incremental',
+    incremental_strategy='microbatch',
+    event_time='event_time',
+    batch_size='day',
+    begin=modules.datetime.datetime(2020, 1, 1, 0, 0, 0),
+    partition_by={
+      'field': 'event_time',
+      'data_type': 'timestamp',
+      'granularity': 'hour'
+    }
+    )
+}}
+select * from {{ ref('input_model') }}
+"""

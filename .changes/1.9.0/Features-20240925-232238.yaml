@@ -1,0 +1,6 @@
+kind: Features
+body: Add Microbatch Strategy to dbt-spark
+time: 2024-09-25T23:22:38.216277+01:00
+custom:
+  Author: michelleark
+  Issue: "1354"

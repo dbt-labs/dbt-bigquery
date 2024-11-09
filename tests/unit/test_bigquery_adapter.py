@@ -203,7 +203,7 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
 
 class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
     @patch(
-        "dbt.adapters.bigquery.connections.get_bigquery_defaults",
+        "dbt.adapters.bigquery.credentials.get_bigquery_defaults",
         return_value=("credentials", "project_id"),
     )
     @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())
@@ -244,7 +244,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         mock_open_connection.assert_called_once()
 
     @patch(
-        "dbt.adapters.bigquery.connections.get_bigquery_defaults",
+        "dbt.adapters.bigquery.credentials.get_bigquery_defaults",
         return_value=("credentials", "project_id"),
     )
     @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())
@@ -386,15 +386,17 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         adapter.connections.thread_connections.update({key: master, 1: model})
         self.assertEqual(len(list(adapter.cancel_open_connections())), 1)
 
+    @patch("dbt.adapters.bigquery.impl.google.api_core.client_options.ClientOptions")
     @patch("dbt.adapters.bigquery.impl.google.auth.default")
     @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")
-    def test_location_user_agent(self, mock_bq, mock_auth_default):
+    def test_location_user_agent(self, mock_bq, mock_auth_default, MockClientOptions):
         creds = MagicMock()
         mock_auth_default.return_value = (creds, MagicMock())
         adapter = self.get_adapter("loc")
 
         connection = adapter.acquire_connection("dummy")
         mock_client = mock_bq.Client
+        mock_client_options = MockClientOptions.return_value
 
         mock_client.assert_not_called()
         connection.handle
@@ -403,6 +405,7 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
             creds,
             location="Luna Station",
             client_info=HasUserAgent(),
+            client_options=mock_client_options,
         )
 
 

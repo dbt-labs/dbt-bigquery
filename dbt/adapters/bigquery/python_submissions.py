@@ -1,21 +1,21 @@
 import uuid
 from typing import Dict, Union
 
-from dbt.adapters.events.logging import AdapterLogger
-
-from dbt.adapters.base import PythonJobHelper
-from google.api_core.future.polling import POLLING_PREDICATE
-
-from dbt.adapters.bigquery import BigQueryConnectionManager, BigQueryCredentials
 from google.api_core import retry
 from google.api_core.client_options import ClientOptions
+from google.api_core.future.polling import POLLING_PREDICATE
 from google.cloud import storage, dataproc_v1
 from google.cloud.dataproc_v1.types.batches import Batch
 
+from dbt.adapters.base import PythonJobHelper
+from dbt.adapters.events.logging import AdapterLogger
+
+from dbt.adapters.bigquery.connections import BigQueryConnectionManager
+from dbt.adapters.bigquery.credentials import BigQueryCredentials
 from dbt.adapters.bigquery.dataproc.batch import (
+    DEFAULT_JAR_FILE_URI,
     create_batch_request,
     poll_batch_job,
-    DEFAULT_JAR_FILE_URI,
     update_batch_from_config,
 )
 

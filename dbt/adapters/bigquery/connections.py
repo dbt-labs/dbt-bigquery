@@ -5,11 +5,11 @@ from dataclasses import dataclass
 import json
 from multiprocessing.context import SpawnContext
 import re
-from typing import Dict, Hashable, List, Optional, Tuple, TYPE_CHECKING
+from typing import Dict, Generator, Hashable, List, Optional, Tuple, TYPE_CHECKING
 import uuid
 
 from google.auth.exceptions import RefreshError
-from google.cloud.bigquery import Client, QueryJobConfig, QueryPriority
+from google.cloud.bigquery import Client, QueryJob, QueryJobConfig, QueryPriority
 from google.cloud.exceptions import BadRequest, Forbidden, NotFound
 
 from dbt_common.events.contextvars import get_node_info
@@ -20,6 +20,7 @@ from dbt.adapters.base import BaseConnectionManager
 from dbt.adapters.contracts.connection import (
     AdapterRequiredConfig,
     AdapterResponse,
+    Connection,
     ConnectionState,
 )
 from dbt.adapters.events.logging import AdapterLogger
@@ -55,46 +56,23 @@ class BigQueryAdapterResponse(AdapterResponse):
 class BigQueryConnectionManager(BaseConnectionManager):
     TYPE = "bigquery"
 
-    def __init__(self, profile: AdapterRequiredConfig, mp_context: SpawnContext):
+    def __init__(self, profile: AdapterRequiredConfig, mp_context: SpawnContext) -> None:
         super().__init__(profile, mp_context)
         self.jobs_by_thread: Dict[Hashable, List[str]] = defaultdict(list)
         self._retry = RetryFactory(profile.credentials)
 
-    def bigquery_client(self) -> Client:
-        conn = self.get_thread_connection()
-        return conn.handle
-
-    @classmethod
-    def handle_error(cls, error, message):
-        error_msg = "\n".join([item["message"] for item in error.errors])
-        if hasattr(error, "query_job"):
-            logger.error(
-                cls._bq_job_link(
-                    error.query_job.location, error.query_job.project, error.query_job.job_id
-                )
-            )
-        raise DbtDatabaseError(error_msg)
-
-    def clear_transaction(self):
+    def clear_transaction(self) -> None:
+        """BigQuery does not support transactions"""
         pass
 
     @contextmanager
-    def exception_handler(self, sql):
+    def exception_handler(self, sql: str) -> Generator:
         try:
             yield
-
-        except BadRequest as e:
-            message = "Bad request while running query"
-            self.handle_error(e, message)
-
-        except Forbidden as e:
-            message = "Access denied while running query"
-            self.handle_error(e, message)
-
-        except NotFound as e:
-            message = "Not found while running query"
-            self.handle_error(e, message)
-
+        except (BadRequest, Forbidden, NotFound) as e:
+            if hasattr(e, "query_job"):
+                logger.error(_query_job_url(e.query_job))
+            raise DbtDatabaseError("\n".join([item["message"] for item in e.errors]))
         except RefreshError as e:
             message = (
                 "Unable to generate access token, if you're using "
@@ -105,7 +83,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 f"{str(e)}"
             )
             raise DbtRuntimeError(message)
-
         except Exception as e:
             logger.debug("Unhandled error while running:\n{}".format(sql))
             logger.debug(e)
@@ -121,7 +98,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 exc_message = exc_message.split(BQ_QUERY_JOB_SPLIT)[0].strip()
             raise DbtRuntimeError(exc_message)
 
-    def cancel_open(self):
+    def cancel_open(self) -> Optional[List[str]]:
         names = []
         this_connection = self.get_if_exists()
         with self.lock:
@@ -144,42 +121,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         return names
 
     @classmethod
-    def close(cls, connection):
-        connection.handle.close()
-        connection.state = ConnectionState.CLOSED
-
-        return connection
-
-    def begin(self):
-        pass
-
-    def commit(self):
-        pass
-
-    def format_bytes(self, num_bytes):
-        if num_bytes:
-            for unit in ["Bytes", "KiB", "MiB", "GiB", "TiB", "PiB"]:
-                if abs(num_bytes) < 1024.0:
-                    return f"{num_bytes:3.1f} {unit}"
-                num_bytes /= 1024.0
-
-            num_bytes *= 1024.0
-            return f"{num_bytes:3.1f} {unit}"
-
-        else:
-            return num_bytes
-
-    def format_rows_number(self, rows_number):
-        for unit in ["", "k", "m", "b", "t"]:
-            if abs(rows_number) < 1000.0:
-                return f"{rows_number:3.1f}{unit}".strip()
-            rows_number /= 1000.0
-
-        rows_number *= 1000.0
-        return f"{rows_number:3.1f}{unit}".strip()
-
-    @classmethod
-    def open(cls, connection):
+    def open(cls, connection: Connection) -> Connection:
         if connection.state == ConnectionState.OPEN:
             logger.debug("Connection is already open, skipping open.")
             return connection
@@ -195,81 +137,26 @@ class BigQueryConnectionManager(BaseConnectionManager):
             connection.state = ConnectionState.FAIL
             raise FailedToConnectError(str(e))
 
+    def begin(self) -> None:
+        """BigQuery does not support transactions"""
+        pass
+
+    def commit(self) -> None:
+        """BigQuery does not support transactions"""
+        pass
+
     @classmethod
-    def get_table_from_response(cls, resp) -> "agate.Table":
-        from dbt_common.clients import agate_helper
-
-        column_names = [field.name for field in resp.schema]
-        return agate_helper.table_from_data_flat(resp, column_names)
-
-    def get_labels_from_query_comment(cls):
-        if (
-            hasattr(cls.profile, "query_comment")
-            and cls.profile.query_comment
-            and cls.profile.query_comment.job_label
-            and cls.query_header
-        ):
-            query_comment = cls.query_header.comment.query_comment
-            return cls._labels_from_query_comment(query_comment)
-
-        return {}
-
-    def generate_job_id(self) -> str:
-        # Generating a fresh job_id for every _query_and_results call to avoid job_id reuse.
-        # Generating a job id instead of persisting a BigQuery-generated one after client.query is called.
-        # Using BigQuery's job_id can lead to a race condition if a job has been started and a termination
-        # is sent before the job_id was stored, leading to a failure to cancel the job.
-        # By predetermining job_ids (uuid4), we can persist the job_id before the job has been kicked off.
-        # Doing this, the race condition only leads to attempting to cancel a job that doesn't exist.
-        job_id = str(uuid.uuid4())
-        thread_id = self.get_thread_identifier()
-        self.jobs_by_thread[thread_id].append(job_id)
-        return job_id
-
-    def raw_execute(
-        self,
-        sql,
-        use_legacy_sql=False,
-        limit: Optional[int] = None,
-        dry_run: bool = False,
-    ):
-        conn = self.get_thread_connection()
-
-        fire_event(SQLQuery(conn_name=conn.name, sql=sql, node_info=get_node_info()))
-
-        labels = self.get_labels_from_query_comment()
-
-        labels["dbt_invocation_id"] = get_invocation_id()
-
-        job_params = {
-            "use_legacy_sql": use_legacy_sql,
-            "labels": labels,
-            "dry_run": dry_run,
-        }
-
-        priority = conn.credentials.priority
-        if priority == Priority.Batch:
-            job_params["priority"] = QueryPriority.BATCH
-        else:
-            job_params["priority"] = QueryPriority.INTERACTIVE
-
-        maximum_bytes_billed = conn.credentials.maximum_bytes_billed
-        if maximum_bytes_billed is not None and maximum_bytes_billed != 0:
-            job_params["maximum_bytes_billed"] = maximum_bytes_billed
-
-        with self.exception_handler(sql):
-            job_id = self.generate_job_id()
-
-            return self._query_and_results(
-                conn,
-                sql,
-                job_params,
-                job_id,
-                limit=limit,
-            )
+    def close(cls, connection: Connection) -> Connection:
+        connection.handle.close()
+        connection.state = ConnectionState.CLOSED
+        return connection
 
     def execute(
-        self, sql, auto_begin=False, fetch=None, limit: Optional[int] = None
+        self,
+        sql: str,
+        auto_begin: Optional[bool] = False,
+        fetch: Optional[bool] = False,
+        limit: Optional[int] = None,
     ) -> Tuple[BigQueryAdapterResponse, "agate.Table"]:
         sql = self._add_query_comment(sql)
         # auto_begin is ignored on bigquery, and only included for consistency
@@ -349,6 +236,67 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         return response, table
 
+    # ==============================
+    # dbt-bigquery specific methods
+    # ==============================
+
+    def bigquery_client(self) -> Client:
+        conn = self.get_thread_connection()
+        return conn.handle
+
+    def format_bytes(self, num_bytes):
+        if num_bytes:
+            for unit in ["Bytes", "KiB", "MiB", "GiB", "TiB", "PiB"]:
+                if abs(num_bytes) < 1024.0:
+                    return f"{num_bytes:3.1f} {unit}"
+                num_bytes /= 1024.0
+
+            num_bytes *= 1024.0
+            return f"{num_bytes:3.1f} {unit}"
+
+        else:
+            return num_bytes
+
+    def format_rows_number(self, rows_number):
+        for unit in ["", "k", "m", "b", "t"]:
+            if abs(rows_number) < 1000.0:
+                return f"{rows_number:3.1f}{unit}".strip()
+            rows_number /= 1000.0
+
+        rows_number *= 1000.0
+        return f"{rows_number:3.1f}{unit}".strip()
+
+    @classmethod
+    def get_table_from_response(cls, resp) -> "agate.Table":
+        from dbt_common.clients import agate_helper
+
+        column_names = [field.name for field in resp.schema]
+        return agate_helper.table_from_data_flat(resp, column_names)
+
+    def get_labels_from_query_comment(cls):
+        if (
+            hasattr(cls.profile, "query_comment")
+            and cls.profile.query_comment
+            and cls.profile.query_comment.job_label
+            and cls.query_header
+        ):
+            query_comment = cls.query_header.comment.query_comment
+            return cls._labels_from_query_comment(query_comment)
+
+        return {}
+
+    def generate_job_id(self) -> str:
+        # Generating a fresh job_id for every _query_and_results call to avoid job_id reuse.
+        # Generating a job id instead of persisting a BigQuery-generated one after client.query is called.
+        # Using BigQuery's job_id can lead to a race condition if a job has been started and a termination
+        # is sent before the job_id was stored, leading to a failure to cancel the job.
+        # By predetermining job_ids (uuid4), we can persist the job_id before the job has been kicked off.
+        # Doing this, the race condition only leads to attempting to cancel a job that doesn't exist.
+        job_id = str(uuid.uuid4())
+        thread_id = self.get_thread_identifier()
+        self.jobs_by_thread[thread_id].append(job_id)
+        return job_id
+
     def dry_run(self, sql: str) -> BigQueryAdapterResponse:
         """Run the given sql statement with the `dry_run` job parameter set.
 
@@ -380,11 +328,12 @@ class BigQueryConnectionManager(BaseConnectionManager):
             slot_ms=slot_ms,
         )
 
-    @staticmethod
-    def _bq_job_link(location, project_id, job_id) -> str:
-        return f"https://console.cloud.google.com/bigquery?project={project_id}&j=bq:{location}:{job_id}&page=queryresults"
-
     def get_partitions_metadata(self, table):
+        """
+        TODO: This doesn't appear to be used, however there's a method by
+        the same name on the adapter that's used in jinja. That may be a bug.
+        """
+
         def standard_to_legacy(table):
             return table.project + ":" + table.dataset + "." + table.identifier
 
@@ -394,6 +343,48 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # auto_begin is ignored on bigquery, and only included for consistency
         _, iterator = self.raw_execute(sql, use_legacy_sql=True)
         return self.get_table_from_response(iterator)
+
+    def raw_execute(
+        self,
+        sql,
+        use_legacy_sql=False,
+        limit: Optional[int] = None,
+        dry_run: bool = False,
+    ):
+        conn = self.get_thread_connection()
+
+        fire_event(SQLQuery(conn_name=conn.name, sql=sql, node_info=get_node_info()))
+
+        labels = self.get_labels_from_query_comment()
+
+        labels["dbt_invocation_id"] = get_invocation_id()
+
+        job_params = {
+            "use_legacy_sql": use_legacy_sql,
+            "labels": labels,
+            "dry_run": dry_run,
+        }
+
+        priority = conn.credentials.priority
+        if priority == Priority.Batch:
+            job_params["priority"] = QueryPriority.BATCH
+        else:
+            job_params["priority"] = QueryPriority.INTERACTIVE
+
+        maximum_bytes_billed = conn.credentials.maximum_bytes_billed
+        if maximum_bytes_billed is not None and maximum_bytes_billed != 0:
+            job_params["maximum_bytes_billed"] = maximum_bytes_billed
+
+        with self.exception_handler(sql):
+            job_id = self.generate_job_id()
+
+            return self._query_and_results(
+                conn,
+                sql,
+                job_params,
+                job_id,
+                limit=limit,
+            )
 
     def _query_and_results(
         self,
@@ -417,9 +408,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             and query_job.job_id is not None
             and query_job.project is not None
         ):
-            logger.debug(
-                self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
-            )
+            logger.debug(_query_job_url(query_job))
         try:
             iterator = query_job.result(
                 max_results=limit, timeout=self._retry.job_execution_timeout()
@@ -450,3 +439,7 @@ def _sanitize_label(value: str) -> str:
     value = value.strip().lower()
     value = _SANITIZE_LABEL_PATTERN.sub("_", value)
     return value[:_VALIDATE_LABEL_LENGTH_LIMIT]
+
+
+def _query_job_url(query_job: QueryJob) -> str:
+    return f"https://console.cloud.google.com/bigquery?project={query_job.project}&j=bq:{query_job.location}:{query_job.job_id}&page=queryresults"

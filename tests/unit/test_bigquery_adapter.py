@@ -25,7 +25,7 @@ from dbt.contracts.files import FileHash
 from dbt.contracts.graph.manifest import ManifestStateCheck
 from dbt.context.providers import RuntimeConfigObject, generate_runtime_macro_context
 
-from google.cloud.bigquery import AccessEntry
+from google.cloud.bigquery import AccessEntry, WriteDisposition
 
 from .utils import (
     config_from_parts_or_dicts,
@@ -572,7 +572,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         adapter.connections = MagicMock()
         adapter.copy_table("source", "destination", "table")
         adapter.connections.copy_bq_table.assert_called_once_with(
-            "source", "destination", dbt.adapters.bigquery.impl.WRITE_TRUNCATE
+            "source", "destination", WriteDisposition.WRITE_TRUNCATE
         )
 
     def test_copy_table_materialization_incremental(self):
@@ -580,7 +580,7 @@ class TestBigQueryAdapter(BaseTestBigQueryAdapter):
         adapter.connections = MagicMock()
         adapter.copy_table("source", "destination", "incremental")
         adapter.connections.copy_bq_table.assert_called_once_with(
-            "source", "destination", dbt.adapters.bigquery.impl.WRITE_APPEND
+            "source", "destination", WriteDisposition.WRITE_APPEND
         )
 
     def test_parse_partition_by(self):

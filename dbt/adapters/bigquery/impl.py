@@ -47,7 +47,7 @@ from dbt.adapters.base import (
 from dbt.adapters.base.impl import FreshnessResponse
 from dbt.adapters.cache import _make_ref_key_dict
 from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
-from dbt.adapters.contracts.connection import AdapterResponse
+from dbt.adapters.contracts.connection import AdapterResponse, AdapterRequiredConfig
 from dbt.adapters.contracts.macros import MacroResolverProtocol
 from dbt.adapters.contracts.relation import RelationConfig
 from dbt.adapters.events.logging import AdapterLogger
@@ -66,6 +66,8 @@ from dbt.adapters.bigquery.relation_configs import (
     BigQueryMaterializedViewConfig,
     PartitionConfig,
 )
+from dbt.adapters.bigquery.retry import RetryFactory
+from dbt.adapters.bigquery.services import BigQueryService
 from dbt.adapters.bigquery.utility import sql_escape
 
 if TYPE_CHECKING:
@@ -76,9 +78,6 @@ if TYPE_CHECKING:
 
 logger = AdapterLogger("BigQuery")
 
-# Write dispositions for bigquery.
-WRITE_APPEND = google.cloud.bigquery.job.WriteDisposition.WRITE_APPEND
-WRITE_TRUNCATE = google.cloud.bigquery.job.WriteDisposition.WRITE_TRUNCATE
 
 CREATE_SCHEMA_MACRO_NAME = "create_schema"
 _dataset_lock = threading.Lock()
@@ -147,9 +146,11 @@ class BigQueryAdapter(BaseAdapter):
         }
     )
 
-    def __init__(self, config, mp_context: SpawnContext) -> None:
+    def __init__(self, config: AdapterRequiredConfig, mp_context: SpawnContext) -> None:
         super().__init__(config, mp_context)
         self.connections: BigQueryConnectionManager = self.connections
+        self.retry = RetryFactory(config.credentials)
+        self.bigquery = BigQueryService()
 
     ###
     # Implementations of abstract methods
@@ -416,20 +417,16 @@ class BigQueryAdapter(BaseAdapter):
 
     @available.parse(lambda *a, **k: "")
     def copy_table(self, source, destination, materialization):
-        if materialization == "incremental":
-            write_disposition = WRITE_APPEND
-        elif materialization == "table":
-            write_disposition = WRITE_TRUNCATE
-        else:
+        if materialization not in ["incremental", "table"]:
             raise dbt_common.exceptions.CompilationError(
-                'Copy table materialization must be "copy" or "table", but '
-                f"config.get('copy_materialization', 'table') was "
-                f"{materialization}"
+                'Copy table materialization must be "incremental" or "table", but '
+                f"config.get('copy_materialization', 'table') was {materialization}"
             )
 
-        self.connections.copy_bq_table(source, destination, write_disposition)
-
-        return "COPY TABLE with materialization: {}".format(materialization)
+        client = self.connections.bigquery_client()
+        timeout = self.retry.job_execution_timeout(300)
+        self.bigquery.copy_table(client, source, destination, materialization, timeout)
+        return f"COPY TABLE with materialization: {materialization}"
 
     @available.parse(lambda *a, **k: [])
     def get_column_schema_from_query(self, sql: str) -> List[BigQueryColumn]:

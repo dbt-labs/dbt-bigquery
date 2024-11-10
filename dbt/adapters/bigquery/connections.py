@@ -11,7 +11,6 @@ import uuid
 from google.auth.exceptions import RefreshError
 from google.cloud.bigquery import (
     Client,
-    CopyJobConfig,
     Dataset,
     DatasetReference,
     LoadJobConfig,
@@ -70,6 +69,10 @@ class BigQueryConnectionManager(BaseConnectionManager):
         super().__init__(profile, mp_context)
         self.jobs_by_thread: Dict[Hashable, List[str]] = defaultdict(list)
         self._retry = RetryFactory(profile.credentials)
+
+    def bigquery_client(self) -> Client:
+        conn = self.get_thread_connection()
+        return conn.handle
 
     @classmethod
     def handle_error(cls, error, message):
@@ -401,48 +404,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # auto_begin is ignored on bigquery, and only included for consistency
         _, iterator = self.raw_execute(sql, use_legacy_sql=True)
         return self.get_table_from_response(iterator)
-
-    def copy_bq_table(self, source, destination, write_disposition) -> None:
-        conn = self.get_thread_connection()
-        client: Client = conn.handle
-
-        # -------------------------------------------------------------------------------
-        #  BigQuery allows to use copy API using two different formats:
-        #  1. client.copy_table(source_table_id, destination_table_id)
-        #     where source_table_id = "your-project.source_dataset.source_table"
-        #  2. client.copy_table(source_table_ids, destination_table_id)
-        #     where source_table_ids = ["your-project.your_dataset.your_table_name", ...]
-        #  Let's use uniform function call and always pass list there
-        # -------------------------------------------------------------------------------
-        if type(source) is not list:
-            source = [source]
-
-        source_ref_array = [
-            self.table_ref(src_table.database, src_table.schema, src_table.table)
-            for src_table in source
-        ]
-        destination_ref = self.table_ref(
-            destination.database, destination.schema, destination.table
-        )
-
-        logger.debug(
-            'Copying table(s) "{}" to "{}" with disposition: "{}"',
-            ", ".join(source_ref.path for source_ref in source_ref_array),
-            destination_ref.path,
-            write_disposition,
-        )
-
-        msg = 'copy table "{}" to "{}"'.format(
-            ", ".join(source_ref.path for source_ref in source_ref_array),
-            destination_ref.path,
-        )
-        with self.exception_handler(msg):
-            copy_job = client.copy_table(
-                source_ref_array,
-                destination_ref,
-                job_config=CopyJobConfig(write_disposition=write_disposition),
-            )
-            copy_job.result(timeout=self._retry.job_execution_timeout(300))
 
     def load_dataframe(
         self,

@@ -7,7 +7,6 @@ import dbt.adapters
 import google.cloud.bigquery
 
 from dbt.adapters.bigquery import BigQueryCredentials
-from dbt.adapters.bigquery import BigQueryRelation
 from dbt.adapters.bigquery.connections import BigQueryConnectionManager
 from dbt.adapters.bigquery.retry import RetryFactory
 
@@ -99,31 +98,6 @@ class TestBigQueryConnectionManager(unittest.TestCase):
             timeout=self.credentials.job_creation_timeout_seconds,
         )
 
-    def test_copy_bq_table_appends(self):
-        self._copy_table(write_disposition=dbt.adapters.bigquery.impl.WRITE_APPEND)
-        self.mock_client.copy_table.assert_called_once_with(
-            [self._table_ref("project", "dataset", "table1")],
-            self._table_ref("project", "dataset", "table2"),
-            job_config=ANY,
-        )
-        args, kwargs = self.mock_client.copy_table.call_args
-        self.assertEqual(
-            kwargs["job_config"].write_disposition, dbt.adapters.bigquery.impl.WRITE_APPEND
-        )
-
-    def test_copy_bq_table_truncates(self):
-        self._copy_table(write_disposition=dbt.adapters.bigquery.impl.WRITE_TRUNCATE)
-        args, kwargs = self.mock_client.copy_table.call_args
-        self.mock_client.copy_table.assert_called_once_with(
-            [self._table_ref("project", "dataset", "table1")],
-            self._table_ref("project", "dataset", "table2"),
-            job_config=ANY,
-        )
-        args, kwargs = self.mock_client.copy_table.call_args
-        self.assertEqual(
-            kwargs["job_config"].write_disposition, dbt.adapters.bigquery.impl.WRITE_TRUNCATE
-        )
-
     def test_job_labels_valid_json(self):
         expected = {"key": "value"}
         labels = self.connections._labels_from_query_comment(json.dumps(expected))
@@ -145,10 +119,3 @@ class TestBigQueryConnectionManager(unittest.TestCase):
 
     def _table_ref(self, proj, ds, table):
         return self.connections.table_ref(proj, ds, table)
-
-    def _copy_table(self, write_disposition):
-        source = BigQueryRelation.create(database="project", schema="dataset", identifier="table1")
-        destination = BigQueryRelation.create(
-            database="project", schema="dataset", identifier="table2"
-        )
-        self.connections.copy_bq_table(source, destination, write_disposition)

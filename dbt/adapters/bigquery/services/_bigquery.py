@@ -39,6 +39,40 @@ class BigQueryService:
     def __init__(self) -> None:
         pass
 
+    def list_datasets(self, client: Client, database: str, retry: Retry) -> Iterator[Dataset]:
+        # The database string we get here is potentially quoted.
+        # Strip that off for the API call.
+        with self._exception_handler():
+            return client.list_datasets(database.strip("`"), max_results=10000, retry=retry)
+
+    @staticmethod
+    def dataset_exists(client: Client, relation: BigQueryRelation) -> bool:
+        """
+        Determine whether a dataset exists.
+
+        This tries to do something with the dataset and checks for an exception.
+        If the dataset doesn't exist it will 404.
+        We have to do it this way to handle underscore-prefixed datasets,
+        which don't appear in the information_schema.schemata view nor the
+        list_datasets method.
+
+        Args:
+            client: a client with view privileges on the dataset
+            relation: the dataset that we're checking
+
+        Returns:
+            True if the dataset exists, False otherwise
+        """
+        dataset = dataset_ref(relation)
+        try:
+            next(iter(client.list_tables(dataset, max_results=1)))
+        except StopIteration:
+            pass
+        except NotFound:
+            # the schema does not exist
+            return False
+        return True
+
     def delete_dataset(self, client: Client, relation: BigQueryRelation, retry: Retry) -> None:
         _logger.debug(f'Dropping schema "{relation.database}.{relation.schema}".')
 
@@ -49,12 +83,6 @@ class BigQueryService:
                 not_found_ok=True,
                 retry=retry,
             )
-
-    def list_datasets(self, client: Client, database: str, retry: Retry) -> Iterator[Dataset]:
-        # The database string we get here is potentially quoted.
-        # Strip that off for the API call.
-        with self._exception_handler():
-            return client.list_datasets(database.strip("`"), max_results=10000, retry=retry)
 
     def copy_table(
         self,

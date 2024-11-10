@@ -213,22 +213,9 @@ class BigQueryAdapter(BaseAdapter):
 
     @available.parse(lambda *a, **k: False)
     def check_schema_exists(self, database: str, schema: str) -> bool:
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-
-        dataset_ref = self.connections.dataset_ref(database, schema)
-        # try to do things with the dataset. If it doesn't exist it will 404.
-        # we have to do it this way to handle underscore-prefixed datasets,
-        # which appear in neither the information_schema.schemata view nor the
-        # list_datasets method.
-        try:
-            next(iter(client.list_tables(dataset_ref, max_results=1)))
-        except StopIteration:
-            pass
-        except google.api_core.exceptions.NotFound:
-            # the schema does not exist
-            return False
-        return True
+        client = self.connections.bigquery_client()
+        relation = self.Relation.create(database, schema)
+        return self.bigquery.dataset_exists(client, relation)
 
     @available.parse(lambda *a, **k: {})
     @classmethod

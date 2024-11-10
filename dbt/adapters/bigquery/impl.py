@@ -267,9 +267,7 @@ class BigQueryAdapter(BaseAdapter):
         connection = self.connections.get_thread_connection()
         client = connection.handle
 
-        dataset_ref = self.connections.dataset_ref(
-            schema_relation.database, schema_relation.schema
-        )
+        dataset_ref = self.bigquery.dataset_ref(schema_relation)
 
         all_tables = client.list_tables(
             dataset_ref,
@@ -525,11 +523,8 @@ class BigQueryAdapter(BaseAdapter):
         if not relation:
             return True
 
-        try:
-            table = self.connections.get_bq_table(
-                database=relation.database, schema=relation.schema, identifier=relation.identifier
-            )
-        except google.cloud.exceptions.NotFound:
+        table = self.get_bq_table(relation)
+        if table is None:
             return True
 
         return all(
@@ -733,13 +728,9 @@ class BigQueryAdapter(BaseAdapter):
 
     @available.parse(lambda *a, **k: True)
     def get_bq_table(self, relation: BigQueryRelation) -> Optional[BigQueryTable]:
-        try:
-            table = self.connections.get_bq_table(
-                relation.database, relation.schema, relation.identifier
-            )
-        except google.cloud.exceptions.NotFound:
-            table = None
-        return table
+        connection = self.connections.get_thread_connection()
+        retry = self.retry.reopen_with_deadline(connection)
+        return self.bigquery.get_table(connection.handle, relation, retry)
 
     @available.parse(lambda *a, **k: True)
     def describe_relation(
@@ -769,7 +760,8 @@ class BigQueryAdapter(BaseAdapter):
         if entity_type == "view":
             entity = self.get_table_ref_from_relation(entity).to_api_repr()
         with _dataset_lock:
-            dataset_ref = self.connections.dataset_ref(grant_target.project, grant_target.dataset)
+            schema = self.Relation.create(grant_target.project, grant_target.dataset)
+            dataset_ref = self.bigquery.dataset_ref(schema)
             dataset = client.get_dataset(dataset_ref)
             access_entry = AccessEntry(role, entity_type, entity)
             # only perform update if access entry not in dataset

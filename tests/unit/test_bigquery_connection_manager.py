@@ -95,6 +95,3 @@ class TestBigQueryConnectionManager(unittest.TestCase):
     def test_job_labels_invalid_json(self):
         labels = self.connections._labels_from_query_comment("not json")
         self.assertEqual(labels, {"query_comment": "not_json"})
-
-    def _table_ref(self, proj, ds, table):
-        return self.connections.table_ref(proj, ds, table)

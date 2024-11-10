@@ -402,15 +402,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         _, iterator = self.raw_execute(sql, use_legacy_sql=True)
         return self.get_table_from_response(iterator)
 
-    @staticmethod
-    def dataset_ref(database, schema):
-        return DatasetReference(project=database, dataset_id=schema)
-
-    @staticmethod
-    def table_ref(database, schema, table_name):
-        dataset_ref = DatasetReference(database, schema)
-        return TableReference(dataset_ref, table_name)
-
     def get_bq_table(self, database, schema, identifier) -> Table:
         """Get a bigquery table for a schema/model."""
         conn = self.get_thread_connection()
@@ -418,8 +409,10 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # backwards compatibility: fill in with defaults if not specified
         database = database or conn.credentials.database
         schema = schema or conn.credentials.schema
+        dataset_ref = DatasetReference(database, schema)
+
         return client.get_table(
-            table=self.table_ref(database, schema, identifier),
+            table=TableReference(dataset_ref, identifier),
             retry=self._retry.reopen_with_deadline(conn),
         )
 

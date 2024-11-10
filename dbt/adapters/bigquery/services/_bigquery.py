@@ -1,12 +1,18 @@
 from contextlib import contextmanager
-from typing import Generator, List, Optional, Union
+import json
+from typing import Dict, Generator, Iterator, List, Optional, TYPE_CHECKING, Union
 
+from google.api_core.retry import Retry
 from google.auth.exceptions import RefreshError
 from google.cloud.bigquery import (
     Client,
     CopyJob,
     CopyJobConfig,
+    Dataset,
     DatasetReference,
+    LoadJob,
+    LoadJobConfig,
+    SchemaField,
     TableReference,
     WriteDisposition,
     QueryJob,
@@ -14,17 +20,41 @@ from google.cloud.bigquery import (
 from google.cloud.exceptions import BadRequest, ClientError, Forbidden, NotFound
 
 from dbt_common.exceptions import DbtDatabaseError, DbtRuntimeError
+from dbt.adapters.base.impl import BaseAdapter
 from dbt.adapters.events.logging import AdapterLogger
 
 from dbt.adapters.bigquery.relation import BigQueryRelation
+
+if TYPE_CHECKING:
+    import agate
 
 
 _logger = AdapterLogger("BigQuery")
 
 
+_DEFAULT_TIMEOUT = 300
+
+
 class BigQueryService:
     def __init__(self) -> None:
         pass
+
+    def delete_dataset(self, client: Client, relation: BigQueryRelation, retry: Retry) -> None:
+        _logger.debug(f'Dropping schema "{relation.database}.{relation.schema}".')
+
+        with self._exception_handler():
+            client.delete_dataset(
+                dataset_ref(relation),
+                delete_contents=True,
+                not_found_ok=True,
+                retry=retry,
+            )
+
+    def list_datasets(self, client: Client, database: str, retry: Retry) -> Iterator[Dataset]:
+        # The database string we get here is potentially quoted.
+        # Strip that off for the API call.
+        with self._exception_handler():
+            return client.list_datasets(database.strip("`"), max_results=10000, retry=retry)
 
     def copy_table(
         self,
@@ -32,7 +62,7 @@ class BigQueryService:
         sources: Union[BigQueryRelation, List[BigQueryRelation]],
         destination: BigQueryRelation,
         mode: str,
-        timeout: Optional[float] = 300,
+        timeout: Optional[float] = _DEFAULT_TIMEOUT,
     ) -> CopyJob:
         # -------------------------------------------------------------------------------
         #  BigQuery allows to use copy API using two different formats:
@@ -46,12 +76,15 @@ class BigQueryService:
             source_refs = [table_ref(src_table) for src_table in sources]
         else:
             source_refs = [table_ref(sources)]
+
         destination_ref = table_ref(destination)
 
         write_disposition = {
             "incremental": WriteDisposition.WRITE_APPEND,
             "table": WriteDisposition.WRITE_TRUNCATE,
         }.get(mode, WriteDisposition.WRITE_TRUNCATE)
+
+        config = CopyJobConfig(write_disposition=write_disposition)
 
         _logger.debug(
             'Copying table(s) "{}" to "{}" with disposition: "{}"',
@@ -61,9 +94,54 @@ class BigQueryService:
         )
 
         with self._exception_handler():
-            config = CopyJobConfig(write_disposition=write_disposition)
-            copy_job = client.copy_table(source_refs, destination_ref, job_config=config)
-            return copy_job.result(timeout=timeout)
+            job = client.copy_table(source_refs, destination_ref, job_config=config)
+            return job.result(timeout=timeout)
+
+    def load_table_from_dataframe(
+        self,
+        client: Client,
+        file_path: str,
+        relation: BigQueryRelation,
+        schema: "agate.Table",
+        column_override: Dict[str, str],
+        field_delimiter: str,
+        timeout: Optional[float] = _DEFAULT_TIMEOUT,
+    ) -> LoadJob:
+        destination_ref = table_ref(relation)
+
+        config = LoadJobConfig(
+            skip_leading_rows=1,
+            schema=schema_fields(schema, column_override),
+            field_delimiter=field_delimiter,
+        )
+
+        with self._exception_handler():
+            with open(file_path, "rb") as f:
+                job = client.load_table_from_file(
+                    f, destination_ref, rewind=True, job_config=config
+                )
+            return job.result(timeout=timeout)
+
+    def load_table_from_file(
+        self,
+        client: Client,
+        file_path: str,
+        relation: BigQueryRelation,
+        timeout: Optional[float] = _DEFAULT_TIMEOUT,
+        **kwargs,
+    ) -> LoadJob:
+        destination_ref = table_ref(relation)
+
+        if "schema" in kwargs:
+            kwargs["schema"] = json.load(kwargs["schema"])
+        config = LoadJobConfig(**kwargs)
+
+        with self._exception_handler():
+            with open(file_path, "rb") as f:
+                job = client.load_table_from_file(
+                    f, destination_ref, rewind=True, job_config=config
+                )
+            return job.result(timeout=timeout)
 
     @contextmanager
     def _exception_handler(self) -> Generator:
@@ -86,13 +164,11 @@ class BigQueryService:
             )
             raise DbtRuntimeError(message)
 
-    @classmethod
-    def _database_error(cls, error: ClientError, message: str) -> None:
+    @staticmethod
+    def _database_error(error: ClientError, message: str) -> None:
         if hasattr(error, "query_job"):
             _logger.error(query_job_url(error.query_job))
-        msg = message
-        msg += "\n".join([item["message"] for item in error.errors])
-        raise DbtDatabaseError(msg)
+        raise DbtDatabaseError(message + "\n".join([item["message"] for item in error.errors]))
 
 
 def table_ref(relation: BigQueryRelation) -> TableReference:
@@ -105,3 +181,15 @@ def dataset_ref(relation: BigQueryRelation) -> DatasetReference:
 
 def query_job_url(query_job: QueryJob) -> str:
     return f"https://console.cloud.google.com/bigquery?project={query_job.project}&j=bq:{query_job.location}:{query_job.job_id}&page=queryresults"
+
+
+def schema_fields(
+    agate_table: "agate.Table", column_override: Dict[str, str]
+) -> List[SchemaField]:
+    """Convert agate.Table with column names to a list of bigquery schemas."""
+    bq_schema = []
+    for idx, col_name in enumerate(agate_table.column_names):
+        inferred_type = BaseAdapter.convert_agate_type(agate_table, idx)
+        type_ = column_override.get(col_name, inferred_type)
+        bq_schema.append(SchemaField(col_name, type_))
+    return bq_schema

@@ -11,12 +11,9 @@ import uuid
 from google.auth.exceptions import RefreshError
 from google.cloud.bigquery import (
     Client,
-    Dataset,
     DatasetReference,
-    LoadJobConfig,
     QueryJobConfig,
     QueryPriority,
-    SchemaField,
     Table,
     TableReference,
 )
@@ -405,64 +402,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         _, iterator = self.raw_execute(sql, use_legacy_sql=True)
         return self.get_table_from_response(iterator)
 
-    def load_dataframe(
-        self,
-        client: Client,
-        file_path: str,
-        database: str,
-        schema: str,
-        identifier: str,
-        table_schema: List[SchemaField],
-        field_delimiter: str,
-        fallback_timeout: Optional[float] = None,
-    ) -> None:
-        load_config = LoadJobConfig(
-            skip_leading_rows=1,
-            schema=table_schema,
-            field_delimiter=field_delimiter,
-        )
-        table = self.table_ref(database, schema, identifier)
-        self._load_table_from_file(client, file_path, table, load_config, fallback_timeout)
-
-    def upload_file(
-        self,
-        client: Client,
-        file_path: str,
-        database: str,
-        schema: str,
-        identifier: str,
-        fallback_timeout: Optional[float] = None,
-        **kwargs,
-    ) -> None:
-        config = kwargs["kwargs"]
-        if "schema" in config:
-            config["schema"] = json.load(config["schema"])
-        load_config = LoadJobConfig(**config)
-        table = self.table_ref(database, schema, identifier)
-        self._load_table_from_file(client, file_path, table, load_config, fallback_timeout)
-
-    def _load_table_from_file(
-        self,
-        client: Client,
-        file_path: str,
-        table: TableReference,
-        config: LoadJobConfig,
-        fallback_timeout: Optional[float] = None,
-    ) -> None:
-
-        with self.exception_handler("LOAD TABLE"):
-            with open(file_path, "rb") as f:
-                job = client.load_table_from_file(f, table, rewind=True, job_config=config)
-
-        response = job.result(retry=self._retry.retry(fallback_timeout=fallback_timeout))
-
-        if response.state != "DONE":
-            raise DbtRuntimeError("BigQuery Timeout Exceeded")
-
-        elif response.error_result:
-            message = "\n".join(error["message"].strip() for error in response.errors)
-            raise DbtRuntimeError(message)
-
     @staticmethod
     def dataset_ref(database, schema):
         return DatasetReference(project=database, dataset_id=schema)
@@ -483,41 +422,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
             table=self.table_ref(database, schema, identifier),
             retry=self._retry.reopen_with_deadline(conn),
         )
-
-    def drop_dataset(self, database, schema) -> None:
-        conn = self.get_thread_connection()
-        client: Client = conn.handle
-        with self.exception_handler("drop dataset"):
-            client.delete_dataset(
-                dataset=self.dataset_ref(database, schema),
-                delete_contents=True,
-                not_found_ok=True,
-                retry=self._retry.reopen_with_deadline(conn),
-            )
-
-    def create_dataset(self, database, schema) -> Dataset:
-        conn = self.get_thread_connection()
-        client: Client = conn.handle
-        with self.exception_handler("create dataset"):
-            return client.create_dataset(
-                dataset=self.dataset_ref(database, schema),
-                exists_ok=True,
-                retry=self._retry.reopen_with_deadline(conn),
-            )
-
-    def list_dataset(self, database: str):
-        # The database string we get here is potentially quoted.
-        # Strip that off for the API call.
-        conn = self.get_thread_connection()
-        client: Client = conn.handle
-        with self.exception_handler("list dataset"):
-            # this is similar to how we have to deal with listing tables
-            all_datasets = client.list_datasets(
-                project=database.strip("`"),
-                max_results=10000,
-                retry=self._retry.reopen_with_deadline(conn),
-            )
-            return [ds.dataset_id for ds in all_datasets]
 
     def _query_and_results(
         self,

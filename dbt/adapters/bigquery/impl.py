@@ -206,7 +206,10 @@ class BigQueryAdapter(BaseAdapter):
 
     @available
     def list_schemas(self, database: str) -> List[str]:
-        return self.connections.list_dataset(database)
+        connection = self.connections.get_thread_connection()
+        retry = self.retry.reopen_with_deadline(connection)
+        datasets = self.bigquery.list_datasets(connection.handle, database, retry)
+        return [dataset.dataset_id for dataset in datasets]
 
     @available.parse(lambda *a, **k: False)
     def check_schema_exists(self, database: str, schema: str) -> bool:
@@ -328,9 +331,7 @@ class BigQueryAdapter(BaseAdapter):
         relation = relation.without_identifier()
 
         fire_event(SchemaCreation(relation=_make_ref_key_dict(relation)))
-        kwargs = {
-            "relation": relation,
-        }
+        kwargs = {"relation": relation}
         self.execute_macro(CREATE_SCHEMA_MACRO_NAME, kwargs=kwargs)
         self.commit_if_has_connection()
         # we can't update the cache here, as if the schema already existed we
@@ -338,12 +339,12 @@ class BigQueryAdapter(BaseAdapter):
 
     def drop_schema(self, relation: BigQueryRelation) -> None:
         # still use a client method, rather than SQL 'drop schema ... cascade'
-        database = relation.database
-        schema = relation.schema
-        logger.debug('Dropping schema "{}.{}".', database, schema)  # in lieu of SQL
+        connection = self.connections.get_thread_connection()
+        retry = self.retry.reopen_with_deadline(connection)
+
         fire_event(SchemaDrop(relation=_make_ref_key_dict(relation)))
-        self.connections.drop_dataset(database, schema)
-        self.cache.drop_schema(database, schema)
+        self.bigquery.delete_dataset(connection.handle, relation, retry)
+        self.cache.drop_schema(relation.database, relation.schema)
 
     @classmethod
     def quote(cls, identifier: str) -> str:
@@ -661,20 +662,18 @@ class BigQueryAdapter(BaseAdapter):
         column_override: Dict[str, str],
         field_delimiter: str,
     ) -> None:
-        connection = self.connections.get_thread_connection()
-        client: Client = connection.handle
-        table_schema = self._agate_to_schema(agate_table, column_override)
-        file_path = agate_table.original_abspath  # type: ignore
+        client = self.connections.bigquery_client()
+        relation = self.Relation.create(database, schema, table_name)
+        timeout = self.retry.job_execution_timeout(300)
 
-        self.connections.load_dataframe(
+        self.bigquery.load_table_from_dataframe(
             client,
-            file_path,
-            database,
-            schema,
-            table_name,
-            table_schema,
+            agate_table.original_abspath,  # type:ignore
+            relation,
+            agate_table,
+            column_override,
             field_delimiter,
-            fallback_timeout=300,
+            timeout,
         )
 
     @available.parse_none
@@ -686,16 +685,15 @@ class BigQueryAdapter(BaseAdapter):
         table_name: str,
         **kwargs,
     ) -> None:
-        connection = self.connections.get_thread_connection()
-        client: Client = connection.handle
+        client = self.connections.bigquery_client()
+        relation = self.Relation.create(database, table_schema, table_name)
+        timeout = self.retry.job_execution_timeout(300)
 
-        self.connections.upload_file(
+        self.bigquery.load_table_from_file(
             client,
             local_file_path,
-            database,
-            table_schema,
-            table_name,
-            fallback_timeout=300,
+            relation,
+            timeout,
             **kwargs,
         )
 

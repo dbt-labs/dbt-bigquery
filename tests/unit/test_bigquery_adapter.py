@@ -1,5 +1,6 @@
 from multiprocessing import get_context
 from unittest import mock
+from unittest.mock import ANY
 
 import agate
 import decimal
@@ -12,8 +13,8 @@ from unittest.mock import patch, MagicMock, create_autospec
 
 import dbt_common.dataclass_schema
 import dbt_common.exceptions.base
+from dbt.adapters.cache import RelationsCache
 
-import dbt.adapters
 from dbt.adapters.bigquery.relation_configs import PartitionConfig
 from dbt.adapters.bigquery import BigQueryAdapter, BigQueryRelation
 from google.cloud.bigquery.table import Table
@@ -26,6 +27,8 @@ from dbt.contracts.graph.manifest import ManifestStateCheck
 from dbt.context.providers import RuntimeConfigObject, generate_runtime_macro_context
 
 from google.cloud.bigquery import AccessEntry, WriteDisposition
+
+from dbt.adapters.bigquery.services import BigQueryService
 
 from .utils import (
     config_from_parts_or_dicts,
@@ -435,6 +438,8 @@ class TestConnectionNamePassthrough(BaseTestBigQueryAdapter):
         )
 
         self.adapter = self.get_adapter("oauth")
+        self.adapter.bigquery = MagicMock(BigQueryService)
+        self.adapter.cache = MagicMock(RelationsCache)
 
     def tearDown(self):
         super().tearDown()
@@ -447,12 +452,13 @@ class TestConnectionNamePassthrough(BaseTestBigQueryAdapter):
             "db", "schema", "my_model"
         )
 
-    @patch.object(BigQueryAdapter, "check_schema_exists")
-    def test_drop_schema(self, mock_check_schema):
-        mock_check_schema.return_value = True
+    def test_drop_schema(self):
         relation = BigQueryRelation.create(database="db", schema="schema")
+
         self.adapter.drop_schema(relation)
-        self.mock_connection_manager.drop_dataset.assert_called_once_with("db", "schema")
+
+        self.adapter.bigquery.delete_dataset.assert_called_once_with(ANY, relation, ANY)
+        self.adapter.cache.drop_schema.assert_called_once_with(relation.database, relation.schema)
 
     def test_get_columns_in_relation(self):
         self.mock_connection_manager.get_bq_table.side_effect = ValueError

@@ -70,17 +70,6 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.assertTrue(_is_retryable(rate_limit_error))
         self.assertTrue(_is_retryable(service_unavailable_error))
 
-    def test_drop_dataset(self):
-        mock_table = Mock()
-        mock_table.reference = "table1"
-        self.mock_client.list_tables.return_value = [mock_table]
-
-        self.connections.drop_dataset("project", "dataset")
-
-        self.mock_client.list_tables.assert_not_called()
-        self.mock_client.delete_table.assert_not_called()
-        self.mock_client.delete_dataset.assert_called_once()
-
     @patch("dbt.adapters.bigquery.connections.QueryJobConfig")
     def test_query_and_results(self, MockQueryJobConfig):
         self.connections._query_and_results(
@@ -106,16 +95,6 @@ class TestBigQueryConnectionManager(unittest.TestCase):
     def test_job_labels_invalid_json(self):
         labels = self.connections._labels_from_query_comment("not json")
         self.assertEqual(labels, {"query_comment": "not_json"})
-
-    def test_list_dataset_correctly_calls_lists_datasets(self):
-        mock_dataset = Mock(dataset_id="d1")
-        mock_list_dataset = Mock(return_value=[mock_dataset])
-        self.mock_client.list_datasets = mock_list_dataset
-        result = self.connections.list_dataset("project")
-        self.mock_client.list_datasets.assert_called_once_with(
-            project="project", max_results=10000, retry=ANY
-        )
-        assert result == ["d1"]
 
     def _table_ref(self, proj, ds, table):
         return self.connections.table_ref(proj, ds, table)

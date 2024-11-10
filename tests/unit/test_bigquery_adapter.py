@@ -28,7 +28,7 @@ from dbt.context.providers import RuntimeConfigObject, generate_runtime_macro_co
 
 from google.cloud.bigquery import AccessEntry, WriteDisposition
 
-from dbt.adapters.bigquery.services import BigQueryService
+from dbt.adapters.bigquery.services import bigquery
 
 from .utils import (
     config_from_parts_or_dicts,
@@ -438,7 +438,6 @@ class TestConnectionNamePassthrough(BaseTestBigQueryAdapter):
         )
 
         self.adapter = self.get_adapter("oauth")
-        self.adapter.bigquery = MagicMock(BigQueryService)
         self.adapter.cache = MagicMock(RelationsCache)
 
     def tearDown(self):
@@ -452,12 +451,13 @@ class TestConnectionNamePassthrough(BaseTestBigQueryAdapter):
             "db", "schema", "my_model"
         )
 
-    def test_drop_schema(self):
+    @patch("dbt.adapters.bigquery.services.bigquery.delete_dataset")
+    def test_drop_schema(self, mock_delete_dataset):
         relation = BigQueryRelation.create(database="db", schema="schema")
 
         self.adapter.drop_schema(relation)
 
-        self.adapter.bigquery.delete_dataset.assert_called_once_with(ANY, relation, ANY)
+        mock_delete_dataset.assert_called_once_with(ANY, relation, ANY)
         self.adapter.cache.drop_schema.assert_called_once_with(relation.database, relation.schema)
 
     def test_get_columns_in_relation(self):

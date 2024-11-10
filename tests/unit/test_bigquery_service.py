@@ -4,7 +4,7 @@ from google.cloud.bigquery import Client, DEFAULT_RETRY, WriteDisposition
 import pytest
 
 from dbt.adapters.bigquery.relation import BigQueryRelation
-from dbt.adapters.bigquery.services import BigQueryService
+from dbt.adapters.bigquery.services import bigquery
 
 
 @pytest.mark.parametrize(
@@ -20,7 +20,6 @@ def test_copy_table(mode: str, write_disposition: WriteDisposition) -> None:
     destination = BigQueryRelation.create(
         database="project", schema="dataset", identifier="table2"
     )
-    bigquery = BigQueryService()
 
     bigquery.copy_table(mock_client, source, destination, mode)
 
@@ -35,7 +34,6 @@ def test_delete_dataset():
     mock_client = MagicMock(Client)
     schema = BigQueryRelation.create(database="db", schema="schema")
     retry = DEFAULT_RETRY.with_timeout(42)
-    bigquery = BigQueryService()
 
     bigquery.delete_dataset(mock_client, schema, retry)
 
@@ -49,6 +47,6 @@ def test_list_datasets():
     database = "db"
     retry = DEFAULT_RETRY.with_timeout(42)
 
-    BigQueryService().list_datasets(mock_client, database, retry)
+    bigquery.list_datasets(mock_client, database, retry)
 
     mock_client.list_datasets.assert_called_once_with(database, max_results=10000, retry=retry)

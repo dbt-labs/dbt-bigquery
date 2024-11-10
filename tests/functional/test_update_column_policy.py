@@ -47,10 +47,6 @@ class TestBigqueryUpdateColumnPolicy:
         relation: BigQueryRelation = relation_from_name(project.adapter, _POLICY_TAG_MODEL_NAME)
         adapter = project.adapter
         with get_connection(project.adapter) as conn:
-            table = conn.handle.get_table(
-                adapter.connections.get_bq_table(
-                    relation.database, relation.schema, relation.table
-                )
-            )
+            table = conn.handle.get_table(adapter.get_bq_table(relation))
             for schema_field in table.schema:
                 assert schema_field.policy_tags.names == (_POLICY_TAG,)

@@ -228,13 +228,7 @@ class BigQueryAdapter(BaseAdapter):
     def get_columns_in_relation(self, relation: BigQueryRelation) -> List[BigQueryColumn]:
         connection = self.connections.get_thread_connection()
         retry = self.retry.reopen_with_deadline(connection)
-        try:
-            table = bigquery.get_table(connection.handle, relation, retry)
-            return self._get_dbt_columns_from_bq_table(table)
-
-        except ValueError as e:
-            logger.debug("get_columns_in_relation error: {}".format(e))
-            return []
+        return bigquery.get_columns(connection.handle, relation, retry)
 
     @available.parse(lambda *a, **k: [])
     def add_time_ingestion_partition_column(self, partition_by, columns) -> List[BigQueryColumn]:
@@ -377,18 +371,6 @@ class BigQueryAdapter(BaseAdapter):
             }
         )
 
-    def _get_dbt_columns_from_bq_table(self, table) -> List[BigQueryColumn]:
-        "Translates BQ SchemaField dicts into dbt BigQueryColumn objects"
-
-        columns = []
-        for col in table.schema:
-            # BigQuery returns type labels that are not valid type specifiers
-            dtype = self.Column.translate_type(col.field_type)
-            column = self.Column(col.name, dtype, col.fields, col.mode)
-            columns.append(column)
-
-        return columns
-
     def _agate_to_schema(
         self, agate_table: "agate.Table", column_override: Dict[str, str]
     ) -> List[SchemaField]:
@@ -434,7 +416,15 @@ class BigQueryAdapter(BaseAdapter):
             client = conn.handle
             query_job, iterator = self.connections.raw_execute(select_sql)
             query_table = client.get_table(query_job.destination)
-            return self._get_dbt_columns_from_bq_table(query_table)
+
+            columns = []
+            for col in query_table.schema:
+                # BigQuery returns type labels that are not valid type specifiers
+                dtype = self.Column.translate_type(col.field_type)
+                column = self.Column(col.name, dtype, col.fields, col.mode)
+                columns.append(column)
+
+            return columns
 
         except (ValueError, google.cloud.exceptions.NotFound) as e:
             logger.debug("get_columns_in_select_sql error: {}".format(e))

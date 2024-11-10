@@ -9,14 +9,7 @@ from typing import Dict, Hashable, List, Optional, Tuple, TYPE_CHECKING
 import uuid
 
 from google.auth.exceptions import RefreshError
-from google.cloud.bigquery import (
-    Client,
-    DatasetReference,
-    QueryJobConfig,
-    QueryPriority,
-    Table,
-    TableReference,
-)
+from google.cloud.bigquery import Client, QueryJobConfig, QueryPriority
 from google.cloud.exceptions import BadRequest, Forbidden, NotFound
 
 from dbt_common.events.contextvars import get_node_info
@@ -401,20 +394,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # auto_begin is ignored on bigquery, and only included for consistency
         _, iterator = self.raw_execute(sql, use_legacy_sql=True)
         return self.get_table_from_response(iterator)
-
-    def get_bq_table(self, database, schema, identifier) -> Table:
-        """Get a bigquery table for a schema/model."""
-        conn = self.get_thread_connection()
-        client: Client = conn.handle
-        # backwards compatibility: fill in with defaults if not specified
-        database = database or conn.credentials.database
-        schema = schema or conn.credentials.schema
-        dataset_ref = DatasetReference(database, schema)
-
-        return client.get_table(
-            table=TableReference(dataset_ref, identifier),
-            retry=self._retry.reopen_with_deadline(conn),
-        )
 
     def _query_and_results(
         self,

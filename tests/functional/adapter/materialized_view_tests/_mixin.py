@@ -96,9 +96,5 @@ class BigQueryMaterializedViewMixin:
     @staticmethod
     def query_relation_type(project, relation: BaseRelation) -> Optional[str]:
         with get_connection(project.adapter) as conn:
-            table = conn.handle.get_table(
-                project.adapter.connections.get_bq_table(
-                    relation.database, relation.schema, relation.identifier
-                )
-            )
+            table = conn.handle.get_table(project.adapter.get_bq_table(relation))
         return table.table_type.lower()

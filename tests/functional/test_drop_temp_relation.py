@@ -53,8 +53,4 @@ class TestIncrementalModel(BaseIncrementalModelConfig):
         adapter = project.adapter
         with pytest.raises(NotFound):
             with get_connection(project.adapter) as conn:
-                conn.handle.get_table(
-                    adapter.connections.get_bq_table(
-                        relation.database, relation.schema, relation.table
-                    )
-                )
+                conn.handle.get_table(adapter.get_bq_table(relation))

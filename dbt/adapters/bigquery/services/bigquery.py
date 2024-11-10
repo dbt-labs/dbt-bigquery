@@ -26,6 +26,7 @@ from dbt.adapters.base.relation import BaseRelation
 from dbt.adapters.contracts.relation import RelationType
 from dbt.adapters.events.logging import AdapterLogger
 
+from dbt.adapters.bigquery.column import BigQueryColumn
 from dbt.adapters.bigquery.relation import BigQueryRelation
 
 if TYPE_CHECKING:
@@ -107,6 +108,26 @@ def update_table(
         setattr(table, k, v)
     client.update_table(table, list(updates.keys()))
     return table
+
+
+def get_columns(
+    client: Client,
+    relation: BigQueryRelation,
+    retry: Retry,
+) -> List[BigQueryColumn]:
+    table = get_table(client, relation, retry)
+    if table is None:
+        return []
+
+    columns = []
+    try:
+        for column in table.schema:
+            # BigQuery returns type labels that are not valid type specifiers
+            dtype = BigQueryColumn.translate_type(column.field_type)
+            columns.append(BigQueryColumn(column.name, dtype, column.fields, column.mode))
+    except ValueError as e:
+        _logger.debug("get_columns_in_relation error: {}".format(e))
+    return columns
 
 
 def update_columns(

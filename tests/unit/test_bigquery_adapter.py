@@ -445,29 +445,30 @@ class TestConnectionNamePassthrough(BaseTestBigQueryAdapter):
         self._conn_patch.stop()
         self._relation_patch.stop()
 
-    def test_get_relation(self):
-        self.adapter.get_relation("db", "schema", "my_model")
-        self.mock_connection_manager.get_bq_table.assert_called_once_with(
-            "db", "schema", "my_model"
-        )
+    @patch("dbt.adapters.bigquery.services.bigquery.get_table")
+    def test_get_relation(self, mock_get_table):
+        relation = BigQueryRelation.create("db", "schema", "my_model")
+
+        self.adapter.get_relation(relation.database, relation.schema, relation.identifier)
+
+        mock_get_table.assert_called_once_with(ANY, relation, ANY)
 
     @patch("dbt.adapters.bigquery.services.bigquery.delete_dataset")
     def test_drop_schema(self, mock_delete_dataset):
-        relation = BigQueryRelation.create(database="db", schema="schema")
+        relation = BigQueryRelation.create("db", "schema")
 
         self.adapter.drop_schema(relation)
 
         mock_delete_dataset.assert_called_once_with(ANY, relation, ANY)
         self.adapter.cache.drop_schema.assert_called_once_with(relation.database, relation.schema)
 
-    def test_get_columns_in_relation(self):
-        self.mock_connection_manager.get_bq_table.side_effect = ValueError
-        self.adapter.get_columns_in_relation(
-            MagicMock(database="db", schema="schema", identifier="ident"),
-        )
-        self.mock_connection_manager.get_bq_table.assert_called_once_with(
-            database="db", schema="schema", identifier="ident"
-        )
+    @patch("dbt.adapters.bigquery.services.bigquery.get_table")
+    def test_get_columns_in_relation(self, mock_get_table):
+        relation = BigQueryRelation.create("db", "schema", "my_model")
+
+        self.adapter.get_columns_in_relation(relation)
+
+        mock_get_table.assert_called_once_with(ANY, relation, ANY)
 
 
 class TestBigQueryRelation(unittest.TestCase):

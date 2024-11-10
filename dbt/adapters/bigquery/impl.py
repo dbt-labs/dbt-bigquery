@@ -227,13 +227,13 @@ class BigQueryAdapter(BaseAdapter):
         return get_nested_column_data_types(columns, constraints)
 
     def get_columns_in_relation(self, relation: BigQueryRelation) -> List[BigQueryColumn]:
+        connection = self.connections.get_thread_connection()
+        retry = self.retry.reopen_with_deadline(connection)
         try:
-            table = self.connections.get_bq_table(
-                database=relation.database, schema=relation.schema, identifier=relation.identifier
-            )
+            table = self.bigquery.get_table(connection.handle, relation, retry)
             return self._get_dbt_columns_from_bq_table(table)
 
-        except (ValueError, google.cloud.exceptions.NotFound) as e:
+        except ValueError as e:
             logger.debug("get_columns_in_relation error: {}".format(e))
             return []
 
@@ -287,7 +287,7 @@ class BigQueryAdapter(BaseAdapter):
         # This will 404 if the dataset does not exist. This behavior mirrors
         # the implementation of list_relations for other adapters
         try:
-            return [self._bq_table_to_relation(table) for table in all_tables]  # type: ignore[misc]
+            return [self.bigquery.relation(table) for table in all_tables]  # type: ignore[misc]
         except google.api_core.exceptions.NotFound:
             return []
         except google.api_core.exceptions.Forbidden as exc:
@@ -302,11 +302,11 @@ class BigQueryAdapter(BaseAdapter):
             # the relations cache and picking out the relation
             return super().get_relation(database=database, schema=schema, identifier=identifier)
 
-        try:
-            table = self.connections.get_bq_table(database, schema, identifier)
-        except google.api_core.exceptions.NotFound:
-            table = None
-        return self._bq_table_to_relation(table)
+        connection = self.connections.get_thread_connection()
+        relation = self.Relation.create(database, schema, identifier)
+        retry = self.retry.reopen_with_deadline(connection)
+        table = self.bigquery.get_table(connection.handle, relation, retry)
+        return self.bigquery.relation(table)
 
     # BigQuery added SQL support for 'create schema' + 'drop schema' in March 2021
     # Unfortunately, 'drop schema' runs into permissions issues during tests
@@ -443,18 +443,6 @@ class BigQueryAdapter(BaseAdapter):
             logger.debug("get_columns_in_select_sql error: {}".format(e))
             return []
 
-    def _bq_table_to_relation(self, bq_table) -> Union[BigQueryRelation, None]:
-        if bq_table is None:
-            return None
-
-        return self.Relation.create(
-            database=bq_table.project,
-            schema=bq_table.dataset_id,
-            identifier=bq_table.table_id,
-            quote_policy={"schema": True, "identifier": True},
-            type=self.RELATION_TYPES.get(bq_table.table_type, RelationType.External),
-        )
-
     @classmethod
     def warning_on_hooks(cls, hook_type):
         msg = "{} is not supported in bigquery and will be ignored"
@@ -561,67 +549,28 @@ class BigQueryAdapter(BaseAdapter):
         return PartitionConfig.parse(raw_partition_by)
 
     def get_table_ref_from_relation(self, relation: BaseRelation):
-        return self.connections.table_ref(relation.database, relation.schema, relation.identifier)
-
-    def _update_column_dict(self, bq_column_dict, dbt_columns, parent=""):
-        """
-        Helper function to recursively traverse the schema of a table in the
-        update_column_descriptions function below.
-
-        bq_column_dict should be a dict as obtained by the to_api_repr()
-        function of a SchemaField object.
-        """
-        if parent:
-            dotted_column_name = "{}.{}".format(parent, bq_column_dict["name"])
-        else:
-            dotted_column_name = bq_column_dict["name"]
-
-        if dotted_column_name in dbt_columns:
-            column_config = dbt_columns[dotted_column_name]
-            bq_column_dict["description"] = column_config.get("description")
-            if bq_column_dict["type"] != "RECORD":
-                bq_column_dict["policyTags"] = {"names": column_config.get("policy_tags", list())}
-
-        new_fields = []
-        for child_col_dict in bq_column_dict.get("fields", list()):
-            new_child_column_dict = self._update_column_dict(
-                child_col_dict, dbt_columns, parent=dotted_column_name
-            )
-            new_fields.append(new_child_column_dict)
-
-        bq_column_dict["fields"] = new_fields
-
-        return bq_column_dict
+        return self.bigquery.table_ref(relation)
 
     @available.parse_none
-    def update_columns(self, relation, columns):
+    def update_columns(
+        self, relation: BigQueryRelation, columns: Dict[str, Dict[str, Any]]
+    ) -> None:
         if len(columns) == 0:
             return
-
-        conn = self.connections.get_thread_connection()
-        table_ref = self.get_table_ref_from_relation(relation)
-        table = conn.handle.get_table(table_ref)
-
-        new_schema = []
-        for bq_column in table.schema:
-            bq_column_dict = bq_column.to_api_repr()
-            new_bq_column_dict = self._update_column_dict(bq_column_dict, columns)
-            new_schema.append(SchemaField.from_api_repr(new_bq_column_dict))
-
-        new_table = google.cloud.bigquery.Table(table_ref, schema=new_schema)
-        conn.handle.update_table(new_table, ["schema"])
+        connection = self.connections.get_thread_connection()
+        retry = self.retry.reopen_with_deadline(connection)
+        self.bigquery.update_columns(connection.handle, relation, retry, columns)
 
     @available.parse_none
     def update_table_description(
         self, database: str, schema: str, identifier: str, description: str
-    ):
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-
-        table_ref = self.connections.table_ref(database, schema, identifier)
-        table = client.get_table(table_ref)
-        table.description = description
-        client.update_table(table, ["description"])
+    ) -> None:
+        connection = self.connections.get_thread_connection()
+        relation = self.Relation.create(database, schema, identifier)
+        retry = self.retry.reopen_with_deadline(connection)
+        self.bigquery.update_table(
+            connection.handle, relation, retry, {"description": description}
+        )
 
     @available.parse_none
     def alter_table_add_columns(self, relation, columns):
@@ -831,12 +780,11 @@ class BigQueryAdapter(BaseAdapter):
                 client.update_dataset(dataset, ["access_entries"])
 
     @available.parse_none
-    def get_dataset_location(self, relation):
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-        dataset_ref = self.connections.dataset_ref(relation.project, relation.dataset)
-        dataset = client.get_dataset(dataset_ref)
-        return dataset.location
+    def get_dataset_location(self, relation: BigQueryRelation) -> str:
+        client = self.connections.bigquery_client()
+        if dataset := self.bigquery.get_dataset(client, relation):
+            return dataset.location
+        return ""
 
     def get_rows_different_sql(
         self,

@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 import json
-from typing import Dict, Generator, Iterator, List, Optional, TYPE_CHECKING, Union
+from typing import Any, Dict, Generator, Iterator, List, Optional, TYPE_CHECKING, Union
 
 from google.api_core.retry import Retry
 from google.auth.exceptions import RefreshError
@@ -13,6 +13,7 @@ from google.cloud.bigquery import (
     LoadJob,
     LoadJobConfig,
     SchemaField,
+    Table,
     TableReference,
     WriteDisposition,
     QueryJob,
@@ -21,6 +22,8 @@ from google.cloud.exceptions import BadRequest, ClientError, Forbidden, NotFound
 
 from dbt_common.exceptions import DbtDatabaseError, DbtRuntimeError
 from dbt.adapters.base.impl import BaseAdapter
+from dbt.adapters.base.relation import BaseRelation
+from dbt.adapters.contracts.relation import RelationType
 from dbt.adapters.events.logging import AdapterLogger
 
 from dbt.adapters.bigquery.relation import BigQueryRelation
@@ -45,8 +48,7 @@ class BigQueryService:
         with self._exception_handler():
             return client.list_datasets(database.strip("`"), max_results=10000, retry=retry)
 
-    @staticmethod
-    def dataset_exists(client: Client, relation: BigQueryRelation) -> bool:
+    def dataset_exists(self, client: Client, relation: BigQueryRelation) -> bool:
         """
         Determine whether a dataset exists.
 
@@ -63,7 +65,7 @@ class BigQueryService:
         Returns:
             True if the dataset exists, False otherwise
         """
-        dataset = dataset_ref(relation)
+        dataset = self.dataset_ref(relation)
         try:
             next(iter(client.list_tables(dataset, max_results=1)))
         except StopIteration:
@@ -73,16 +75,87 @@ class BigQueryService:
             return False
         return True
 
+    def get_dataset(self, client: Client, relation: BigQueryRelation) -> Optional[Dataset]:
+        try:
+            return client.get_dataset(self.dataset_ref(relation))
+        except NotFound:
+            return None
+
     def delete_dataset(self, client: Client, relation: BigQueryRelation, retry: Retry) -> None:
         _logger.debug(f'Dropping schema "{relation.database}.{relation.schema}".')
 
         with self._exception_handler():
             client.delete_dataset(
-                dataset_ref(relation),
+                self.dataset_ref(relation),
                 delete_contents=True,
                 not_found_ok=True,
                 retry=retry,
             )
+
+    def get_table(
+        self, client: Client, relation: BigQueryRelation, retry: Retry
+    ) -> Optional[Table]:
+        try:
+            return client.get_table(self.table_ref(relation), retry=retry)
+        except NotFound:
+            return None
+
+    def update_table(
+        self, client: Client, relation: BigQueryRelation, retry: Retry, updates: Dict[str, Any]
+    ) -> Table:
+        table = self.get_table(client, relation, retry)
+        for k, v in updates.items():
+            setattr(table, k, v)
+        client.update_table(table, list(updates.keys()))
+        return table
+
+    def update_columns(
+        self,
+        client: Client,
+        relation: BigQueryRelation,
+        retry: Retry,
+        columns: Dict[str, Dict[str, Any]],
+    ) -> Table:
+        table = self.get_table(client, relation, retry)
+        if table is None:
+            raise DbtRuntimeError(f"Table {relation} does not exist!")
+
+        schema = []
+        for bq_column in table.schema:
+            bq_column_dict = bq_column.to_api_repr()
+            new_bq_column_dict = self._update_column(bq_column_dict, columns)
+            schema.append(SchemaField.from_api_repr(new_bq_column_dict))
+        return self.update_table(client, relation, retry, {"schema": schema})
+
+    def _update_column(
+        self,
+        bq_column: Dict[str, Any],
+        dbt_columns: Dict[str, Dict[str, Any]],
+        parent: Optional[str] = "",
+    ) -> Dict[str, Any]:
+        """
+        Helper function to recursively traverse the schema of a table in the
+        update_column_descriptions function below.
+
+        bq_column_dict should be a dict as obtained by the to_api_repr()
+        function of a SchemaField object.
+        """
+        column_name = bq_column["name"]
+        dbt_column_name = f"{parent}.{column_name}" if parent else column_name
+
+        if column_config := dbt_columns.get(dbt_column_name):
+            bq_column["description"] = column_config.get("description")
+            if bq_column["type"] != "RECORD":
+                bq_column["policyTags"] = {"names": column_config.get("policy_tags", [])}
+
+        fields = [
+            self._update_column(child_bq_column, dbt_columns, parent=dbt_column_name)
+            for child_bq_column in bq_column.get("fields", [])
+        ]
+
+        bq_column["fields"] = fields
+
+        return bq_column
 
     def copy_table(
         self,
@@ -101,11 +174,11 @@ class BigQueryService:
         #  Let's use uniform function call and always pass list there
         # -------------------------------------------------------------------------------
         if isinstance(sources, list):
-            source_refs = [table_ref(src_table) for src_table in sources]
+            source_refs = [self.table_ref(src_table) for src_table in sources]
         else:
-            source_refs = [table_ref(sources)]
+            source_refs = [self.table_ref(sources)]
 
-        destination_ref = table_ref(destination)
+        destination_ref = self.table_ref(destination)
 
         write_disposition = {
             "incremental": WriteDisposition.WRITE_APPEND,
@@ -135,7 +208,7 @@ class BigQueryService:
         field_delimiter: str,
         timeout: Optional[float] = _DEFAULT_TIMEOUT,
     ) -> LoadJob:
-        destination_ref = table_ref(relation)
+        destination_ref = self.table_ref(relation)
 
         config = LoadJobConfig(
             skip_leading_rows=1,
@@ -158,7 +231,7 @@ class BigQueryService:
         timeout: Optional[float] = _DEFAULT_TIMEOUT,
         **kwargs,
     ) -> LoadJob:
-        destination_ref = table_ref(relation)
+        destination_ref = self.table_ref(relation)
 
         if "schema" in kwargs:
             kwargs["schema"] = json.load(kwargs["schema"])
@@ -170,6 +243,33 @@ class BigQueryService:
                     f, destination_ref, rewind=True, job_config=config
                 )
             return job.result(timeout=timeout)
+
+    def table_ref(self, relation: BaseRelation) -> TableReference:
+        return TableReference(self.dataset_ref(relation), relation.identifier)
+
+    @staticmethod
+    def dataset_ref(relation: BaseRelation) -> DatasetReference:
+        return DatasetReference(relation.database, relation.schema)
+
+    @staticmethod
+    def relation(table: Optional[Table] = None) -> Optional[BigQueryRelation]:
+        if table is None:
+            return None
+
+        relation_types = {
+            "TABLE": RelationType.Table,
+            "VIEW": RelationType.View,
+            "MATERIALIZED_VIEW": RelationType.MaterializedView,
+            "EXTERNAL": RelationType.External,
+        }
+
+        return BigQueryRelation.create(
+            database=table.project,
+            schema=table.dataset_id,
+            identifier=table.table_id,
+            quote_policy={"schema": True, "identifier": True},
+            type=relation_types.get(table.table_type, RelationType.External),
+        )
 
     @contextmanager
     def _exception_handler(self) -> Generator:
@@ -197,14 +297,6 @@ class BigQueryService:
         if hasattr(error, "query_job"):
             _logger.error(query_job_url(error.query_job))
         raise DbtDatabaseError(message + "\n".join([item["message"] for item in error.errors]))
-
-
-def table_ref(relation: BigQueryRelation) -> TableReference:
-    return TableReference(dataset_ref(relation), relation.identifier)
-
-
-def dataset_ref(relation: BigQueryRelation) -> DatasetReference:
-    return DatasetReference(relation.database, relation.schema)
 
 
 def query_job_url(query_job: QueryJob) -> str:

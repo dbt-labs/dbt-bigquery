@@ -16,10 +16,8 @@ from dbt.adapters.bigquery.services import bigquery
 )
 def test_copy_table(mode: str, write_disposition: WriteDisposition) -> None:
     mock_client = MagicMock(Client)
-    source = BigQueryRelation.create(database="project", schema="dataset", identifier="table1")
-    destination = BigQueryRelation.create(
-        database="project", schema="dataset", identifier="table2"
-    )
+    source = BigQueryRelation.create("project", "dataset", "table1")
+    destination = BigQueryRelation.create("project", "dataset", "table2")
 
     bigquery.copy_table(mock_client, source, destination, mode)
 
@@ -30,23 +28,23 @@ def test_copy_table(mode: str, write_disposition: WriteDisposition) -> None:
     assert kwargs["job_config"].write_disposition == write_disposition
 
 
-def test_delete_dataset():
+def test_drop_schema():
     mock_client = MagicMock(Client)
-    schema = BigQueryRelation.create(database="db", schema="schema")
+    schema = BigQueryRelation.create("db", "schema")
     retry = DEFAULT_RETRY.with_timeout(42)
 
-    bigquery.delete_dataset(mock_client, schema, retry)
+    bigquery.drop_schema(mock_client, schema, retry)
 
     mock_client.delete_dataset.assert_called_once_with(
         bigquery.dataset_ref(schema), delete_contents=True, not_found_ok=True, retry=retry
     )
 
 
-def test_list_datasets():
+def test_list_schemas():
     mock_client = MagicMock(Client)
     database = "db"
     retry = DEFAULT_RETRY.with_timeout(42)
 
-    bigquery.list_datasets(mock_client, database, retry)
+    bigquery.list_schemas(mock_client, database, retry)
 
     mock_client.list_datasets.assert_called_once_with(database, max_results=10000, retry=retry)

@@ -20,6 +20,7 @@ import google.api_core
 import google.auth
 import google.oauth2
 import google.cloud.bigquery
+from dbt_common.exceptions import DbtRuntimeError
 from google.cloud.bigquery import AccessEntry, Client, SchemaField, Table as BigQueryTable
 import google.cloud.exceptions
 import pytz
@@ -30,6 +31,7 @@ from dbt_common.contracts.constraints import (
     ModelLevelConstraint,
 )
 from dbt_common.dataclass_schema import dbtClassMixin
+from dbt_common.events.contextvars import get_node_info
 from dbt_common.events.functions import fire_event
 import dbt_common.exceptions
 import dbt_common.exceptions.base
@@ -44,14 +46,14 @@ from dbt.adapters.base import (
     SchemaSearchMap,
     available,
 )
-from dbt.adapters.base.impl import FreshnessResponse
+from dbt.adapters.base.impl import FreshnessResponse, _parse_callback_empty_table
 from dbt.adapters.cache import _make_ref_key_dict
 from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
 from dbt.adapters.contracts.connection import AdapterResponse, AdapterRequiredConfig
 from dbt.adapters.contracts.macros import MacroResolverProtocol
 from dbt.adapters.contracts.relation import RelationConfig
 from dbt.adapters.events.logging import AdapterLogger
-from dbt.adapters.events.types import SchemaCreation, SchemaDrop
+from dbt.adapters.events.types import SchemaCreation, SchemaDrop, SQLQuery
 
 from dbt.adapters.bigquery.column import BigQueryColumn, get_nested_column_data_types
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse, BigQueryConnectionManager
@@ -186,35 +188,24 @@ class BigQueryAdapter(BaseAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
-        from_table_ref = self.get_table_ref_from_relation(from_relation)
-        from_table = client.get_table(from_table_ref)
-        if (
-            from_table.table_type == "VIEW"
-            or from_relation.type == RelationType.View
-            or to_relation.type == RelationType.View
-        ):
-            raise dbt_common.exceptions.DbtRuntimeError(
-                "Renaming of views is not currently supported in BigQuery"
-            )
-
-        to_table_ref = self.get_table_ref_from_relation(to_relation)
+        if from_relation.type == RelationType.View or to_relation.type == RelationType.View:
+            raise DbtRuntimeError("Renaming of views is not currently supported in BigQuery")
 
         self.cache_renamed(from_relation, to_relation)
-        client.copy_table(from_table_ref, to_table_ref)
-        client.delete_table(from_table_ref)
+        bigquery.copy_table(client, from_relation, to_relation, "table")
+        bigquery.drop_table(client, from_relation)
 
     @available
     def list_schemas(self, database: str) -> List[str]:
         connection = self.connections.get_thread_connection()
         retry = self.retry.reopen_with_deadline(connection)
-        datasets = bigquery.list_datasets(connection.handle, database, retry)
-        return [dataset.dataset_id for dataset in datasets]
+        return bigquery.list_schemas(connection.handle, database, retry)
 
     @available.parse(lambda *a, **k: False)
     def check_schema_exists(self, database: str, schema: str) -> bool:
         client = self.connections.bigquery_client()
         relation = self.Relation.create(database, schema)
-        return bigquery.dataset_exists(client, relation)
+        return bigquery.schema_exists(client, relation)
 
     @available.parse(lambda *a, **k: {})
     @classmethod
@@ -321,7 +312,7 @@ class BigQueryAdapter(BaseAdapter):
         retry = self.retry.reopen_with_deadline(connection)
 
         fire_event(SchemaDrop(relation=_make_ref_key_dict(relation)))
-        bigquery.delete_dataset(connection.handle, relation, retry)
+        bigquery.drop_schema(connection.handle, relation, retry)
         self.cache.drop_schema(relation.database, relation.schema)
 
     @classmethod
@@ -358,6 +349,17 @@ class BigQueryAdapter(BaseAdapter):
     @classmethod
     def convert_time_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return "time"
+
+    @available.parse(_parse_callback_empty_table)
+    def execute(
+        self,
+        sql: str,
+        auto_begin: bool = False,
+        fetch: bool = False,
+        limit: Optional[int] = None,
+    ) -> Tuple[AdapterResponse, "agate.Table"]:
+        # TODO: this currently points to connections.execute; move to bigquery service
+        return super().execute(sql, auto_begin, fetch, limit)
 
     ###
     # Implementation details
@@ -402,33 +404,39 @@ class BigQueryAdapter(BaseAdapter):
         :param str sql: The sql to execute.
         :return: List[BigQueryColumn]
         """
-        _, iterator = self.connections.raw_execute(sql)
-        columns = [self.Column.create_from_field(field) for field in iterator.schema]
-        flattened_columns = []
-        for column in columns:
-            flattened_columns += column.flatten()
-        return flattened_columns
+        connection = self.connections.get_thread_connection()
+        sql = self.connections._add_query_comment(sql)
+        config = self.connections.query_job_defaults()
+
+        fire_event(SQLQuery(conn_name=connection.name, sql=sql, node_info=get_node_info()))
+
+        _, iterator = bigquery.execute(
+            connection.handle,
+            sql,
+            config,
+            create_timeout=self.retry.job_creation_timeout(),
+            execute_timeout=self.retry.job_execution_timeout(),
+            job_id=self.connections.generate_job_id(),
+        )
+
+        return bigquery.columns(iterator.schema)
 
     @available.parse(lambda *a, **k: False)
     def get_columns_in_select_sql(self, select_sql: str) -> List[BigQueryColumn]:
-        try:
-            conn = self.connections.get_thread_connection()
-            client = conn.handle
-            query_job, iterator = self.connections.raw_execute(select_sql)
-            query_table = client.get_table(query_job.destination)
+        connection = self.connections.get_thread_connection()
+        sql = self.connections._add_query_comment(select_sql)
+        config = self.connections.query_job_defaults()
 
-            columns = []
-            for col in query_table.schema:
-                # BigQuery returns type labels that are not valid type specifiers
-                dtype = self.Column.translate_type(col.field_type)
-                column = self.Column(col.name, dtype, col.fields, col.mode)
-                columns.append(column)
+        fire_event(SQLQuery(conn_name=connection.name, sql=sql, node_info=get_node_info()))
 
-            return columns
-
-        except (ValueError, google.cloud.exceptions.NotFound) as e:
-            logger.debug("get_columns_in_select_sql error: {}".format(e))
-            return []
+        return bigquery.columns_from_select(
+            connection.handle,
+            sql,
+            config,
+            create_timeout=self.retry.job_creation_timeout(),
+            execute_timeout=self.retry.job_execution_timeout(),
+            job_id=self.connections.generate_job_id(),
+        )
 
     @classmethod
     def warning_on_hooks(cls, hook_type):
@@ -562,13 +570,13 @@ class BigQueryAdapter(BaseAdapter):
         client = conn.handle
 
         table_ref = self.get_table_ref_from_relation(relation)
-        table = client.get_table(table_ref)
+        table = bigquery.get_table(client, table_ref)
 
         new_columns = [col.column_to_bq_schema() for col in columns]
         new_schema = table.schema + new_columns
 
         new_table = google.cloud.bigquery.Table(table_ref, schema=new_schema)
-        client.update_table(new_table, ["schema"])
+        bigquery.update_table(new_table, ["schema"])
 
     @available.parse_none
     def load_dataframe(
@@ -717,7 +725,7 @@ class BigQueryAdapter(BaseAdapter):
     def get_bq_table(self, relation: BigQueryRelation) -> Optional[BigQueryTable]:
         connection = self.connections.get_thread_connection()
         retry = self.retry.reopen_with_deadline(connection)
-        return self.bigquery.get_table(connection.handle, relation, retry)
+        return bigquery.get_table(connection.handle, relation, retry)
 
     @available.parse(lambda *a, **k: True)
     def describe_relation(
@@ -748,8 +756,7 @@ class BigQueryAdapter(BaseAdapter):
             entity = self.get_table_ref_from_relation(entity).to_api_repr()
         with _dataset_lock:
             schema = self.Relation.create(grant_target.project, grant_target.dataset)
-            dataset_ref = bigquery.dataset_ref(schema)
-            dataset = client.get_dataset(dataset_ref)
+            dataset = bigquery.get_dataset(client, schema)
             access_entry = AccessEntry(role, entity_type, entity)
             # only perform update if access entry not in dataset
             if is_access_entry_in_dataset(dataset, access_entry):
@@ -883,4 +890,19 @@ class BigQueryAdapter(BaseAdapter):
 
         :param str sql: The sql to validate
         """
-        return self.connections.dry_run(sql)
+        connection = self.connections.get_thread_connection()
+        sql = self.connections._add_query_comment(sql)
+        config = self.connections.query_job_defaults()
+        config["dry_run"] = True
+
+        fire_event(SQLQuery(conn_name=connection.name, sql=sql, node_info=get_node_info()))
+
+        query_job, _ = bigquery.execute(
+            connection.handle,
+            sql,
+            config,
+            create_timeout=self.retry.job_creation_timeout(),
+            execute_timeout=self.retry.job_execution_timeout(),
+            job_id=self.connections.generate_job_id(),
+        )
+        return bigquery.query_job_response(connection.handle, query_job)

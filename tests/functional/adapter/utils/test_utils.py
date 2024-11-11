@@ -34,6 +34,9 @@ from dbt.tests.adapter.utils.test_safe_cast import BaseSafeCast
 from dbt.tests.adapter.utils.test_split_part import BaseSplitPart
 from dbt.tests.adapter.utils.test_string_literal import BaseStringLiteral
 from dbt.tests.adapter.utils.test_validate_sql import BaseValidateSqlMethod
+
+from dbt.adapters.bigquery.services import bigquery
+
 from tests.functional.adapter.utils.fixture_array_append import (
     models__array_append_actual_sql,
     models__array_append_expected_sql,
@@ -231,7 +234,8 @@ class TestDryRunMethod:
             random_suffix = "".join(random.choices([str(i) for i in range(10)], k=10))
             table_name = f"test_dry_run_{random_suffix}"
             table_id = "{}.{}.{}".format(project.database, project.test_schema, table_name)
-            res = project.adapter.connections.dry_run(f"CREATE TABLE {table_id} (x INT64)")
+            query_job = project.adapter.dry_run(f"CREATE TABLE {table_id} (x INT64)")
+            res = bigquery.query_job_response(client, query_job)
             assert res.code == "DRY RUN"
             with pytest.raises(expected_exception=NotFound):
                 client.get_table(table_id)

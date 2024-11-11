@@ -12,6 +12,7 @@ from dbt.tests.util import (
     set_model_file,
 )
 
+from dbt.adapters.bigquery.services import bigquery
 from tests.functional.adapter.materialized_view_tests import _files
 
 
@@ -96,5 +97,5 @@ class BigQueryMaterializedViewMixin:
     @staticmethod
     def query_relation_type(project, relation: BaseRelation) -> Optional[str]:
         with get_connection(project.adapter) as conn:
-            table = conn.handle.get_table(project.adapter.get_bq_table(relation))
+            table = bigquery.get_table(project.adapter.get_bq_table(relation))
         return table.table_type.lower()

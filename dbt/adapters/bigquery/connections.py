@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import json
 from multiprocessing.context import SpawnContext
 import re
-from typing import Dict, Generator, Hashable, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, Generator, Hashable, List, Optional, Tuple, TYPE_CHECKING
 import uuid
 
 from google.auth.exceptions import RefreshError
@@ -27,6 +27,7 @@ from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery
 from dbt.adapters.exceptions.connection import FailedToConnectError
 
+from dbt.adapters.bigquery.services import bigquery
 from dbt.adapters.bigquery.clients import bigquery_client
 from dbt.adapters.bigquery.credentials import Priority
 from dbt.adapters.bigquery.retry import RetryFactory
@@ -163,7 +164,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         query_job, iterator = self.raw_execute(sql, limit=limit)
 
         if fetch:
-            table = self.get_table_from_response(iterator)
+            table = self._get_table_from_response(iterator)
         else:
             from dbt_common.clients import agate_helper
 
@@ -188,8 +189,8 @@ class BigQueryConnectionManager(BaseConnectionManager):
             code = "CREATE TABLE"
             conn = self.get_thread_connection()
             client = conn.handle
-            query_table = client.get_table(query_job.destination)
-            num_rows = query_table.num_rows
+            query_table = bigquery.get_table(client, query_job.destination)
+            num_rows = query_table.num_rows if hasattr(query_table, "num_rows") else 0  # type: ignore
 
         elif query_job.statement_type == "SCRIPT":
             code = "SCRIPT"
@@ -203,19 +204,19 @@ class BigQueryConnectionManager(BaseConnectionManager):
             conn = self.get_thread_connection()
             client = conn.handle
             # use anonymous table for num_rows
-            query_table = client.get_table(query_job.destination)
-            num_rows = query_table.num_rows
+            query_table = bigquery.get_table(client, query_job.destination)
+            num_rows = query_table.num_rows if hasattr(query_table, "num_rows") else 0  # type: ignore
 
         # set common attributes
         bytes_processed = query_job.total_bytes_processed
         bytes_billed = query_job.total_bytes_billed
         slot_ms = query_job.slot_millis
-        processed_bytes = self.format_bytes(bytes_processed)
+        processed_bytes = self._format_bytes(bytes_processed)
         location = query_job.location
         job_id = query_job.job_id
         project_id = query_job.project
         if num_rows is not None:
-            num_rows_formatted = self.format_rows_number(num_rows)
+            num_rows_formatted = self._format_rows_number(num_rows)
             message = f"{code} ({num_rows_formatted} rows, {processed_bytes} processed)"
         elif bytes_processed is not None:
             message = f"{code} ({processed_bytes} processed)"
@@ -244,47 +245,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         conn = self.get_thread_connection()
         return conn.handle
 
-    def format_bytes(self, num_bytes):
-        if num_bytes:
-            for unit in ["Bytes", "KiB", "MiB", "GiB", "TiB", "PiB"]:
-                if abs(num_bytes) < 1024.0:
-                    return f"{num_bytes:3.1f} {unit}"
-                num_bytes /= 1024.0
-
-            num_bytes *= 1024.0
-            return f"{num_bytes:3.1f} {unit}"
-
-        else:
-            return num_bytes
-
-    def format_rows_number(self, rows_number):
-        for unit in ["", "k", "m", "b", "t"]:
-            if abs(rows_number) < 1000.0:
-                return f"{rows_number:3.1f}{unit}".strip()
-            rows_number /= 1000.0
-
-        rows_number *= 1000.0
-        return f"{rows_number:3.1f}{unit}".strip()
-
-    @classmethod
-    def get_table_from_response(cls, resp) -> "agate.Table":
-        from dbt_common.clients import agate_helper
-
-        column_names = [field.name for field in resp.schema]
-        return agate_helper.table_from_data_flat(resp, column_names)
-
-    def get_labels_from_query_comment(cls):
-        if (
-            hasattr(cls.profile, "query_comment")
-            and cls.profile.query_comment
-            and cls.profile.query_comment.job_label
-            and cls.query_header
-        ):
-            query_comment = cls.query_header.comment.query_comment
-            return cls._labels_from_query_comment(query_comment)
-
-        return {}
-
     def generate_job_id(self) -> str:
         # Generating a fresh job_id for every _query_and_results call to avoid job_id reuse.
         # Generating a job id instead of persisting a BigQuery-generated one after client.query is called.
@@ -297,36 +257,27 @@ class BigQueryConnectionManager(BaseConnectionManager):
         self.jobs_by_thread[thread_id].append(job_id)
         return job_id
 
-    def dry_run(self, sql: str) -> BigQueryAdapterResponse:
-        """Run the given sql statement with the `dry_run` job parameter set.
+    def _format_bytes(self, num_bytes):
+        if num_bytes:
+            for unit in ["Bytes", "KiB", "MiB", "GiB", "TiB", "PiB"]:
+                if abs(num_bytes) < 1024.0:
+                    return f"{num_bytes:3.1f} {unit}"
+                num_bytes /= 1024.0
 
-        This will allow BigQuery to validate the SQL and immediately return job cost
-        estimates, which we capture in the BigQueryAdapterResponse. Invalid SQL
-        will result in an exception.
-        """
-        sql = self._add_query_comment(sql)
-        query_job, _ = self.raw_execute(sql, dry_run=True)
+            num_bytes *= 1024.0
+            return f"{num_bytes:3.1f} {unit}"
 
-        # TODO: Factor this repetitive block out into a factory method on
-        # BigQueryAdapterResponse
-        message = f"Ran dry run query for statement of type {query_job.statement_type}"
-        bytes_billed = query_job.total_bytes_billed
-        processed_bytes = self.format_bytes(query_job.total_bytes_processed)
-        location = query_job.location
-        project_id = query_job.project
-        job_id = query_job.job_id
-        slot_ms = query_job.slot_millis
+        else:
+            return num_bytes
 
-        return BigQueryAdapterResponse(
-            _message=message,
-            code="DRY RUN",
-            bytes_billed=bytes_billed,
-            bytes_processed=processed_bytes,
-            location=location,
-            project_id=project_id,
-            job_id=job_id,
-            slot_ms=slot_ms,
-        )
+    def _format_rows_number(self, rows_number):
+        for unit in ["", "k", "m", "b", "t"]:
+            if abs(rows_number) < 1000.0:
+                return f"{rows_number:3.1f}{unit}".strip()
+            rows_number /= 1000.0
+
+        rows_number *= 1000.0
+        return f"{rows_number:3.1f}{unit}".strip()
 
     def get_partitions_metadata(self, table):
         """
@@ -342,7 +293,14 @@ class BigQueryConnectionManager(BaseConnectionManager):
         sql = self._add_query_comment(legacy_sql)
         # auto_begin is ignored on bigquery, and only included for consistency
         _, iterator = self.raw_execute(sql, use_legacy_sql=True)
-        return self.get_table_from_response(iterator)
+        return self._get_table_from_response(iterator)
+
+    @classmethod
+    def _get_table_from_response(cls, resp) -> "agate.Table":
+        from dbt_common.clients import agate_helper
+
+        column_names = [field.name for field in resp.schema]
+        return agate_helper.table_from_data_flat(resp, column_names)
 
     def raw_execute(
         self,
@@ -355,7 +313,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
         fire_event(SQLQuery(conn_name=conn.name, sql=sql, node_info=get_node_info()))
 
-        labels = self.get_labels_from_query_comment()
+        labels = _get_labels_from_query_comment(self.profile, self.query_header)
 
         labels["dbt_invocation_id"] = get_invocation_id()
 
@@ -385,6 +343,26 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 job_id,
                 limit=limit,
             )
+
+    def query_job_defaults(self) -> Dict[str, Any]:
+        labels = _get_labels_from_query_comment(self.profile, self.query_header)
+        labels["dbt_invocation_id"] = get_invocation_id()
+
+        config = {
+            "labels": labels,
+            "use_legacy_sql": False,
+            "dry_run": False,
+        }
+
+        if self.profile.credentials.priority == Priority.Batch:
+            config["priority"] = QueryPriority.BATCH
+        else:
+            config["priority"] = QueryPriority.INTERACTIVE
+
+        if maximum_bytes_billed := self.profile.credentials.maximum_bytes_billed:
+            config["maximum_bytes_billed"] = maximum_bytes_billed
+
+        return config
 
     def _query_and_results(
         self,
@@ -418,15 +396,28 @@ class BigQueryConnectionManager(BaseConnectionManager):
             exc = f"Operation did not complete within the designated timeout of {self._retry.job_execution_timeout()} seconds."
             raise TimeoutError(exc)
 
-    def _labels_from_query_comment(self, comment: str) -> Dict:
-        try:
-            comment_labels = json.loads(comment)
-        except (TypeError, ValueError):
-            return {"query_comment": _sanitize_label(comment)}
-        return {
-            _sanitize_label(key): _sanitize_label(str(value))
-            for key, value in comment_labels.items()
-        }
+
+def _get_labels_from_query_comment(profile, query_header):
+    if (
+        hasattr(profile, "query_comment")
+        and profile.query_comment
+        and profile.query_comment.job_label
+        and query_header
+    ):
+        query_comment = query_header.comment.query_comment
+        return _labels_from_query_comment(query_comment)
+
+    return {}
+
+
+def _labels_from_query_comment(comment: str) -> Dict:
+    try:
+        comment_labels = json.loads(comment)
+    except (TypeError, ValueError):
+        return {"query_comment": _sanitize_label(comment)}
+    return {
+        _sanitize_label(key): _sanitize_label(str(value)) for key, value in comment_labels.items()
+    }
 
 
 _SANITIZE_LABEL_PATTERN = re.compile(r"[^a-z0-9_-]")

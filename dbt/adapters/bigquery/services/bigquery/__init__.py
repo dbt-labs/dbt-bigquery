@@ -1,4 +1,5 @@
 from dbt.adapters.bigquery.services.bigquery._column import (
+    add_columns,
     columns,
     columns_from_select,
     get_columns,
@@ -12,6 +13,11 @@ from dbt.adapters.bigquery.services.bigquery._dataset import (
     list_schemas,
     schema_exists,
 )
+from dbt.adapters.bigquery.services.bigquery._options import (
+    common_options,
+    table_options,
+    view_options,
+)
 from dbt.adapters.bigquery.services.bigquery._query import (
     BigQueryAdapterResponse,
     execute,
@@ -24,6 +30,7 @@ from dbt.adapters.bigquery.services.bigquery._table import (
     get_table,
     load_table_from_dataframe,
     load_table_from_file,
+    table_is_replaceable,
     table_ref,
     update_table,
 )

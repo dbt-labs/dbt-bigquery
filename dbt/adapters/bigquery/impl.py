@@ -9,20 +9,15 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Set,
     Tuple,
     TYPE_CHECKING,
     Type,
-    Set,
     Union,
 )
 
-import google.api_core
-import google.auth
-import google.oauth2
-import google.cloud.bigquery
-from dbt_common.exceptions import DbtRuntimeError
-from google.cloud.bigquery import AccessEntry, Client, SchemaField, Table as BigQueryTable
-import google.cloud.exceptions
+from google.api_core.exceptions import Forbidden, NotFound
+from google.cloud.bigquery import AccessEntry, Table as BigQueryTable
 import pytz
 
 from dbt_common.contracts.constraints import (
@@ -33,9 +28,9 @@ from dbt_common.contracts.constraints import (
 from dbt_common.dataclass_schema import dbtClassMixin
 from dbt_common.events.contextvars import get_node_info
 from dbt_common.events.functions import fire_event
-import dbt_common.exceptions
+from dbt_common.exceptions import CompilationError, DbtRuntimeError
 import dbt_common.exceptions.base
-from dbt_common.utils import filter_null_values, AttrDict
+from dbt_common.utils import AttrDict, filter_null_values
 from dbt.adapters.base import (
     AdapterConfig,
     BaseAdapter,
@@ -49,11 +44,11 @@ from dbt.adapters.base import (
 from dbt.adapters.base.impl import FreshnessResponse, _parse_callback_empty_table
 from dbt.adapters.cache import _make_ref_key_dict
 from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
-from dbt.adapters.contracts.connection import AdapterResponse, AdapterRequiredConfig
+from dbt.adapters.contracts.connection import AdapterRequiredConfig, AdapterResponse
 from dbt.adapters.contracts.macros import MacroResolverProtocol
 from dbt.adapters.contracts.relation import RelationConfig
 from dbt.adapters.events.logging import AdapterLogger
-from dbt.adapters.events.types import SchemaCreation, SchemaDrop, SQLQuery
+from dbt.adapters.events.types import SQLQuery, SchemaCreation, SchemaDrop
 
 from dbt.adapters.bigquery.column import BigQueryColumn, get_nested_column_data_types
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse, BigQueryConnectionManager
@@ -69,8 +64,7 @@ from dbt.adapters.bigquery.relation_configs import (
     PartitionConfig,
 )
 from dbt.adapters.bigquery.retry import RetryFactory
-from dbt.adapters.bigquery.services import bigquery
-from dbt.adapters.bigquery.utility import sql_escape
+from dbt.adapters.bigquery.services import bigquery, macros
 
 if TYPE_CHECKING:
     # Indirectly imported via agate_helper, which is lazy loaded further downfile.
@@ -81,7 +75,6 @@ if TYPE_CHECKING:
 logger = AdapterLogger("BigQuery")
 
 
-CREATE_SCHEMA_MACRO_NAME = "create_schema"
 _dataset_lock = threading.Lock()
 
 
@@ -283,7 +276,7 @@ class BigQueryAdapter(BaseAdapter):
 
         conn = self.connections.get_thread_connection()
 
-        table_ref = self.get_table_ref_from_relation(relation)
+        table_ref = bigquery.table_ref(relation)
 
         # mimic "drop if exists" functionality that's ubiquitous in most sql implementations
         conn.handle.delete_table(table_ref, not_found_ok=True)
@@ -341,9 +334,9 @@ class BigQueryAdapter(BaseAdapter):
         # the implementation of list_relations for other adapters
         try:
             return [bigquery.base_relation(table) for table in all_tables]  # type: ignore[misc]
-        except google.api_core.exceptions.NotFound:
+        except NotFound:
             return []
-        except google.api_core.exceptions.Forbidden as exc:
+        except Forbidden as exc:
             logger.debug("list_relations_without_caching error: {}".format(str(exc)))
             return []
 
@@ -376,19 +369,10 @@ class BigQueryAdapter(BaseAdapter):
         table = bigquery.get_table(connection.handle, relation, retry)
         return bigquery.base_relation(table)
 
-    # BigQuery added SQL support for 'create schema' + 'drop schema' in March 2021
-    # Unfortunately, 'drop schema' runs into permissions issues during tests
-    # Most of the value here comes from user overrides of 'create_schema'
-
-    # TODO: the code below is copy-pasted from SQLAdapter.create_schema. Is there a better way?
     def create_schema(self, relation: BigQueryRelation) -> None:
         # use SQL 'create schema'
-        relation = relation.without_identifier()
-
-        fire_event(SchemaCreation(relation=_make_ref_key_dict(relation)))
-        kwargs = {"relation": relation}
-        self.execute_macro(CREATE_SCHEMA_MACRO_NAME, kwargs=kwargs)
-        self.commit_if_has_connection()
+        fire_event(SchemaCreation(relation=_make_ref_key_dict(relation.without_identifier())))
+        macros.create_schema(relation)
         # we can't update the cache here, as if the schema already existed we
         # don't want to (incorrectly) say that it's empty
 
@@ -471,9 +455,22 @@ class BigQueryAdapter(BaseAdapter):
         kwargs: Optional[Dict[str, Any]] = None,
         needs_conn: bool = False,
     ) -> AttrDict:
-        return super().execute_macro(
-            macro_name, macro_resolver, project, context_override, kwargs, needs_conn
+        macro = macros.macro(
+            macro_name,
+            macro_resolver or self._macro_resolver,
+            self._macro_context_generator,
+            self.config,
+            project,
+            context_override or {},
         )
+
+        if needs_conn:
+            connection = self.connections.get_thread_connection()
+            self.connections.open(connection)
+
+        with self.connections.exception_handler(f"macro {macro_name}"):
+            result = macro(**kwargs)
+        return result
 
     @classmethod
     def _catalog_filter_table(
@@ -486,23 +483,17 @@ class BigQueryAdapter(BaseAdapter):
 
     def calculate_freshness_from_metadata(
         self,
-        source: BaseRelation,
+        source: BigQueryRelation,
         macro_resolver: Optional[MacroResolverProtocol] = None,
     ) -> Tuple[Optional[AdapterResponse], FreshnessResponse]:
-        conn = self.connections.get_thread_connection()
-        client: Client = conn.handle
-
-        table_ref = self.get_table_ref_from_relation(source)
-        table = client.get_table(table_ref)
+        client = self.connections.bigquery_client()
+        table = bigquery.get_table(client, source)
         snapshot = datetime.now(tz=pytz.UTC)
-
-        freshness = FreshnessResponse(
+        return None, FreshnessResponse(
             max_loaded_at=table.modified,
             snapshotted_at=snapshot,
             age=(snapshot - table.modified).total_seconds(),
         )
-
-        return None, freshness
 
     def timestamp_add_sql(self, add_to: str, number: int = 1, interval: str = "hour") -> str:
         return f"timestamp_add({add_to}, interval {number} {interval})"
@@ -518,9 +509,7 @@ class BigQueryAdapter(BaseAdapter):
         elif location == "prepend":
             return f"concat('{value}', {add_to})"
         else:
-            raise dbt_common.exceptions.DbtRuntimeError(
-                f'Got an unexpected location value of "{location}"'
-            )
+            raise DbtRuntimeError(f'Got an unexpected location value of "{location}"')
 
     def get_rows_different_sql(
         self,
@@ -588,33 +577,18 @@ class BigQueryAdapter(BaseAdapter):
     @classmethod
     def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
         c = super().render_model_constraint(constraint)
-        if (
-            constraint.type == ConstraintType.primary_key
-            or constraint.type == ConstraintType.foreign_key
-        ):
+        if constraint.type in [ConstraintType.primary_key, ConstraintType.foreign_key]:
             return f"{c} not enforced" if c else None
-
         return c
 
     # ==============================
     # dbt-bigquery specific methods
     # ==============================
 
-    def _agate_to_schema(
-        self, agate_table: "agate.Table", column_override: Dict[str, str]
-    ) -> List[SchemaField]:
-        """Convert agate.Table with column names to a list of bigquery schemas."""
-        bq_schema = []
-        for idx, col_name in enumerate(agate_table.column_names):
-            inferred_type = self.convert_agate_type(agate_table, idx)
-            type_ = column_override.get(col_name, inferred_type)
-            bq_schema.append(SchemaField(col_name, type_))
-        return bq_schema
-
     @available.parse(lambda *a, **k: "")
     def copy_table(self, source, destination, materialization):
         if materialization not in ["incremental", "table"]:
-            raise dbt_common.exceptions.CompilationError(
+            raise CompilationError(
                 'Copy table materialization must be "incremental" or "table", but '
                 f"config.get('copy_materialization', 'table') was {materialization}"
             )
@@ -659,80 +633,12 @@ class BigQueryAdapter(BaseAdapter):
     # Special bigquery adapter methods
     ###
 
-    @staticmethod
-    def _partitions_match(table, conf_partition: Optional[PartitionConfig]) -> bool:
-        """
-        Check if the actual and configured partitions for a table are a match.
-        BigQuery tables can be replaced if:
-        - Both tables are not partitioned, OR
-        - Both tables are partitioned using the exact same configs
-
-        If there is a mismatch, then the table cannot be replaced directly.
-        """
-        is_partitioned = table.range_partitioning or table.time_partitioning
-
-        if not is_partitioned and not conf_partition:
-            return True
-        elif conf_partition and table.time_partitioning is not None:
-            table_field = (
-                table.time_partitioning.field.lower() if table.time_partitioning.field else None
-            )
-
-            table_granularity = table.partitioning_type
-            conf_table_field = conf_partition.field
-            return (
-                table_field == conf_table_field.lower()
-                or (conf_partition.time_ingestion_partitioning and table_field is not None)
-            ) and table_granularity.lower() == conf_partition.granularity.lower()
-        elif conf_partition and table.range_partitioning is not None:
-            dest_part = table.range_partitioning
-            conf_part = conf_partition.range or {}
-
-            return (
-                dest_part.field == conf_partition.field
-                and dest_part.range_.start == conf_part.get("start")
-                and dest_part.range_.end == conf_part.get("end")
-                and dest_part.range_.interval == conf_part.get("interval")
-            )
-        else:
-            return False
-
-    @staticmethod
-    def _clusters_match(table, conf_cluster) -> bool:
-        """
-        Check if the actual and configured clustering columns for a table
-        are a match. BigQuery tables can be replaced if clustering columns
-        match exactly.
-        """
-        if isinstance(conf_cluster, str):
-            conf_cluster = [conf_cluster]
-
-        return table.clustering_fields == conf_cluster
-
     @available.parse(lambda *a, **k: True)
     def is_replaceable(
         self, relation, conf_partition: Optional[PartitionConfig], conf_cluster
     ) -> bool:
-        """
-        Check if a given partition and clustering column spec for a table
-        can replace an existing relation in the database. BigQuery does not
-        allow tables to be replaced with another table that has a different
-        partitioning spec. This method returns True if the given config spec is
-        identical to that of the existing table.
-        """
-        if not relation:
-            return True
-
-        table = self.get_bq_table(relation)
-        if table is None:
-            return True
-
-        return all(
-            (
-                self._partitions_match(table, conf_partition),
-                self._clusters_match(table, conf_cluster),
-            )
-        )
+        client = self.connections.bigquery_client()
+        return bigquery.table_is_replaceable(client, relation, conf_partition, conf_cluster)
 
     @available
     def parse_partition_by(self, raw_partition_by: Any) -> Optional[PartitionConfig]:
@@ -743,8 +649,18 @@ class BigQueryAdapter(BaseAdapter):
         """
         return PartitionConfig.parse(raw_partition_by)
 
-    def get_table_ref_from_relation(self, relation: BaseRelation):
+    @staticmethod
+    def get_table_ref_from_relation(relation: BaseRelation):
         return bigquery.table_ref(relation)
+
+    @available.parse_none
+    def update_table_description(
+        self, database: str, schema: str, identifier: str, description: str
+    ) -> None:
+        connection = self.connections.get_thread_connection()
+        relation = self.Relation.create(database, schema, identifier)
+        retry = self.retry.reopen_with_deadline(connection)
+        bigquery.update_table(connection.handle, relation, retry, {"description": description})
 
     @available.parse_none
     def update_columns(
@@ -757,29 +673,14 @@ class BigQueryAdapter(BaseAdapter):
         bigquery.update_columns(connection.handle, relation, retry, columns)
 
     @available.parse_none
-    def update_table_description(
-        self, database: str, schema: str, identifier: str, description: str
+    def alter_table_add_columns(
+        self, relation: BigQueryRelation, columns: List[BigQueryColumn]
     ) -> None:
+        logger.debug(f'Adding columns ({columns}) to table {relation}".')
+
         connection = self.connections.get_thread_connection()
-        relation = self.Relation.create(database, schema, identifier)
         retry = self.retry.reopen_with_deadline(connection)
-        bigquery.update_table(connection.handle, relation, retry, {"description": description})
-
-    @available.parse_none
-    def alter_table_add_columns(self, relation, columns):
-        logger.debug('Adding columns ({}) to table {}".'.format(columns, relation))
-
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-
-        table_ref = self.get_table_ref_from_relation(relation)
-        table = bigquery.get_table(client, table_ref)
-
-        new_columns = [col.column_to_bq_schema() for col in columns]
-        new_schema = table.schema + new_columns
-
-        new_table = google.cloud.bigquery.Table(table_ref, schema=new_schema)
-        bigquery.update_table(new_table, ["schema"])
+        bigquery.add_columns(connection.handle, relation, retry, columns)
 
     @available.parse_none
     def load_dataframe(
@@ -830,51 +731,17 @@ class BigQueryAdapter(BaseAdapter):
     def get_common_options(
         self, config: Dict[str, Any], node: Dict[str, Any], temporary: bool = False
     ) -> Dict[str, Any]:
-        opts = {}
-
-        if (config.get("hours_to_expiration") is not None) and (not temporary):
-            expiration = f'TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL {config.get("hours_to_expiration")} hour)'
-            opts["expiration_timestamp"] = expiration
-
-        if config.persist_relation_docs() and "description" in node:  # type: ignore[attr-defined]
-            description = sql_escape(node["description"])
-            opts["description"] = '"""{}"""'.format(description)
-
-        if config.get("labels"):
-            labels = config.get("labels", {})
-            opts["labels"] = list(labels.items())  # type: ignore[assignment]
-
-        return opts
+        return bigquery.common_options(config, node, temporary)
 
     @available.parse(lambda *a, **k: {})
     def get_table_options(
         self, config: Dict[str, Any], node: Dict[str, Any], temporary: bool
     ) -> Dict[str, Any]:
-        opts = self.get_common_options(config, node, temporary)
-
-        if config.get("kms_key_name") is not None:
-            opts["kms_key_name"] = f"'{config.get('kms_key_name')}'"
-
-        if temporary:
-            opts["expiration_timestamp"] = "TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 12 hour)"
-        else:
-            # It doesn't apply the `require_partition_filter` option for a temporary table
-            # so that we avoid the error by not specifying a partition with a temporary table
-            # in the incremental model.
-            if (
-                config.get("require_partition_filter") is not None
-                and config.get("partition_by") is not None
-            ):
-                opts["require_partition_filter"] = config.get("require_partition_filter")
-            if config.get("partition_expiration_days") is not None:
-                opts["partition_expiration_days"] = config.get("partition_expiration_days")
-
-        return opts
+        return bigquery.table_options(config, node, temporary)
 
     @available.parse(lambda *a, **k: {})
     def get_view_options(self, config: Dict[str, Any], node: Dict[str, Any]) -> Dict[str, Any]:
-        opts = self.get_common_options(config, node)
-        return opts
+        return bigquery.view_options(config, node)
 
     @available.parse(lambda *a, **k: True)
     def get_bq_table(self, relation: BigQueryRelation) -> Optional[BigQueryTable]:
@@ -890,7 +757,7 @@ class BigQueryAdapter(BaseAdapter):
             bq_table = self.get_bq_table(relation)
             parser = BigQueryMaterializedViewConfig
         else:
-            raise dbt_common.exceptions.DbtRuntimeError(
+            raise DbtRuntimeError(
                 f"The method `BigQueryAdapter.describe_relation` is not implemented "
                 f"for the relation type: {relation.type}"
             )
@@ -903,12 +770,11 @@ class BigQueryAdapter(BaseAdapter):
         """
         Given an entity, grants it access to a dataset.
         """
-        conn: BigQueryConnectionManager = self.connections.get_thread_connection()
-        client = conn.handle
+        client = self.connections.bigquery_client()
         GrantTarget.validate(grant_target_dict)
         grant_target = GrantTarget.from_dict(grant_target_dict)
         if entity_type == "view":
-            entity = self.get_table_ref_from_relation(entity).to_api_repr()
+            entity = bigquery.table_ref(entity).to_api_repr()
         with _dataset_lock:
             schema = self.Relation.create(grant_target.project, grant_target.dataset)
             dataset = bigquery.get_dataset(client, schema)

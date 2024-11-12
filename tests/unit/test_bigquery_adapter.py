@@ -929,7 +929,7 @@ class TestBigQueryAdapterConversions(TestAdapterConversions):
                 "copy_partitions": False,
             }
         )
-        assert BigQueryAdapter._partitions_match(table, partition_config) is True
+        assert bigquery._table._partitions_match(table, partition_config) is True
 
 
 class TestBigQueryGrantAccessTo(BaseTestBigQueryAdapter):

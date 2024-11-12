@@ -54,6 +54,18 @@ def update_columns(
     return update_table(client, relation, retry, {"schema": schema})
 
 
+def add_columns(
+    client: Client, relation: BigQueryRelation, retry: Retry, new_columns: List[BigQueryColumn]
+) -> Table:
+    table = get_table(client, relation, retry)
+    if table is None:
+        raise DbtRuntimeError(f"Table {relation} does not exist!")
+
+    new_fields = [col.column_to_bq_schema() for col in new_columns]
+    schema = table.schema + new_fields
+    return update_table(client, relation, retry, {"schema": schema})
+
+
 def _update_field(
     field: Dict[str, Any],
     new_columns: Dict[str, Dict[str, Any]],

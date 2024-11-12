@@ -35,7 +35,7 @@ from dbt_common.events.contextvars import get_node_info
 from dbt_common.events.functions import fire_event
 import dbt_common.exceptions
 import dbt_common.exceptions.base
-from dbt_common.utils import filter_null_values
+from dbt_common.utils import filter_null_values, AttrDict
 from dbt.adapters.base import (
     AdapterConfig,
     BaseAdapter,
@@ -157,6 +157,105 @@ class BigQueryAdapter(BaseAdapter):
     # Implementations of abstract methods
     ###
 
+    @available.parse(_parse_callback_empty_table)
+    def execute(
+        self,
+        sql: str,
+        auto_begin: bool = False,
+        fetch: bool = False,
+        limit: Optional[int] = None,
+    ) -> Tuple[AdapterResponse, "agate.Table"]:
+        # TODO: this currently points to connections.execute; move to bigquery service
+        return super().execute(sql, auto_begin, fetch, limit)
+
+    def validate_sql(self, sql: str) -> AdapterResponse:
+        """Submit the given SQL to the engine for validation, but not execution.
+
+        This submits the query with the `dry_run` flag set True.
+
+        :param str sql: The sql to validate
+        """
+        connection = self.connections.get_thread_connection()
+        sql = self.connections._add_query_comment(sql)
+        config = self.connections.query_job_defaults()
+        config["dry_run"] = True
+
+        fire_event(SQLQuery(conn_name=connection.name, sql=sql, node_info=get_node_info()))
+
+        query_job, _ = bigquery.execute(
+            connection.handle,
+            sql,
+            config,
+            create_timeout=self.retry.job_creation_timeout(),
+            execute_timeout=self.retry.job_execution_timeout(),
+            job_id=self.connections.generate_job_id(),
+        )
+        return bigquery.query_job_response(connection.handle, query_job)
+
+    @available.parse(lambda *a, **k: [])
+    def get_column_schema_from_query(self, sql: str) -> List[BigQueryColumn]:
+        """Get a list of the column names and data types from the given sql.
+
+        :param str sql: The sql to execute.
+        :return: List[BigQueryColumn]
+        """
+        connection = self.connections.get_thread_connection()
+        sql = self.connections._add_query_comment(sql)
+        config = self.connections.query_job_defaults()
+
+        fire_event(SQLQuery(conn_name=connection.name, sql=sql, node_info=get_node_info()))
+
+        _, iterator = bigquery.execute(
+            connection.handle,
+            sql,
+            config,
+            create_timeout=self.retry.job_creation_timeout(),
+            execute_timeout=self.retry.job_execution_timeout(),
+            job_id=self.connections.generate_job_id(),
+        )
+
+        return bigquery.columns(iterator.schema)
+
+    def get_partitions_metadata(self, table):
+        legacy_sql = (
+            "SELECT * FROM ["
+            + table.project
+            + ":"
+            + table.dataset
+            + "."
+            + table.identifier
+            + "$__PARTITIONS_SUMMARY__]"
+        )
+
+        sql = self.connections._add_query_comment(legacy_sql)
+        # auto_begin is ignored on bigquery, and only included for consistency
+        _, iterator = self.connections.raw_execute(sql, use_legacy_sql=True)
+
+        column_names = [field.name for field in iterator.schema]
+
+        from dbt_common.clients import agate_helper
+
+        return agate_helper.table_from_data_flat(iterator, column_names)
+
+    def _get_catalog_schemas(self, relation_config: Iterable[RelationConfig]) -> SchemaSearchMap:
+        candidates = super()._get_catalog_schemas(relation_config)
+        db_schemas: Dict[str, Set[str]] = {}
+        result = SchemaSearchMap()
+
+        for candidate, schemas in candidates.items():
+            database = candidate.database
+            if database not in db_schemas:
+                db_schemas[database] = set(self.list_schemas(database))
+            if candidate.schema in db_schemas[database]:
+                result[candidate] = schemas
+            else:
+                logger.debug(
+                    "Skipping catalog for {}.{} - schema does not exist".format(
+                        database, candidate.schema
+                    )
+                )
+        return result
+
     @classmethod
     def date_function(cls) -> str:
         return "CURRENT_TIMESTAMP()"
@@ -164,6 +263,18 @@ class BigQueryAdapter(BaseAdapter):
     @classmethod
     def is_cancelable(cls) -> bool:
         return True
+
+    @available
+    def list_schemas(self, database: str) -> List[str]:
+        connection = self.connections.get_thread_connection()
+        retry = self.retry.reopen_with_deadline(connection)
+        return bigquery.list_schemas(connection.handle, database, retry)
+
+    @available.parse(lambda *a, **k: False)
+    def check_schema_exists(self, database: str, schema: str) -> bool:
+        client = self.connections.bigquery_client()
+        relation = self.Relation.create(database, schema)
+        return bigquery.schema_exists(client, relation)
 
     def drop_relation(self, relation: BigQueryRelation) -> None:
         is_cached = self._schema_is_cached(relation.database, relation.schema)
@@ -195,52 +306,12 @@ class BigQueryAdapter(BaseAdapter):
         bigquery.copy_table(client, from_relation, to_relation, "table")
         bigquery.drop_table(client, from_relation)
 
-    @available
-    def list_schemas(self, database: str) -> List[str]:
-        connection = self.connections.get_thread_connection()
-        retry = self.retry.reopen_with_deadline(connection)
-        return bigquery.list_schemas(connection.handle, database, retry)
-
-    @available.parse(lambda *a, **k: False)
-    def check_schema_exists(self, database: str, schema: str) -> bool:
-        client = self.connections.bigquery_client()
-        relation = self.Relation.create(database, schema)
-        return bigquery.schema_exists(client, relation)
-
-    @available.parse(lambda *a, **k: {})
-    @classmethod
-    def nest_column_data_types(
-        cls,
-        columns: Dict[str, Dict[str, Any]],
-        constraints: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Dict[str, Optional[str]]]:
-        return get_nested_column_data_types(columns, constraints)
-
     def get_columns_in_relation(self, relation: BigQueryRelation) -> List[BigQueryColumn]:
         connection = self.connections.get_thread_connection()
         retry = self.retry.reopen_with_deadline(connection)
         return bigquery.get_columns(connection.handle, relation, retry)
 
-    @available.parse(lambda *a, **k: [])
-    def add_time_ingestion_partition_column(self, partition_by, columns) -> List[BigQueryColumn]:
-        """Add time ingestion partition column to columns list"""
-        columns.append(
-            self.Column(
-                partition_by.insertable_time_partitioning_field(),
-                partition_by.data_type,
-                None,
-                "NULLABLE",
-            )
-        )
-        return columns
-
     def expand_column_types(self, goal: BigQueryRelation, current: BigQueryRelation) -> None:
-        # This is a no-op on BigQuery
-        pass
-
-    def expand_target_column_types(
-        self, from_relation: BigQueryRelation, to_relation: BigQueryRelation
-    ) -> None:
         # This is a no-op on BigQuery
         pass
 
@@ -275,6 +346,21 @@ class BigQueryAdapter(BaseAdapter):
         except google.api_core.exceptions.Forbidden as exc:
             logger.debug("list_relations_without_caching error: {}".format(str(exc)))
             return []
+
+    def expand_target_column_types(
+        self, from_relation: BigQueryRelation, to_relation: BigQueryRelation
+    ) -> None:
+        # This is a no-op on BigQuery
+        pass
+
+    def _make_match_kwargs(self, database: str, schema: str, identifier: str) -> Dict[str, str]:
+        return filter_null_values(
+            {
+                "database": database,
+                "identifier": identifier,
+                "schema": schema,
+            }
+        )
 
     def get_relation(
         self, database: str, schema: str, identifier: str
@@ -350,28 +436,169 @@ class BigQueryAdapter(BaseAdapter):
     def convert_time_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return "time"
 
-    @available.parse(_parse_callback_empty_table)
-    def execute(
-        self,
-        sql: str,
-        auto_begin: bool = False,
-        fetch: bool = False,
-        limit: Optional[int] = None,
-    ) -> Tuple[AdapterResponse, "agate.Table"]:
-        # TODO: this currently points to connections.execute; move to bigquery service
-        return super().execute(sql, auto_begin, fetch, limit)
-
     ###
     # Implementation details
     ###
-    def _make_match_kwargs(self, database: str, schema: str, identifier: str) -> Dict[str, str]:
-        return filter_null_values(
-            {
-                "database": database,
-                "identifier": identifier,
-                "schema": schema,
-            }
+
+    @available.parse(lambda *a, **k: {})
+    @classmethod
+    def nest_column_data_types(
+        cls,
+        columns: Dict[str, Dict[str, Any]],
+        constraints: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Dict[str, Optional[str]]]:
+        return get_nested_column_data_types(columns, constraints)
+
+    @available.parse(lambda *a, **k: [])
+    def add_time_ingestion_partition_column(self, partition_by, columns) -> List[BigQueryColumn]:
+        """Add time ingestion partition column to columns list"""
+        columns.append(
+            self.Column(
+                partition_by.insertable_time_partitioning_field(),
+                partition_by.data_type,
+                None,
+                "NULLABLE",
+            )
         )
+        return columns
+
+    def execute_macro(
+        self,
+        macro_name: str,
+        macro_resolver: Optional[MacroResolverProtocol] = None,
+        project: Optional[str] = None,
+        context_override: Optional[Dict[str, Any]] = None,
+        kwargs: Optional[Dict[str, Any]] = None,
+        needs_conn: bool = False,
+    ) -> AttrDict:
+        return super().execute_macro(
+            macro_name, macro_resolver, project, context_override, kwargs, needs_conn
+        )
+
+    @classmethod
+    def _catalog_filter_table(
+        cls, table: "agate.Table", used_schemas: FrozenSet[Tuple[str, str]]
+    ) -> "agate.Table":
+        table = table.rename(
+            column_names={col.name: col.name.replace("__", ":") for col in table.columns}
+        )
+        return super()._catalog_filter_table(table, used_schemas)
+
+    def calculate_freshness_from_metadata(
+        self,
+        source: BaseRelation,
+        macro_resolver: Optional[MacroResolverProtocol] = None,
+    ) -> Tuple[Optional[AdapterResponse], FreshnessResponse]:
+        conn = self.connections.get_thread_connection()
+        client: Client = conn.handle
+
+        table_ref = self.get_table_ref_from_relation(source)
+        table = client.get_table(table_ref)
+        snapshot = datetime.now(tz=pytz.UTC)
+
+        freshness = FreshnessResponse(
+            max_loaded_at=table.modified,
+            snapshotted_at=snapshot,
+            age=(snapshot - table.modified).total_seconds(),
+        )
+
+        return None, freshness
+
+    def timestamp_add_sql(self, add_to: str, number: int = 1, interval: str = "hour") -> str:
+        return f"timestamp_add({add_to}, interval {number} {interval})"
+
+    def string_add_sql(
+        self,
+        add_to: str,
+        value: str,
+        location="append",
+    ) -> str:
+        if location == "append":
+            return f"concat({add_to}, '{value}')"
+        elif location == "prepend":
+            return f"concat('{value}', {add_to})"
+        else:
+            raise dbt_common.exceptions.DbtRuntimeError(
+                f'Got an unexpected location value of "{location}"'
+            )
+
+    def get_rows_different_sql(
+        self,
+        relation_a: BigQueryRelation,
+        relation_b: BigQueryRelation,
+        column_names: Optional[List[str]] = None,
+        except_operator="EXCEPT DISTINCT",
+    ) -> str:
+        return super().get_rows_different_sql(
+            relation_a=relation_a,
+            relation_b=relation_b,
+            column_names=column_names,
+            except_operator=except_operator,
+        )
+
+    @property
+    def python_submission_helpers(self) -> Dict[str, Type[PythonJobHelper]]:
+        return {
+            "cluster": ClusterDataprocHelper,
+            "serverless": ServerlessDataProcHelper,
+        }
+
+    @property
+    def default_python_submission_method(self) -> str:
+        return "serverless"
+
+    def generate_python_submission_response(self, submission_result) -> BigQueryAdapterResponse:
+        return BigQueryAdapterResponse(_message="OK")
+
+    @classmethod
+    def render_column_constraint(cls, constraint: ColumnLevelConstraint) -> Optional[str]:
+        c = super().render_column_constraint(constraint)
+        if (
+            constraint.type == ConstraintType.primary_key
+            or constraint.type == ConstraintType.foreign_key
+        ):
+            return f"{c} not enforced" if c else None
+        return c
+
+    @available
+    @classmethod
+    def render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]]) -> List:
+        rendered_constraints: Dict[str, str] = {}
+        for raw_column in raw_columns.values():
+            for con in raw_column.get("constraints", None):
+                constraint = cls._parse_column_constraint(con)
+                rendered_constraint = cls.process_parsed_constraint(
+                    constraint, cls.render_column_constraint
+                )
+
+                if rendered_constraint:
+                    column_name = raw_column["name"]
+                    if column_name not in rendered_constraints:
+                        rendered_constraints[column_name] = rendered_constraint
+                    else:
+                        rendered_constraints[column_name] += f" {rendered_constraint}"
+
+        nested_columns = cls.nest_column_data_types(raw_columns, rendered_constraints)
+        rendered_column_constraints = [
+            f"{cls.quote(column['name']) if column.get('quote') else column['name']} {column['data_type']}"
+            for column in nested_columns.values()
+        ]
+        return rendered_column_constraints
+
+    @classmethod
+    def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
+        c = super().render_model_constraint(constraint)
+        if (
+            constraint.type == ConstraintType.primary_key
+            or constraint.type == ConstraintType.foreign_key
+        ):
+            return f"{c} not enforced" if c else None
+
+        return c
+
+    # ==============================
+    # dbt-bigquery specific methods
+    # ==============================
 
     def _agate_to_schema(
         self, agate_table: "agate.Table", column_override: Dict[str, str]
@@ -396,30 +623,6 @@ class BigQueryAdapter(BaseAdapter):
         timeout = self.retry.job_execution_timeout(300)
         bigquery.copy_table(client, source, destination, materialization, timeout)
         return f"COPY TABLE with materialization: {materialization}"
-
-    @available.parse(lambda *a, **k: [])
-    def get_column_schema_from_query(self, sql: str) -> List[BigQueryColumn]:
-        """Get a list of the column names and data types from the given sql.
-
-        :param str sql: The sql to execute.
-        :return: List[BigQueryColumn]
-        """
-        connection = self.connections.get_thread_connection()
-        sql = self.connections._add_query_comment(sql)
-        config = self.connections.query_job_defaults()
-
-        fire_event(SQLQuery(conn_name=connection.name, sql=sql, node_info=get_node_info()))
-
-        _, iterator = bigquery.execute(
-            connection.handle,
-            sql,
-            config,
-            create_timeout=self.retry.job_creation_timeout(),
-            execute_timeout=self.retry.job_execution_timeout(),
-            job_id=self.connections.generate_job_id(),
-        )
-
-        return bigquery.columns(iterator.schema)
 
     @available.parse(lambda *a, **k: False)
     def get_columns_in_select_sql(self, select_sql: str) -> List[BigQueryColumn]:
@@ -623,54 +826,6 @@ class BigQueryAdapter(BaseAdapter):
             **kwargs,
         )
 
-    @classmethod
-    def _catalog_filter_table(
-        cls, table: "agate.Table", used_schemas: FrozenSet[Tuple[str, str]]
-    ) -> "agate.Table":
-        table = table.rename(
-            column_names={col.name: col.name.replace("__", ":") for col in table.columns}
-        )
-        return super()._catalog_filter_table(table, used_schemas)
-
-    def _get_catalog_schemas(self, relation_config: Iterable[RelationConfig]) -> SchemaSearchMap:
-        candidates = super()._get_catalog_schemas(relation_config)
-        db_schemas: Dict[str, Set[str]] = {}
-        result = SchemaSearchMap()
-
-        for candidate, schemas in candidates.items():
-            database = candidate.database
-            if database not in db_schemas:
-                db_schemas[database] = set(self.list_schemas(database))
-            if candidate.schema in db_schemas[database]:
-                result[candidate] = schemas
-            else:
-                logger.debug(
-                    "Skipping catalog for {}.{} - schema does not exist".format(
-                        database, candidate.schema
-                    )
-                )
-        return result
-
-    def calculate_freshness_from_metadata(
-        self,
-        source: BaseRelation,
-        macro_resolver: Optional[MacroResolverProtocol] = None,
-    ) -> Tuple[Optional[AdapterResponse], FreshnessResponse]:
-        conn = self.connections.get_thread_connection()
-        client: Client = conn.handle
-
-        table_ref = self.get_table_ref_from_relation(source)
-        table = client.get_table(table_ref)
-        snapshot = datetime.now(tz=pytz.UTC)
-
-        freshness = FreshnessResponse(
-            max_loaded_at=table.modified,
-            snapshotted_at=snapshot,
-            age=(snapshot - table.modified).total_seconds(),
-        )
-
-        return None, freshness
-
     @available.parse(lambda *a, **k: {})
     def get_common_options(
         self, config: Dict[str, Any], node: Dict[str, Any], temporary: bool = False
@@ -772,38 +927,6 @@ class BigQueryAdapter(BaseAdapter):
             return dataset.location
         return ""
 
-    def get_rows_different_sql(
-        self,
-        relation_a: BigQueryRelation,
-        relation_b: BigQueryRelation,
-        column_names: Optional[List[str]] = None,
-        except_operator="EXCEPT DISTINCT",
-    ) -> str:
-        return super().get_rows_different_sql(
-            relation_a=relation_a,
-            relation_b=relation_b,
-            column_names=column_names,
-            except_operator=except_operator,
-        )
-
-    def timestamp_add_sql(self, add_to: str, number: int = 1, interval: str = "hour") -> str:
-        return f"timestamp_add({add_to}, interval {number} {interval})"
-
-    def string_add_sql(
-        self,
-        add_to: str,
-        value: str,
-        location="append",
-    ) -> str:
-        if location == "append":
-            return f"concat({add_to}, '{value}')"
-        elif location == "prepend":
-            return f"concat('{value}', {add_to})"
-        else:
-            raise dbt_common.exceptions.DbtRuntimeError(
-                f'Got an unexpected location value of "{location}"'
-            )
-
     # This is used by the test suite
     def run_sql_for_tests(self, sql, fetch, conn=None):
         """For the testing framework.
@@ -818,91 +941,3 @@ class BigQueryAdapter(BaseAdapter):
             return res[0]
         else:
             return list(res)
-
-    def generate_python_submission_response(self, submission_result) -> BigQueryAdapterResponse:
-        return BigQueryAdapterResponse(_message="OK")
-
-    @property
-    def default_python_submission_method(self) -> str:
-        return "serverless"
-
-    @property
-    def python_submission_helpers(self) -> Dict[str, Type[PythonJobHelper]]:
-        return {
-            "cluster": ClusterDataprocHelper,
-            "serverless": ServerlessDataProcHelper,
-        }
-
-    @available
-    @classmethod
-    def render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]]) -> List:
-        rendered_constraints: Dict[str, str] = {}
-        for raw_column in raw_columns.values():
-            for con in raw_column.get("constraints", None):
-                constraint = cls._parse_column_constraint(con)
-                rendered_constraint = cls.process_parsed_constraint(
-                    constraint, cls.render_column_constraint
-                )
-
-                if rendered_constraint:
-                    column_name = raw_column["name"]
-                    if column_name not in rendered_constraints:
-                        rendered_constraints[column_name] = rendered_constraint
-                    else:
-                        rendered_constraints[column_name] += f" {rendered_constraint}"
-
-        nested_columns = cls.nest_column_data_types(raw_columns, rendered_constraints)
-        rendered_column_constraints = [
-            f"{cls.quote(column['name']) if column.get('quote') else column['name']} {column['data_type']}"
-            for column in nested_columns.values()
-        ]
-        return rendered_column_constraints
-
-    @classmethod
-    def render_column_constraint(cls, constraint: ColumnLevelConstraint) -> Optional[str]:
-        c = super().render_column_constraint(constraint)
-        if (
-            constraint.type == ConstraintType.primary_key
-            or constraint.type == ConstraintType.foreign_key
-        ):
-            return f"{c} not enforced" if c else None
-        return c
-
-    @classmethod
-    def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
-        c = super().render_model_constraint(constraint)
-        if (
-            constraint.type == ConstraintType.primary_key
-            or constraint.type == ConstraintType.foreign_key
-        ):
-            return f"{c} not enforced" if c else None
-
-        return c
-
-    def debug_query(self):
-        """Override for DebugTask method"""
-        self.execute("select 1 as id")
-
-    def validate_sql(self, sql: str) -> AdapterResponse:
-        """Submit the given SQL to the engine for validation, but not execution.
-
-        This submits the query with the `dry_run` flag set True.
-
-        :param str sql: The sql to validate
-        """
-        connection = self.connections.get_thread_connection()
-        sql = self.connections._add_query_comment(sql)
-        config = self.connections.query_job_defaults()
-        config["dry_run"] = True
-
-        fire_event(SQLQuery(conn_name=connection.name, sql=sql, node_info=get_node_info()))
-
-        query_job, _ = bigquery.execute(
-            connection.handle,
-            sql,
-            config,
-            create_timeout=self.retry.job_creation_timeout(),
-            execute_timeout=self.retry.job_execution_timeout(),
-            job_id=self.connections.generate_job_id(),
-        )
-        return bigquery.query_job_response(connection.handle, query_job)

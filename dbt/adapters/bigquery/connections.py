@@ -27,10 +27,10 @@ from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery
 from dbt.adapters.exceptions.connection import FailedToConnectError
 
-from dbt.adapters.bigquery.services import bigquery
 from dbt.adapters.bigquery.clients import bigquery_client
 from dbt.adapters.bigquery.credentials import Priority
 from dbt.adapters.bigquery.retry import RetryFactory
+from dbt.adapters.bigquery.services.bigquery._query import query_job_response
 
 if TYPE_CHECKING:
     # Indirectly imported via agate_helper, which is lazy loaded further downfile.
@@ -159,81 +159,20 @@ class BigQueryConnectionManager(BaseConnectionManager):
         fetch: Optional[bool] = False,
         limit: Optional[int] = None,
     ) -> Tuple[BigQueryAdapterResponse, "agate.Table"]:
+        client = self.bigquery_client()
+
         sql = self._add_query_comment(sql)
-        # auto_begin is ignored on bigquery, and only included for consistency
         query_job, iterator = self.raw_execute(sql, limit=limit)
 
+        response = query_job_response(client, query_job)
+
+        from dbt_common.clients import agate_helper
+
         if fetch:
-            table = self._get_table_from_response(iterator)
+            column_names = [field.name for field in iterator.schema]
+            table = agate_helper.table_from_data_flat(iterator, column_names)
         else:
-            from dbt_common.clients import agate_helper
-
             table = agate_helper.empty_table()
-
-        message = "OK"
-        code = None
-        num_rows = None
-        bytes_processed = None
-        bytes_billed = None
-        location = None
-        job_id = None
-        project_id = None
-        num_rows_formatted = None
-        processed_bytes = None
-        slot_ms = None
-
-        if query_job.statement_type == "CREATE_VIEW":
-            code = "CREATE VIEW"
-
-        elif query_job.statement_type == "CREATE_TABLE_AS_SELECT":
-            code = "CREATE TABLE"
-            conn = self.get_thread_connection()
-            client = conn.handle
-            query_table = bigquery.get_table(client, query_job.destination)
-            num_rows = query_table.num_rows if hasattr(query_table, "num_rows") else 0  # type: ignore
-
-        elif query_job.statement_type == "SCRIPT":
-            code = "SCRIPT"
-
-        elif query_job.statement_type in ["INSERT", "DELETE", "MERGE", "UPDATE"]:
-            code = query_job.statement_type
-            num_rows = query_job.num_dml_affected_rows
-
-        elif query_job.statement_type == "SELECT":
-            code = "SELECT"
-            conn = self.get_thread_connection()
-            client = conn.handle
-            # use anonymous table for num_rows
-            query_table = bigquery.get_table(client, query_job.destination)
-            num_rows = query_table.num_rows if hasattr(query_table, "num_rows") else 0  # type: ignore
-
-        # set common attributes
-        bytes_processed = query_job.total_bytes_processed
-        bytes_billed = query_job.total_bytes_billed
-        slot_ms = query_job.slot_millis
-        processed_bytes = self._format_bytes(bytes_processed)
-        location = query_job.location
-        job_id = query_job.job_id
-        project_id = query_job.project
-        if num_rows is not None:
-            num_rows_formatted = self._format_rows_number(num_rows)
-            message = f"{code} ({num_rows_formatted} rows, {processed_bytes} processed)"
-        elif bytes_processed is not None:
-            message = f"{code} ({processed_bytes} processed)"
-        else:
-            message = f"{code}"
-
-        response = BigQueryAdapterResponse(
-            _message=message,
-            rows_affected=num_rows,
-            code=code,
-            bytes_processed=bytes_processed,
-            bytes_billed=bytes_billed,
-            location=location,
-            project_id=project_id,
-            job_id=job_id,
-            slot_ms=slot_ms,
-        )
 
         return response, table
 
@@ -257,51 +196,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
         self.jobs_by_thread[thread_id].append(job_id)
         return job_id
 
-    def _format_bytes(self, num_bytes):
-        if num_bytes:
-            for unit in ["Bytes", "KiB", "MiB", "GiB", "TiB", "PiB"]:
-                if abs(num_bytes) < 1024.0:
-                    return f"{num_bytes:3.1f} {unit}"
-                num_bytes /= 1024.0
-
-            num_bytes *= 1024.0
-            return f"{num_bytes:3.1f} {unit}"
-
-        else:
-            return num_bytes
-
-    def _format_rows_number(self, rows_number):
-        for unit in ["", "k", "m", "b", "t"]:
-            if abs(rows_number) < 1000.0:
-                return f"{rows_number:3.1f}{unit}".strip()
-            rows_number /= 1000.0
-
-        rows_number *= 1000.0
-        return f"{rows_number:3.1f}{unit}".strip()
-
-    def get_partitions_metadata(self, table):
-        """
-        TODO: This doesn't appear to be used, however there's a method by
-        the same name on the adapter that's used in jinja. That may be a bug.
-        """
-
-        def standard_to_legacy(table):
-            return table.project + ":" + table.dataset + "." + table.identifier
-
-        legacy_sql = "SELECT * FROM [" + standard_to_legacy(table) + "$__PARTITIONS_SUMMARY__]"
-
-        sql = self._add_query_comment(legacy_sql)
-        # auto_begin is ignored on bigquery, and only included for consistency
-        _, iterator = self.raw_execute(sql, use_legacy_sql=True)
-        return self._get_table_from_response(iterator)
-
-    @classmethod
-    def _get_table_from_response(cls, resp) -> "agate.Table":
-        from dbt_common.clients import agate_helper
-
-        column_names = [field.name for field in resp.schema]
-        return agate_helper.table_from_data_flat(resp, column_names)
-
     def raw_execute(
         self,
         sql,
@@ -310,39 +204,46 @@ class BigQueryConnectionManager(BaseConnectionManager):
         dry_run: bool = False,
     ):
         conn = self.get_thread_connection()
+        client: Client = conn.handle
 
         fire_event(SQLQuery(conn_name=conn.name, sql=sql, node_info=get_node_info()))
 
         labels = _get_labels_from_query_comment(self.profile, self.query_header)
-
         labels["dbt_invocation_id"] = get_invocation_id()
 
         job_params = {
             "use_legacy_sql": use_legacy_sql,
             "labels": labels,
             "dry_run": dry_run,
+            "priority": (
+                QueryPriority.BATCH
+                if self.profile.credentials.priority == Priority.Batch
+                else QueryPriority.INTERACTIVE
+            ),
         }
 
-        priority = conn.credentials.priority
-        if priority == Priority.Batch:
-            job_params["priority"] = QueryPriority.BATCH
-        else:
-            job_params["priority"] = QueryPriority.INTERACTIVE
-
-        maximum_bytes_billed = conn.credentials.maximum_bytes_billed
-        if maximum_bytes_billed is not None and maximum_bytes_billed != 0:
+        if maximum_bytes_billed := conn.credentials.maximum_bytes_billed:
             job_params["maximum_bytes_billed"] = maximum_bytes_billed
+        job_config = QueryJobConfig(**job_params)
 
         with self.exception_handler(sql):
-            job_id = self.generate_job_id()
 
-            return self._query_and_results(
-                conn,
-                sql,
-                job_params,
-                job_id,
-                limit=limit,
+            query_job = client.query(
+                query=sql,
+                job_config=job_config,
+                job_id=self.generate_job_id(),  # note, this disables retry since the job_id will have been used
+                timeout=self._retry.job_creation_timeout(),
             )
+            if all((query_job.location, query_job.job_id, query_job.project)):
+                logger.debug(_query_job_url(query_job))
+            try:
+                iterator = query_job.result(
+                    max_results=limit, timeout=self._retry.job_execution_timeout()
+                )
+            except TimeoutError:
+                exc = f"Operation did not complete within the designated timeout of {self._retry.job_execution_timeout()} seconds."
+                raise TimeoutError(exc)
+            return query_job, iterator
 
     def query_job_defaults(self) -> Dict[str, Any]:
         labels = _get_labels_from_query_comment(self.profile, self.query_header)
@@ -363,38 +264,6 @@ class BigQueryConnectionManager(BaseConnectionManager):
             config["maximum_bytes_billed"] = maximum_bytes_billed
 
         return config
-
-    def _query_and_results(
-        self,
-        conn,
-        sql,
-        job_params,
-        job_id,
-        limit: Optional[int] = None,
-    ):
-        client: Client = conn.handle
-        """Query the client and wait for results."""
-        # Cannot reuse job_config if destination is set and ddl is used
-        query_job = client.query(
-            query=sql,
-            job_config=QueryJobConfig(**job_params),
-            job_id=job_id,  # note, this disables retry since the job_id will have been used
-            timeout=self._retry.job_creation_timeout(),
-        )
-        if (
-            query_job.location is not None
-            and query_job.job_id is not None
-            and query_job.project is not None
-        ):
-            logger.debug(_query_job_url(query_job))
-        try:
-            iterator = query_job.result(
-                max_results=limit, timeout=self._retry.job_execution_timeout()
-            )
-            return query_job, iterator
-        except TimeoutError:
-            exc = f"Operation did not complete within the designated timeout of {self._retry.job_execution_timeout()} seconds."
-            raise TimeoutError(exc)
 
 
 def _get_labels_from_query_comment(profile, query_header):

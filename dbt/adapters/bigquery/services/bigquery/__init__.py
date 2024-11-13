@@ -28,6 +28,8 @@ from dbt.adapters.bigquery.services.bigquery._table import (
     copy_table,
     drop_table,
     get_table,
+    list_tables,
+    list_relations,
     load_table_from_dataframe,
     load_table_from_file,
     table_is_replaceable,

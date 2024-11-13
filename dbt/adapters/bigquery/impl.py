@@ -12,11 +12,10 @@ from typing import (
     Set,
     Tuple,
     TYPE_CHECKING,
-    Type,
     Union,
 )
 
-from google.api_core.exceptions import Forbidden, NotFound
+from google.api_core.exceptions import Forbidden
 from google.cloud.bigquery import AccessEntry, Table as BigQueryTable
 import pytz
 
@@ -36,7 +35,6 @@ from dbt.adapters.base import (
     BaseAdapter,
     BaseRelation,
     ConstraintSupport,
-    PythonJobHelper,
     RelationType,
     SchemaSearchMap,
     available,
@@ -50,13 +48,14 @@ from dbt.adapters.contracts.relation import RelationConfig
 from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery, SchemaCreation, SchemaDrop
 
+from dbt.adapters.bigquery.clients import (
+    job_controller_client,
+    storage_client,
+    batch_controller_client,
+)
 from dbt.adapters.bigquery.column import BigQueryColumn, get_nested_column_data_types
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse, BigQueryConnectionManager
 from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset, is_access_entry_in_dataset
-from dbt.adapters.bigquery.python_submissions import (
-    ClusterDataprocHelper,
-    ServerlessDataProcHelper,
-)
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery.relation_configs import (
     BigQueryBaseRelationConfig,
@@ -64,7 +63,8 @@ from dbt.adapters.bigquery.relation_configs import (
     PartitionConfig,
 )
 from dbt.adapters.bigquery.retry import RetryFactory
-from dbt.adapters.bigquery.services import bigquery, macros
+from dbt.adapters.bigquery.services import bigquery, dataproc
+from dbt.adapters.bigquery.services.macro import MacroService
 
 if TYPE_CHECKING:
     # Indirectly imported via agate_helper, which is lazy loaded further downfile.
@@ -145,6 +145,11 @@ class BigQueryAdapter(BaseAdapter):
         super().__init__(config, mp_context)
         self.connections: BigQueryConnectionManager = self.connections
         self.retry = RetryFactory(config.credentials)
+        self._macros = MacroService(
+            self._macro_resolver,
+            self._macro_context_generator,
+            config,
+        )
 
     ###
     # Implementations of abstract methods
@@ -270,16 +275,10 @@ class BigQueryAdapter(BaseAdapter):
         return bigquery.schema_exists(client, relation)
 
     def drop_relation(self, relation: BigQueryRelation) -> None:
-        is_cached = self._schema_is_cached(relation.database, relation.schema)
-        if is_cached:
+        if self._schema_is_cached(relation.database, relation.schema):
             self.cache_dropped(relation)
-
-        conn = self.connections.get_thread_connection()
-
-        table_ref = bigquery.table_ref(relation)
-
-        # mimic "drop if exists" functionality that's ubiquitous in most sql implementations
-        conn.handle.delete_table(table_ref, not_found_ok=True)
+        client = self.connections.bigquery_client()
+        bigquery.drop_table(client, relation)
 
     def truncate_relation(self, relation: BigQueryRelation) -> None:
         raise dbt_common.exceptions.base.NotImplementedError(
@@ -311,33 +310,12 @@ class BigQueryAdapter(BaseAdapter):
     @available.parse_list
     def list_relations_without_caching(
         self, schema_relation: BigQueryRelation
-    ) -> List[BigQueryRelation]:
-        connection = self.connections.get_thread_connection()
-        client = connection.handle
-
-        dataset_ref = bigquery.dataset_ref(schema_relation)
-
-        all_tables = client.list_tables(
-            dataset_ref,
-            # BigQuery paginates tables by alphabetizing them, and using
-            # the name of the last table on a page as the key for the
-            # next page. If that key table gets dropped before we run
-            # list_relations, then this will 404. So, we avoid this
-            # situation by making the page size sufficiently large.
-            # see: https://github.com/dbt-labs/dbt/issues/726
-            # TODO: cache the list of relations up front, and then we
-            #       won't need to do this
-            max_results=100000,
-        )
-
-        # This will 404 if the dataset does not exist. This behavior mirrors
-        # the implementation of list_relations for other adapters
+    ) -> List[Optional[BigQueryRelation]]:
+        client = self.connections.bigquery_client()
         try:
-            return [bigquery.base_relation(table) for table in all_tables]  # type: ignore[misc]
-        except NotFound:
-            return []
+            return bigquery.list_relations(client, schema_relation)
         except Forbidden as exc:
-            logger.debug("list_relations_without_caching error: {}".format(str(exc)))
+            logger.debug(f"list_relations_without_caching error: {str(exc)}")
             return []
 
     def expand_target_column_types(
@@ -370,11 +348,14 @@ class BigQueryAdapter(BaseAdapter):
         return bigquery.base_relation(table)
 
     def create_schema(self, relation: BigQueryRelation) -> None:
-        # use SQL 'create schema'
+        # BigQuery added SQL support for 'create schema' + 'drop schema' in March 2021
+        # Unfortunately, 'drop schema' runs into permissions issues during tests
+        # Most of the value here comes from user overrides of 'create_schema'
         fire_event(SchemaCreation(relation=_make_ref_key_dict(relation.without_identifier())))
-        macros.create_schema(relation)
-        # we can't update the cache here, as if the schema already existed we
-        # don't want to (incorrectly) say that it's empty
+        # use SQL 'create schema'
+        self._macros.create_schema(relation)
+        # we can't update the cache here
+        # if the schema already existed we don't want to (incorrectly) say that it's empty
 
     def drop_schema(self, relation: BigQueryRelation) -> None:
         # still use a client method, rather than SQL 'drop schema ... cascade'
@@ -387,7 +368,7 @@ class BigQueryAdapter(BaseAdapter):
 
     @classmethod
     def quote(cls, identifier: str) -> str:
-        return "`{}`".format(identifier)
+        return f"`{identifier}`"
 
     @classmethod
     def convert_text_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
@@ -455,22 +436,14 @@ class BigQueryAdapter(BaseAdapter):
         kwargs: Optional[Dict[str, Any]] = None,
         needs_conn: bool = False,
     ) -> AttrDict:
-        macro = macros.macro(
-            macro_name,
-            macro_resolver or self._macro_resolver,
-            self._macro_context_generator,
-            self.config,
-            project,
-            context_override or {},
-        )
-
         if needs_conn:
             connection = self.connections.get_thread_connection()
             self.connections.open(connection)
 
+        macro = self._macros.macro(macro_name, project, context_override or {})
+
         with self.connections.exception_handler(f"macro {macro_name}"):
-            result = macro(**kwargs)
-        return result
+            return macro(**kwargs or {})
 
     @classmethod
     def _catalog_filter_table(
@@ -489,11 +462,13 @@ class BigQueryAdapter(BaseAdapter):
         client = self.connections.bigquery_client()
         table = bigquery.get_table(client, source)
         snapshot = datetime.now(tz=pytz.UTC)
-        return None, FreshnessResponse(
-            max_loaded_at=table.modified,
-            snapshotted_at=snapshot,
-            age=(snapshot - table.modified).total_seconds(),
-        )
+        if table:
+            return None, FreshnessResponse(
+                max_loaded_at=table.modified,
+                snapshotted_at=snapshot,
+                age=(snapshot - table.modified).total_seconds(),
+            )
+        raise DbtRuntimeError(f"The source {source} was not found")
 
     def timestamp_add_sql(self, add_to: str, number: int = 1, interval: str = "hour") -> str:
         return f"timestamp_add({add_to}, interval {number} {interval})"
@@ -525,18 +500,27 @@ class BigQueryAdapter(BaseAdapter):
             except_operator=except_operator,
         )
 
-    @property
-    def python_submission_helpers(self) -> Dict[str, Type[PythonJobHelper]]:
-        return {
-            "cluster": ClusterDataprocHelper,
-            "serverless": ServerlessDataProcHelper,
-        }
+    def submit_python_job(self, parsed_model: dict, compiled_code: str) -> AdapterResponse:
+        submission_method = parsed_model["config"].get("submission_method", "serverless")
+        credentials = self.config.profile.credentials
 
-    @property
-    def default_python_submission_method(self) -> str:
-        return "serverless"
+        _storage_client = storage_client(credentials)
+        dataproc.upload_model(_storage_client, parsed_model, compiled_code, credentials)
 
-    def generate_python_submission_response(self, submission_result) -> BigQueryAdapterResponse:
+        retry = self.retry.polling(timeout=parsed_model["config"].get("timeout"))
+
+        if submission_method == "cluster":
+            client = job_controller_client(credentials)
+            dataproc.submit_cluster_job(client, parsed_model, credentials, retry)
+        elif submission_method == "serverless":
+            client = batch_controller_client(credentials)
+            dataproc.submit_serverless_batch(client, parsed_model, credentials, retry)
+        else:
+            raise NotImplementedError(
+                f"Submission method {submission_method} is not supported for current adapter"
+            )
+
+        # process submission result to generate adapter response
         return BigQueryAdapterResponse(_message="OK")
 
     @classmethod

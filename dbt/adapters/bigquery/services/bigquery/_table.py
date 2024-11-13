@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
+from typing import Any, Dict, Iterator, List, Optional, TYPE_CHECKING, Union
 
 from dbt.adapters.base import BaseAdapter
 from google.api_core.retry import Retry
@@ -28,6 +28,30 @@ from dbt.adapters.bigquery.services.bigquery._exception import exception_handler
 
 if TYPE_CHECKING:
     import agate
+
+
+def list_tables(
+    client: Client, schema: BigQueryRelation, retry: Optional[Retry] = DEFAULT_RETRY
+) -> Iterator[Table]:
+    """
+    BigQuery paginates tables by alphabetizing them, and using
+    the name of the last table on a page as the key for the
+    next page. If that key table gets dropped before we run
+    list_relations, then this will 404. So, we avoid this
+    situation by making the page size sufficiently large.
+    see: https://github.com/dbt-labs/dbt/issues/726
+    TODO: cache the list of relations up front, and then we won't need to do this
+    """
+    try:
+        return client.list_tables(dataset_ref(schema), max_results=100_000, retry=retry)
+    except NotFound:
+        return iter([])
+
+
+def list_relations(
+    client: Client, schema: BigQueryRelation, retry: Optional[Retry] = DEFAULT_RETRY
+) -> List[Optional[BigQueryRelation]]:
+    return [base_relation(table) for table in list_tables(client, schema, retry)]
 
 
 def get_table(

@@ -47,6 +47,9 @@ Repository = "https://github.com/dbt-labs/dbt-bigquery.git"
 Issues = "https://github.com/dbt-labs/dbt-bigquery/issues"
 Changelog = "https://github.com/dbt-labs/dbt-bigquery/blob/main/CHANGELOG.md"
 
+[tool.mypy]
+mypy_path = "third-party-stubs/"
+
 [tool.pytest]
 testpaths = ["tests/functional", "tests/unit"]
 addopts = "-v -n auto"

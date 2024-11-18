@@ -202,7 +202,7 @@ jobs:
             ${{ inputs.dbt_adapters_branch }} \
             ${{ inputs.dbt_core_branch }} \
             ${{ inputs.dbt_common_branch }}
-          cat dev-requirements.txt
+          cat hatch.toml
 
       - uses: actions/setup-python@v5
         with:

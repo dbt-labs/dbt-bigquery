@@ -95,12 +95,6 @@ class GrantTarget(dbtClassMixin):
         return f"{self.project}.{self.dataset}"
 
 
-def _stub_relation(*args, **kwargs):
-    return BigQueryRelation.create(
-        database="", schema="", identifier="", quote_policy={}, type=BigQueryRelation.Table
-    )
-
-
 @dataclass
 class BigqueryConfig(AdapterConfig):
     cluster_by: Optional[Union[List[str], str]] = None

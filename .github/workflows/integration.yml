@@ -210,7 +210,7 @@ jobs:
 
       - uses: pypa/hatch@install
 
-      - run: hatch run integration-tests -k "not TestPython" --ddtrace
+      - run: hatch run integration-tests -k "not TestPython"
         env:
           BIGQUERY_TEST_SERVICE_ACCOUNT_JSON: ${{ secrets.BIGQUERY_TEST_SERVICE_ACCOUNT_JSON }}
           BIGQUERY_TEST_ALT_DATABASE: ${{ secrets.BIGQUERY_TEST_ALT_DATABASE }}

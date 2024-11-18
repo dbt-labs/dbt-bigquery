@@ -48,6 +48,7 @@ from dbt.adapters.contracts.relation import RelationConfig
 from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery, SchemaCreation, SchemaDrop
 
+from dbt.adapters.bigquery import BigQueryCredentials
 from dbt.adapters.bigquery.clients import (
     job_controller_client,
     storage_client,
@@ -55,16 +56,19 @@ from dbt.adapters.bigquery.clients import (
 )
 from dbt.adapters.bigquery.column import BigQueryColumn, get_nested_column_data_types
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse, BigQueryConnectionManager
-from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset, is_access_entry_in_dataset
+from dbt.adapters.bigquery.dataset import is_access_entry_in_dataset
 from dbt.adapters.bigquery.relation import BigQueryRelation
 from dbt.adapters.bigquery.relation_configs import (
     BigQueryBaseRelationConfig,
     BigQueryMaterializedViewConfig,
     PartitionConfig,
 )
-from dbt.adapters.bigquery.retry import RetryFactory
-from dbt.adapters.bigquery.services import bigquery, dataproc
-from dbt.adapters.bigquery.services.macro import MacroService
+from dbt.adapters.bigquery.services import (
+    BigQueryService,
+    DataProcService,
+    MacroService,
+    RetryService,
+)
 
 if TYPE_CHECKING:
     # Indirectly imported via agate_helper, which is lazy loaded further downfile.
@@ -143,17 +147,21 @@ class BigQueryAdapter(BaseAdapter):
 
     def __init__(self, config: AdapterRequiredConfig, mp_context: SpawnContext) -> None:
         super().__init__(config, mp_context)
+        credentials: BigQueryCredentials = config.credentials
         self.connections: BigQueryConnectionManager = self.connections
-        self.retry = RetryFactory(config.credentials)
-        self._macros = MacroService(
-            self._macro_resolver,
-            self._macro_context_generator,
-            config,
+        self.bigquery = BigQueryService(self.connections.bigquery_client())
+        self.dataproc = DataProcService(
+            storage_client(credentials),
+            job_controller_client(credentials),
+            batch_controller_client(credentials),
         )
-
-    ###
-    # Implementations of abstract methods
-    ###
+        self.macros = MacroService(self._macro_resolver, self._macro_context_generator, config)
+        self.retry = RetryService(
+            credentials.job_retries,
+            credentials.job_creation_timeout_seconds,
+            credentials.job_execution_timeout_seconds,
+            credentials.job_retry_deadline_seconds,
+        )
 
     @available.parse(_parse_callback_empty_table)
     def execute(
@@ -180,15 +188,14 @@ class BigQueryAdapter(BaseAdapter):
 
         fire_event(SQLQuery(conn_name=connection.name, sql=sql, node_info=get_node_info()))
 
-        query_job, _ = bigquery.execute(
-            connection.handle,
+        response, _ = self.bigquery.execute(
             sql,
             config,
             create_timeout=self.retry.job_creation_timeout(),
             execute_timeout=self.retry.job_execution_timeout(),
             job_id=self.connections.generate_job_id(),
         )
-        return bigquery.query_job_response(connection.handle, query_job)
+        return response
 
     @available.parse(lambda *a, **k: [])
     def get_column_schema_from_query(self, sql: str) -> List[BigQueryColumn]:
@@ -203,8 +210,7 @@ class BigQueryAdapter(BaseAdapter):
 
         fire_event(SQLQuery(conn_name=connection.name, sql=sql, node_info=get_node_info()))
 
-        _, iterator = bigquery.execute(
-            connection.handle,
+        _, iterator = self.bigquery.execute(
             sql,
             config,
             create_timeout=self.retry.job_creation_timeout(),
@@ -212,7 +218,7 @@ class BigQueryAdapter(BaseAdapter):
             job_id=self.connections.generate_job_id(),
         )
 
-        return bigquery.columns(iterator.schema)
+        return self.bigquery.columns(iterator.schema)
 
     def get_partitions_metadata(self, table):
         legacy_sql = (
@@ -266,19 +272,18 @@ class BigQueryAdapter(BaseAdapter):
     def list_schemas(self, database: str) -> List[str]:
         connection = self.connections.get_thread_connection()
         retry = self.retry.reopen_with_deadline(connection)
-        return bigquery.list_schemas(connection.handle, database, retry)
+        schemas = self.bigquery.list_schemas(database, retry)
+        return [schema.schema for schema in schemas]
 
     @available.parse(lambda *a, **k: False)
     def check_schema_exists(self, database: str, schema: str) -> bool:
-        client = self.connections.bigquery_client()
         relation = self.Relation.create(database, schema)
-        return bigquery.schema_exists(client, relation)
+        return self.bigquery.dataset_exists(relation)
 
     def drop_relation(self, relation: BigQueryRelation) -> None:
         if self._schema_is_cached(relation.database, relation.schema):
             self.cache_dropped(relation)
-        client = self.connections.bigquery_client()
-        bigquery.drop_table(client, relation)
+        self.bigquery.drop_table(relation)
 
     def truncate_relation(self, relation: BigQueryRelation) -> None:
         raise dbt_common.exceptions.base.NotImplementedError(
@@ -288,20 +293,18 @@ class BigQueryAdapter(BaseAdapter):
     def rename_relation(
         self, from_relation: BigQueryRelation, to_relation: BigQueryRelation
     ) -> None:
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
 
         if from_relation.type == RelationType.View or to_relation.type == RelationType.View:
             raise DbtRuntimeError("Renaming of views is not currently supported in BigQuery")
 
         self.cache_renamed(from_relation, to_relation)
-        bigquery.copy_table(client, from_relation, to_relation, "table")
-        bigquery.drop_table(client, from_relation)
+        self.bigquery.copy_table(from_relation, to_relation, "table")
+        self.bigquery.drop_table(from_relation)
 
     def get_columns_in_relation(self, relation: BigQueryRelation) -> List[BigQueryColumn]:
         connection = self.connections.get_thread_connection()
         retry = self.retry.reopen_with_deadline(connection)
-        return bigquery.get_columns(connection.handle, relation, retry)
+        return self.bigquery.get_columns(relation, retry)
 
     def expand_column_types(self, goal: BigQueryRelation, current: BigQueryRelation) -> None:
         # This is a no-op on BigQuery
@@ -311,9 +314,8 @@ class BigQueryAdapter(BaseAdapter):
     def list_relations_without_caching(
         self, schema_relation: BigQueryRelation
     ) -> List[Optional[BigQueryRelation]]:
-        client = self.connections.bigquery_client()
         try:
-            return bigquery.list_relations(client, schema_relation)
+            return self.bigquery.list_relations(schema_relation)
         except Forbidden as exc:
             logger.debug(f"list_relations_without_caching error: {str(exc)}")
             return []
@@ -344,8 +346,8 @@ class BigQueryAdapter(BaseAdapter):
         connection = self.connections.get_thread_connection()
         relation = self.Relation.create(database, schema, identifier)
         retry = self.retry.reopen_with_deadline(connection)
-        table = bigquery.get_table(connection.handle, relation, retry)
-        return bigquery.base_relation(table)
+        table = self.bigquery.get_table(relation, retry)
+        return self.bigquery.relation(table)
 
     def create_schema(self, relation: BigQueryRelation) -> None:
         # BigQuery added SQL support for 'create schema' + 'drop schema' in March 2021
@@ -353,7 +355,7 @@ class BigQueryAdapter(BaseAdapter):
         # Most of the value here comes from user overrides of 'create_schema'
         fire_event(SchemaCreation(relation=_make_ref_key_dict(relation.without_identifier())))
         # use SQL 'create schema'
-        self._macros.create_schema(relation)
+        self.macros.create_schema(relation)
         # we can't update the cache here
         # if the schema already existed we don't want to (incorrectly) say that it's empty
 
@@ -363,7 +365,7 @@ class BigQueryAdapter(BaseAdapter):
         retry = self.retry.reopen_with_deadline(connection)
 
         fire_event(SchemaDrop(relation=_make_ref_key_dict(relation)))
-        bigquery.drop_schema(connection.handle, relation, retry)
+        self.bigquery.drop_dataset(relation, retry)
         self.cache.drop_schema(relation.database, relation.schema)
 
     @classmethod
@@ -440,7 +442,7 @@ class BigQueryAdapter(BaseAdapter):
             connection = self.connections.get_thread_connection()
             self.connections.open(connection)
 
-        macro = self._macros.macro(macro_name, project, context_override or {})
+        macro = self.macros.macro(macro_name, project, context_override or {})
 
         with self.connections.exception_handler(f"macro {macro_name}"):
             return macro(**kwargs or {})
@@ -459,8 +461,7 @@ class BigQueryAdapter(BaseAdapter):
         source: BigQueryRelation,
         macro_resolver: Optional[MacroResolverProtocol] = None,
     ) -> Tuple[Optional[AdapterResponse], FreshnessResponse]:
-        client = self.connections.bigquery_client()
-        table = bigquery.get_table(client, source)
+        table = self.bigquery.get_table(source)
         snapshot = datetime.now(tz=pytz.UTC)
         if table:
             return None, FreshnessResponse(
@@ -483,8 +484,7 @@ class BigQueryAdapter(BaseAdapter):
             return f"concat({add_to}, '{value}')"
         elif location == "prepend":
             return f"concat('{value}', {add_to})"
-        else:
-            raise DbtRuntimeError(f'Got an unexpected location value of "{location}"')
+        raise DbtRuntimeError(f'Got an unexpected location value of "{location}"')
 
     def get_rows_different_sql(
         self,
@@ -503,18 +503,14 @@ class BigQueryAdapter(BaseAdapter):
     def submit_python_job(self, parsed_model: dict, compiled_code: str) -> AdapterResponse:
         submission_method = parsed_model["config"].get("submission_method", "serverless")
         credentials = self.config.profile.credentials
-
-        _storage_client = storage_client(credentials)
-        dataproc.upload_model(_storage_client, parsed_model, compiled_code, credentials)
-
         retry = self.retry.polling(timeout=parsed_model["config"].get("timeout"))
 
         if submission_method == "cluster":
-            client = job_controller_client(credentials)
-            dataproc.submit_cluster_job(client, parsed_model, credentials, retry)
+            self.dataproc.upload_model(parsed_model, compiled_code, credentials)
+            self.dataproc.submit_cluster_job(parsed_model, credentials, retry)
         elif submission_method == "serverless":
-            client = batch_controller_client(credentials)
-            dataproc.submit_serverless_batch(client, parsed_model, credentials, retry)
+            self.dataproc.upload_model(parsed_model, compiled_code, credentials)
+            self.dataproc.submit_serverless_batch(parsed_model, credentials, retry)
         else:
             raise NotImplementedError(
                 f"Submission method {submission_method} is not supported for current adapter"
@@ -577,9 +573,8 @@ class BigQueryAdapter(BaseAdapter):
                 f"config.get('copy_materialization', 'table') was {materialization}"
             )
 
-        client = self.connections.bigquery_client()
         timeout = self.retry.job_execution_timeout(300)
-        bigquery.copy_table(client, source, destination, materialization, timeout)
+        self.bigquery.copy_table(source, destination, materialization, timeout)
         return f"COPY TABLE with materialization: {materialization}"
 
     @available.parse(lambda *a, **k: False)
@@ -590,8 +585,7 @@ class BigQueryAdapter(BaseAdapter):
 
         fire_event(SQLQuery(conn_name=connection.name, sql=sql, node_info=get_node_info()))
 
-        return bigquery.columns_from_select(
-            connection.handle,
+        return self.bigquery.get_columns_from_statement(
             sql,
             config,
             create_timeout=self.retry.job_creation_timeout(),
@@ -621,8 +615,7 @@ class BigQueryAdapter(BaseAdapter):
     def is_replaceable(
         self, relation, conf_partition: Optional[PartitionConfig], conf_cluster
     ) -> bool:
-        client = self.connections.bigquery_client()
-        return bigquery.table_is_replaceable(client, relation, conf_partition, conf_cluster)
+        return self.bigquery.table_is_replaceable(relation, conf_partition, conf_cluster)
 
     @available
     def parse_partition_by(self, raw_partition_by: Any) -> Optional[PartitionConfig]:
@@ -633,9 +626,8 @@ class BigQueryAdapter(BaseAdapter):
         """
         return PartitionConfig.parse(raw_partition_by)
 
-    @staticmethod
-    def get_table_ref_from_relation(relation: BaseRelation):
-        return bigquery.table_ref(relation)
+    def get_table_ref_from_relation(self, relation: BaseRelation):
+        return self.bigquery.table_ref(relation)
 
     @available.parse_none
     def update_table_description(
@@ -644,7 +636,7 @@ class BigQueryAdapter(BaseAdapter):
         connection = self.connections.get_thread_connection()
         relation = self.Relation.create(database, schema, identifier)
         retry = self.retry.reopen_with_deadline(connection)
-        bigquery.update_table(connection.handle, relation, retry, {"description": description})
+        self.bigquery.update_table(relation, {"description": description}, retry)
 
     @available.parse_none
     def update_columns(
@@ -654,7 +646,7 @@ class BigQueryAdapter(BaseAdapter):
             return
         connection = self.connections.get_thread_connection()
         retry = self.retry.reopen_with_deadline(connection)
-        bigquery.update_columns(connection.handle, relation, retry, columns)
+        self.bigquery.update_columns(relation, columns, retry)
 
     @available.parse_none
     def alter_table_add_columns(
@@ -664,7 +656,7 @@ class BigQueryAdapter(BaseAdapter):
 
         connection = self.connections.get_thread_connection()
         retry = self.retry.reopen_with_deadline(connection)
-        bigquery.add_columns(connection.handle, relation, retry, columns)
+        self.bigquery.add_columns(relation, columns, retry)
 
     @available.parse_none
     def load_dataframe(
@@ -676,12 +668,10 @@ class BigQueryAdapter(BaseAdapter):
         column_override: Dict[str, str],
         field_delimiter: str,
     ) -> None:
-        client = self.connections.bigquery_client()
         relation = self.Relation.create(database, schema, table_name)
         timeout = self.retry.job_execution_timeout(300)
 
-        bigquery.load_table_from_dataframe(
-            client,
+        self.bigquery.load_table_from_dataframe(
             agate_table.original_abspath,  # type:ignore
             relation,
             agate_table,
@@ -699,12 +689,10 @@ class BigQueryAdapter(BaseAdapter):
         table_name: str,
         **kwargs,
     ) -> None:
-        client = self.connections.bigquery_client()
         relation = self.Relation.create(database, table_schema, table_name)
         timeout = self.retry.job_execution_timeout(300)
 
-        bigquery.load_table_from_file(
-            client,
+        self.bigquery.load_table_from_file(
             local_file_path,
             relation,
             timeout,
@@ -715,23 +703,23 @@ class BigQueryAdapter(BaseAdapter):
     def get_common_options(
         self, config: Dict[str, Any], node: Dict[str, Any], temporary: bool = False
     ) -> Dict[str, Any]:
-        return bigquery.common_options(config, node, temporary)
+        return self.bigquery.common_options(config, node, temporary)
 
     @available.parse(lambda *a, **k: {})
     def get_table_options(
         self, config: Dict[str, Any], node: Dict[str, Any], temporary: bool
     ) -> Dict[str, Any]:
-        return bigquery.table_options(config, node, temporary)
+        return self.bigquery.table_options(config, node, temporary)
 
     @available.parse(lambda *a, **k: {})
     def get_view_options(self, config: Dict[str, Any], node: Dict[str, Any]) -> Dict[str, Any]:
-        return bigquery.view_options(config, node)
+        return self.bigquery.view_options(config, node)
 
     @available.parse(lambda *a, **k: True)
     def get_bq_table(self, relation: BigQueryRelation) -> Optional[BigQueryTable]:
         connection = self.connections.get_thread_connection()
         retry = self.retry.reopen_with_deadline(connection)
-        return bigquery.get_table(connection.handle, relation, retry)
+        return self.bigquery.get_table(relation, retry)
 
     @available.parse(lambda *a, **k: True)
     def describe_relation(
@@ -754,26 +742,29 @@ class BigQueryAdapter(BaseAdapter):
         """
         Given an entity, grants it access to a dataset.
         """
-        client = self.connections.bigquery_client()
         GrantTarget.validate(grant_target_dict)
         grant_target = GrantTarget.from_dict(grant_target_dict)
+        schema = self.Relation.create(grant_target.project, grant_target.dataset)
+        dataset = self.bigquery.get_dataset(schema)
+        if not dataset:
+            return
+
         if entity_type == "view":
-            entity = bigquery.table_ref(entity).to_api_repr()
+            entity = self.bigquery.table_ref(entity).to_api_repr()
+
         with _dataset_lock:
-            schema = self.Relation.create(grant_target.project, grant_target.dataset)
-            dataset = bigquery.get_dataset(client, schema)
             access_entry = AccessEntry(role, entity_type, entity)
+            access_entries: List[AccessEntry] = dataset.access_entries
+            access_entries.append(access_entry)
             # only perform update if access entry not in dataset
             if is_access_entry_in_dataset(dataset, access_entry):
                 logger.warning(f"Access entry {access_entry} " f"already exists in dataset")
             else:
-                dataset = add_access_entry_to_dataset(dataset, access_entry)
-                client.update_dataset(dataset, ["access_entries"])
+                self.bigquery.update_dataset(entity, {"access_entries": access_entries})
 
     @available.parse_none
     def get_dataset_location(self, relation: BigQueryRelation) -> str:
-        client = self.connections.bigquery_client()
-        if dataset := bigquery.get_dataset(client, relation):
+        if dataset := self.bigquery.get_dataset(relation):
             return dataset.location
         return ""
 

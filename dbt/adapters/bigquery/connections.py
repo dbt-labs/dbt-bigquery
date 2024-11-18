@@ -28,9 +28,8 @@ from dbt.adapters.events.types import SQLQuery
 from dbt.adapters.exceptions.connection import FailedToConnectError
 
 from dbt.adapters.bigquery.clients import bigquery_client
-from dbt.adapters.bigquery.credentials import Priority
-from dbt.adapters.bigquery.retry import RetryFactory
-from dbt.adapters.bigquery.services.bigquery._query import query_job_response
+from dbt.adapters.bigquery.credentials import Priority, BigQueryCredentials
+from dbt.adapters.bigquery.services import RetryService
 
 if TYPE_CHECKING:
     # Indirectly imported via agate_helper, which is lazy loaded further downfile.
@@ -59,8 +58,14 @@ class BigQueryConnectionManager(BaseConnectionManager):
 
     def __init__(self, profile: AdapterRequiredConfig, mp_context: SpawnContext) -> None:
         super().__init__(profile, mp_context)
+        credentials: BigQueryCredentials = profile.credentials
         self.jobs_by_thread: Dict[Hashable, List[str]] = defaultdict(list)
-        self._retry = RetryFactory(profile.credentials)
+        self._retry = RetryService(
+            credentials.job_creation_timeout_seconds,
+            credentials.job_execution_timeout_seconds,
+            credentials.job_retry_deadline_seconds,
+            credentials.job_retries,
+        )
 
     def clear_transaction(self) -> None:
         """BigQuery does not support transactions"""
@@ -159,12 +164,10 @@ class BigQueryConnectionManager(BaseConnectionManager):
         fetch: Optional[bool] = False,
         limit: Optional[int] = None,
     ) -> Tuple[BigQueryAdapterResponse, "agate.Table"]:
-        client = self.bigquery_client()
-
         sql = self._add_query_comment(sql)
         query_job, iterator = self.raw_execute(sql, limit=limit)
 
-        response = query_job_response(client, query_job)
+        response = _query_job_url(query_job)
 
         from dbt_common.clients import agate_helper
 

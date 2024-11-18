@@ -3,7 +3,7 @@ from typing import Callable, Optional
 from google.api_core.exceptions import Forbidden
 from google.api_core.future.polling import DEFAULT_POLLING
 from google.api_core.retry import Retry
-from google.cloud.bigquery.retry import DEFAULT_RETRY
+from google.cloud.bigquery.retry import DEFAULT_RETRY, DEFAULT_TIMEOUT
 from google.cloud.exceptions import BadGateway, BadRequest, ServerError
 from requests.exceptions import ConnectionError
 
@@ -12,7 +12,6 @@ from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.exceptions.connection import FailedToConnectError
 
 from dbt.adapters.bigquery.clients import bigquery_client
-from dbt.adapters.bigquery.credentials import BigQueryCredentials
 
 
 _logger = AdapterLogger("BigQuery")
@@ -42,13 +41,19 @@ _RETRYABLE_ERRORS = (
 )
 
 
-class RetryFactory:
+class RetryService:
 
-    def __init__(self, credentials: BigQueryCredentials) -> None:
-        self._retries = credentials.job_retries or 0
-        self._job_creation_timeout = credentials.job_creation_timeout_seconds
-        self._job_execution_timeout = credentials.job_execution_timeout_seconds
-        self._job_deadline = credentials.job_retry_deadline_seconds
+    def __init__(
+        self,
+        creation_timeout: int = DEFAULT_TIMEOUT,
+        execution_timeout: int = DEFAULT_TIMEOUT,
+        deadline: int = DEFAULT_TIMEOUT,
+        retries: int = 1,
+    ) -> None:
+        self._retries = retries
+        self._job_creation_timeout = creation_timeout
+        self._job_execution_timeout = execution_timeout
+        self._job_deadline = deadline
 
     def job_creation_timeout(self, fallback: Optional[float] = None) -> Optional[float]:
         return (
@@ -91,7 +96,7 @@ class _BufferedPredicate:
     Raise the next error, regardless of whether it is retryable.
     """
 
-    def __init__(self, retries: int) -> None:
+    def __init__(self, retries: int = 0) -> None:
         self._retries: int = retries
         self._error_count = 0
 
@@ -129,8 +134,6 @@ def _reopen_on_error(connection: Connection) -> Callable[[Exception], None]:
                 _logger.debug(
                     f"""Got an error when attempting to create a bigquery " "client: '{e}'"""
                 )
-                connection.handle = None
-                connection.state = ConnectionState.FAIL
                 raise FailedToConnectError(str(e))
 
     return on_error

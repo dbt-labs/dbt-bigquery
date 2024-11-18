@@ -1,5 +1,7 @@
-from dbt.adapters.events.logging import AdapterLogger
 from google.cloud.bigquery import QueryJob
+
+from dbt.adapters.events.logging import AdapterLogger
+
 
 logger = AdapterLogger("BigQuery")
 

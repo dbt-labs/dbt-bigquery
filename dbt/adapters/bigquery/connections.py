@@ -444,7 +444,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             )
             copy_job.result(timeout=self._retry.job_execution_timeout(300))
 
-    def load_dataframe(
+    def write_dataframe_to_table(
         self,
         client: Client,
         file_path: str,
@@ -461,9 +461,9 @@ class BigQueryConnectionManager(BaseConnectionManager):
             field_delimiter=field_delimiter,
         )
         table = self.table_ref(database, schema, identifier)
-        self._load_table_from_file(client, file_path, table, load_config, fallback_timeout)
+        self._write_file_to_table(client, file_path, table, load_config, fallback_timeout)
 
-    def upload_file(
+    def write_file_to_table(
         self,
         client: Client,
         file_path: str,
@@ -478,9 +478,9 @@ class BigQueryConnectionManager(BaseConnectionManager):
             config["schema"] = json.load(config["schema"])
         load_config = LoadJobConfig(**config)
         table = self.table_ref(database, schema, identifier)
-        self._load_table_from_file(client, file_path, table, load_config, fallback_timeout)
+        self._write_file_to_table(client, file_path, table, load_config, fallback_timeout)
 
-    def _load_table_from_file(
+    def _write_file_to_table(
         self,
         client: Client,
         file_path: str,

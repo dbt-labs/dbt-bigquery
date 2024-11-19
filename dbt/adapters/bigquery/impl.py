@@ -663,7 +663,7 @@ class BigQueryAdapter(BaseAdapter):
         table_schema = self._agate_to_schema(agate_table, column_override)
         file_path = agate_table.original_abspath  # type: ignore
 
-        self.connections.load_dataframe(
+        self.connections.write_dataframe_to_table(
             client,
             file_path,
             database,
@@ -686,7 +686,7 @@ class BigQueryAdapter(BaseAdapter):
         connection = self.connections.get_thread_connection()
         client: Client = connection.handle
 
-        self.connections.upload_file(
+        self.connections.write_file_to_table(
             client,
             local_file_path,
             database,

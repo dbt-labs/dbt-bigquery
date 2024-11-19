@@ -148,7 +148,7 @@ class BigQueryCredentials(Credentials):
 
         # `database` is an alias of `project` in BigQuery
         if "database" not in d:
-            _, database = _bigquery_defaults()
+            _, database = _create_bigquery_defaults()
             d["database"] = database
         # `execution_project` default to dataset/project
         if "execution_project" not in d:
@@ -156,7 +156,7 @@ class BigQueryCredentials(Credentials):
         return d
 
 
-def setup_default_credentials() -> None:
+def set_default_credentials() -> None:
     try:
         run_cmd(".", ["gcloud", "--version"])
     except OSError as e:
@@ -172,29 +172,29 @@ def setup_default_credentials() -> None:
     run_cmd(".", ["gcloud", "auth", "application-default", "login"])
 
 
-def google_credentials(credentials: BigQueryCredentials) -> GoogleCredentials:
+def create_google_credentials(credentials: BigQueryCredentials) -> GoogleCredentials:
     if credentials.impersonate_service_account:
-        return _impersonated_credentials(credentials)
-    return _google_credentials(credentials)
+        return _create_impersonated_credentials(credentials)
+    return _create_google_credentials(credentials)
 
 
-def _impersonated_credentials(credentials: BigQueryCredentials) -> ImpersonatedCredentials:
+def _create_impersonated_credentials(credentials: BigQueryCredentials) -> ImpersonatedCredentials:
     if credentials.scopes and isinstance(credentials.scopes, Iterable):
         target_scopes = list(credentials.scopes)
     else:
         target_scopes = []
 
     return ImpersonatedCredentials(
-        source_credentials=_google_credentials(credentials),
+        source_credentials=_create_google_credentials(credentials),
         target_principal=credentials.impersonate_service_account,
         target_scopes=target_scopes,
     )
 
 
-def _google_credentials(credentials: BigQueryCredentials) -> GoogleCredentials:
+def _create_google_credentials(credentials: BigQueryCredentials) -> GoogleCredentials:
 
     if credentials.method == _BigQueryConnectionMethod.OAUTH:
-        creds, _ = _bigquery_defaults(scopes=credentials.scopes)
+        creds, _ = _create_bigquery_defaults(scopes=credentials.scopes)
 
     elif credentials.method == _BigQueryConnectionMethod.SERVICE_ACCOUNT:
         creds = ServiceAccountCredentials.from_service_account_file(
@@ -226,7 +226,7 @@ def _google_credentials(credentials: BigQueryCredentials) -> GoogleCredentials:
 
 
 @lru_cache()
-def _bigquery_defaults(scopes=None) -> Tuple[Any, Optional[str]]:
+def _create_bigquery_defaults(scopes=None) -> Tuple[Any, Optional[str]]:
     """
     Returns (credentials, project_id)
 

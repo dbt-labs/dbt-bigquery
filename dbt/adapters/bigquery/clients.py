@@ -11,8 +11,8 @@ from dbt.adapters.events.logging import AdapterLogger
 import dbt.adapters.bigquery.__version__ as dbt_version
 from dbt.adapters.bigquery.credentials import (
     BigQueryCredentials,
-    google_credentials,
-    setup_default_credentials,
+    create_google_credentials,
+    set_default_credentials,
 )
 
 
@@ -24,7 +24,7 @@ def create_bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
         return _create_bigquery_client(credentials)
     except DefaultCredentialsError:
         _logger.info("Please log into GCP to continue")
-        setup_default_credentials()
+        set_default_credentials()
         return _create_bigquery_client(credentials)
 
 
@@ -32,14 +32,14 @@ def create_bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
 def create_gcs_client(credentials: BigQueryCredentials) -> StorageClient:
     return StorageClient(
         project=credentials.execution_project,
-        credentials=google_credentials(credentials),
+        credentials=create_google_credentials(credentials),
     )
 
 
 @Retry()  # google decorator. retries on transient errors with exponential backoff
 def create_dataproc_job_controller_client(credentials: BigQueryCredentials) -> JobControllerClient:
     return JobControllerClient(
-        credentials=google_credentials(credentials),
+        credentials=create_google_credentials(credentials),
         client_options=ClientOptions(api_endpoint=_dataproc_endpoint(credentials)),
     )
 
@@ -47,7 +47,7 @@ def create_dataproc_job_controller_client(credentials: BigQueryCredentials) -> J
 @Retry()  # google decorator. retries on transient errors with exponential backoff
 def create_dataproc_batch_controller_client(credentials: BigQueryCredentials) -> BatchControllerClient:
     return BatchControllerClient(
-        credentials=google_credentials(credentials),
+        credentials=create_google_credentials(credentials),
         client_options=ClientOptions(api_endpoint=_dataproc_endpoint(credentials)),
     )
 
@@ -56,7 +56,7 @@ def create_dataproc_batch_controller_client(credentials: BigQueryCredentials) ->
 def _create_bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
     return BigQueryClient(
         credentials.execution_project,
-        google_credentials(credentials),
+        create_google_credentials(credentials),
         location=getattr(credentials, "location", None),
         client_info=ClientInfo(user_agent=f"dbt-bigquery-{dbt_version.version}"),
         client_options=ClientOptions(quota_project_id=credentials.quota_project),

@@ -50,29 +50,29 @@ class RetryFactory:
         self._job_execution_timeout = credentials.job_execution_timeout_seconds
         self._job_deadline = credentials.job_retry_deadline_seconds
 
-    def job_creation_timeout(self, fallback: Optional[float] = None) -> Optional[float]:
+    def create_job_creation_timeout(self, fallback: Optional[float] = None) -> Optional[float]:
         return (
             self._job_creation_timeout or fallback or _MINUTE
         )  # keep _MINUTE here so it's not overridden by passing fallback=None
 
-    def job_execution_timeout(self, fallback: Optional[float] = None) -> Optional[float]:
+    def create_job_execution_timeout(self, fallback: Optional[float] = None) -> Optional[float]:
         return (
             self._job_execution_timeout or fallback or _DAY
         )  # keep _DAY here so it's not overridden by passing fallback=None
 
-    def retry(
+    def create_retry(
         self, timeout: Optional[float] = None, fallback_timeout: Optional[float] = None
     ) -> Retry:
-        return DEFAULT_RETRY.with_timeout(timeout or self.job_execution_timeout(fallback_timeout))
+        return DEFAULT_RETRY.with_timeout(timeout or self.create_job_execution_timeout(fallback_timeout))
 
-    def polling(
+    def create_polling(
         self, timeout: Optional[float] = None, fallback_timeout: Optional[float] = None
     ) -> Retry:
         return DEFAULT_POLLING.with_timeout(
-            timeout or self.job_execution_timeout(fallback_timeout)
+            timeout or self.create_job_execution_timeout(fallback_timeout)
         )
 
-    def reopen_with_deadline(self, connection: Connection) -> Retry:
+    def create_reopen_with_deadline(self, connection: Connection) -> Retry:
         """
         This strategy mimics what was accomplished with _retry_and_handle
         """
@@ -81,7 +81,7 @@ class RetryFactory:
             initial=_DEFAULT_INITIAL_DELAY,
             maximum=_DEFAULT_MAXIMUM_DELAY,
             deadline=self._job_deadline,
-            on_error=_reopen_on_error(connection),
+            on_error=_create_reopen_on_error(connection),
         )
 
 
@@ -114,7 +114,7 @@ class _BufferedPredicate:
         return False
 
 
-def _reopen_on_error(connection: Connection) -> Callable[[Exception], None]:
+def _create_reopen_on_error(connection: Connection) -> Callable[[Exception], None]:
 
     def on_error(error: Exception):
         if isinstance(error, _REOPENABLE_ERRORS):

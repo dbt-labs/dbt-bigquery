@@ -142,7 +142,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                         with self.exception_handler(f"Cancel job: {job_id}"):
                             client.cancel_job(
                                 job_id,
-                                retry=self._retry.reopen_with_deadline(connection),
+                                retry=self._retry.create_reopen_with_deadline(connection),
                             )
                     self.close(connection)
 
@@ -442,7 +442,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 destination_ref,
                 job_config=CopyJobConfig(write_disposition=write_disposition),
             )
-            copy_job.result(timeout=self._retry.job_execution_timeout(300))
+            copy_job.result(timeout=self._retry.create_job_execution_timeout(300))
 
     def write_dataframe_to_table(
         self,
@@ -493,7 +493,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             with open(file_path, "rb") as f:
                 job = client.load_table_from_file(f, table, rewind=True, job_config=config)
 
-        response = job.result(retry=self._retry.retry(fallback_timeout=fallback_timeout))
+        response = job.result(retry=self._retry.create_retry(fallback_timeout=fallback_timeout))
 
         if response.state != "DONE":
             raise DbtRuntimeError("BigQuery Timeout Exceeded")
@@ -520,7 +520,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         schema = schema or conn.credentials.schema
         return client.get_table(
             table=self.table_ref(database, schema, identifier),
-            retry=self._retry.reopen_with_deadline(conn),
+            retry=self._retry.create_reopen_with_deadline(conn),
         )
 
     def drop_dataset(self, database, schema) -> None:
@@ -531,7 +531,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 dataset=self.dataset_ref(database, schema),
                 delete_contents=True,
                 not_found_ok=True,
-                retry=self._retry.reopen_with_deadline(conn),
+                retry=self._retry.create_reopen_with_deadline(conn),
             )
 
     def create_dataset(self, database, schema) -> Dataset:
@@ -541,7 +541,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             return client.create_dataset(
                 dataset=self.dataset_ref(database, schema),
                 exists_ok=True,
-                retry=self._retry.reopen_with_deadline(conn),
+                retry=self._retry.create_reopen_with_deadline(conn),
             )
 
     def list_dataset(self, database: str):
@@ -554,7 +554,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             all_datasets = client.list_datasets(
                 project=database.strip("`"),
                 max_results=10000,
-                retry=self._retry.reopen_with_deadline(conn),
+                retry=self._retry.create_reopen_with_deadline(conn),
             )
             return [ds.dataset_id for ds in all_datasets]
 
@@ -573,7 +573,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             query=sql,
             job_config=QueryJobConfig(**job_params),
             job_id=job_id,  # note, this disables retry since the job_id will have been used
-            timeout=self._retry.job_creation_timeout(),
+            timeout=self._retry.create_job_creation_timeout(),
         )
         if (
             query_job.location is not None
@@ -585,11 +585,11 @@ class BigQueryConnectionManager(BaseConnectionManager):
             )
         try:
             iterator = query_job.result(
-                max_results=limit, timeout=self._retry.job_execution_timeout()
+                max_results=limit, timeout=self._retry.create_job_execution_timeout()
             )
             return query_job, iterator
         except TimeoutError:
-            exc = f"Operation did not complete within the designated timeout of {self._retry.job_execution_timeout()} seconds."
+            exc = f"Operation did not complete within the designated timeout of {self._retry.create_job_execution_timeout()} seconds."
             raise TimeoutError(exc)
 
     def _labels_from_query_comment(self, comment: str) -> Dict:

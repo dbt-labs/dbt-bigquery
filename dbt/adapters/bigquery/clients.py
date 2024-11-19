@@ -45,7 +45,9 @@ def create_dataproc_job_controller_client(credentials: BigQueryCredentials) -> J
 
 
 @Retry()  # google decorator. retries on transient errors with exponential backoff
-def create_dataproc_batch_controller_client(credentials: BigQueryCredentials) -> BatchControllerClient:
+def create_dataproc_batch_controller_client(
+    credentials: BigQueryCredentials,
+) -> BatchControllerClient:
     return BatchControllerClient(
         credentials=create_google_credentials(credentials),
         client_options=ClientOptions(api_endpoint=_dataproc_endpoint(credentials)),

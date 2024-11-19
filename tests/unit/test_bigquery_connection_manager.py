@@ -33,7 +33,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         self.connections.get_thread_connection = lambda: self.mock_connection
 
     @patch(
-        "dbt.adapters.bigquery.retry.bigquery_client",
+        "dbt.adapters.bigquery.retry.create_bigquery_client",
         return_value=Mock(google.cloud.bigquery.Client),
     )
     def test_retry_connection_reset(self, mock_client_factory):

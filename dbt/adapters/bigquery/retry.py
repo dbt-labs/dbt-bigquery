@@ -63,7 +63,9 @@ class RetryFactory:
     def create_retry(
         self, timeout: Optional[float] = None, fallback_timeout: Optional[float] = None
     ) -> Retry:
-        return DEFAULT_RETRY.with_timeout(timeout or self.create_job_execution_timeout(fallback_timeout))
+        return DEFAULT_RETRY.with_timeout(
+            timeout or self.create_job_execution_timeout(fallback_timeout)
+        )
 
     def create_polling(
         self, timeout: Optional[float] = None, fallback_timeout: Optional[float] = None

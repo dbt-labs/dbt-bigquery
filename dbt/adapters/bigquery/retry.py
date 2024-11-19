@@ -11,7 +11,7 @@ from dbt.adapters.contracts.connection import Connection, ConnectionState
 from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.exceptions.connection import FailedToConnectError
 
-from dbt.adapters.bigquery.clients import bigquery_client
+from dbt.adapters.bigquery.clients import create_bigquery_client
 from dbt.adapters.bigquery.credentials import BigQueryCredentials
 
 
@@ -122,7 +122,7 @@ def _reopen_on_error(connection: Connection) -> Callable[[Exception], None]:
             connection.handle.close()
 
             try:
-                connection.handle = bigquery_client(connection.credentials)
+                connection.handle = create_bigquery_client(connection.credentials)
                 connection.state = ConnectionState.OPEN
 
             except Exception as e:

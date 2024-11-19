@@ -37,7 +37,7 @@ from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.events.types import SQLQuery
 from dbt.adapters.exceptions.connection import FailedToConnectError
 
-from dbt.adapters.bigquery.clients import bigquery_client
+from dbt.adapters.bigquery.clients import create_bigquery_client
 from dbt.adapters.bigquery.credentials import Priority
 from dbt.adapters.bigquery.retry import RetryFactory
 
@@ -192,7 +192,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             return connection
 
         try:
-            connection.handle = bigquery_client(connection.credentials)
+            connection.handle = create_bigquery_client(connection.credentials)
             connection.state = ConnectionState.OPEN
             return connection
 

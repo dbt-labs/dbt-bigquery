@@ -9,9 +9,9 @@ from google.protobuf.json_format import ParseDict
 
 from dbt.adapters.bigquery.credentials import BigQueryCredentials, DataprocBatchConfig
 from dbt.adapters.bigquery.clients import (
-    batch_controller_client,
-    job_controller_client,
-    storage_client,
+    create_dataproc_batch_controller_client,
+    create_dataproc_job_controller_client,
+    create_gcstorage_client,
 )
 from dbt.adapters.bigquery.retry import RetryFactory
 
@@ -31,7 +31,7 @@ class _BaseDataProcHelper(PythonJobHelper):
                     f"Need to supply {required_config} in profile to submit python job"
                 )
 
-        self._storage_client = storage_client(credentials)
+        self._storage_client = create_gcstorage_client(credentials)
         self._project = credentials.execution_project
         self._region = credentials.dataproc_region
 
@@ -54,7 +54,7 @@ class _BaseDataProcHelper(PythonJobHelper):
 class ClusterDataprocHelper(_BaseDataProcHelper):
     def __init__(self, parsed_model: Dict, credentials: BigQueryCredentials) -> None:
         super().__init__(parsed_model, credentials)
-        self._job_controller_client = job_controller_client(credentials)
+        self._job_controller_client = create_dataproc_job_controller_client(credentials)
         self._cluster_name = parsed_model["config"].get(
             "dataproc_cluster_name", credentials.dataproc_cluster_name
         )
@@ -95,7 +95,7 @@ class ClusterDataprocHelper(_BaseDataProcHelper):
 class ServerlessDataProcHelper(_BaseDataProcHelper):
     def __init__(self, parsed_model: Dict, credentials: BigQueryCredentials) -> None:
         super().__init__(parsed_model, credentials)
-        self._batch_controller_client = batch_controller_client(credentials)
+        self._batch_controller_client = create_dataproc_batch_controller_client(credentials)
         self._batch_id = parsed_model["config"].get("batch_id", str(uuid.uuid4()))
         self._jar_file_uri = parsed_model["config"].get("jar_file_uri", _DEFAULT_JAR_FILE_URI)
         self._dataproc_batch = credentials.dataproc_batch

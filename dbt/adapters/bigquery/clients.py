@@ -19,17 +19,17 @@ from dbt.adapters.bigquery.credentials import (
 _logger = AdapterLogger("BigQuery")
 
 
-def bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
+def create_bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
     try:
-        return _bigquery_client(credentials)
+        return _create_bigquery_client(credentials)
     except DefaultCredentialsError:
         _logger.info("Please log into GCP to continue")
         setup_default_credentials()
-        return _bigquery_client(credentials)
+        return _create_bigquery_client(credentials)
 
 
 @Retry()  # google decorator. retries on transient errors with exponential backoff
-def storage_client(credentials: BigQueryCredentials) -> StorageClient:
+def create_gcs_client(credentials: BigQueryCredentials) -> StorageClient:
     return StorageClient(
         project=credentials.execution_project,
         credentials=google_credentials(credentials),
@@ -37,7 +37,7 @@ def storage_client(credentials: BigQueryCredentials) -> StorageClient:
 
 
 @Retry()  # google decorator. retries on transient errors with exponential backoff
-def job_controller_client(credentials: BigQueryCredentials) -> JobControllerClient:
+def create_dataproc_job_controller_client(credentials: BigQueryCredentials) -> JobControllerClient:
     return JobControllerClient(
         credentials=google_credentials(credentials),
         client_options=ClientOptions(api_endpoint=_dataproc_endpoint(credentials)),
@@ -45,7 +45,7 @@ def job_controller_client(credentials: BigQueryCredentials) -> JobControllerClie
 
 
 @Retry()  # google decorator. retries on transient errors with exponential backoff
-def batch_controller_client(credentials: BigQueryCredentials) -> BatchControllerClient:
+def create_dataproc_batch_controller_client(credentials: BigQueryCredentials) -> BatchControllerClient:
     return BatchControllerClient(
         credentials=google_credentials(credentials),
         client_options=ClientOptions(api_endpoint=_dataproc_endpoint(credentials)),
@@ -53,7 +53,7 @@ def batch_controller_client(credentials: BigQueryCredentials) -> BatchController
 
 
 @Retry()  # google decorator. retries on transient errors with exponential backoff
-def _bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
+def _create_bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
     return BigQueryClient(
         credentials.execution_project,
         google_credentials(credentials),

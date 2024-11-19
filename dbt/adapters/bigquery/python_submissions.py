@@ -11,7 +11,7 @@ from dbt.adapters.bigquery.credentials import BigQueryCredentials, DataprocBatch
 from dbt.adapters.bigquery.clients import (
     create_dataproc_batch_controller_client,
     create_dataproc_job_controller_client,
-    create_gcstorage_client,
+    create_gcs_client,
 )
 from dbt.adapters.bigquery.retry import RetryFactory
 
@@ -31,7 +31,7 @@ class _BaseDataProcHelper(PythonJobHelper):
                     f"Need to supply {required_config} in profile to submit python job"
                 )
 
-        self._storage_client = create_gcstorage_client(credentials)
+        self._storage_client = create_gcs_client(credentials)
         self._project = credentials.execution_project
         self._region = credentials.dataproc_region
 
@@ -45,7 +45,7 @@ class _BaseDataProcHelper(PythonJobHelper):
         retry = RetryFactory(credentials)
         self._polling_retry = retry.polling(timeout=parsed_model["config"].get("timeout"))
 
-    def _upload_to_gcs(self, compiled_code: str) -> None:
+    def _write_to_gcs(self, compiled_code: str) -> None:
         bucket = self._storage_client.get_bucket(self._gcs_bucket)
         blob = bucket.blob(self._model_file_name)
         blob.upload_from_string(compiled_code)
@@ -65,9 +65,9 @@ class ClusterDataprocHelper(_BaseDataProcHelper):
             )
 
     def submit(self, compiled_code: str) -> Job:
-        _logger.info(f"Submitting cluster job to: {self._cluster_name}")
+        _logger.debug(f"Submitting cluster job to: {self._cluster_name}")
 
-        self._upload_to_gcs(compiled_code)
+        self._write_to_gcs(compiled_code)
 
         request = {
             "project_id": self._project,
@@ -101,13 +101,13 @@ class ServerlessDataProcHelper(_BaseDataProcHelper):
         self._dataproc_batch = credentials.dataproc_batch
 
     def submit(self, compiled_code: str) -> Batch:
-        _logger.info(f"Submitting batch job with id: {self._batch_id}")
+        _logger.debug(f"Submitting batch job with id: {self._batch_id}")
 
-        self._upload_to_gcs(compiled_code)
+        self._write_to_gcs(compiled_code)
 
         request = CreateBatchRequest(
             parent=f"projects/{self._project}/locations/{self._region}",
-            batch=self._batch(),
+            batch=self._create_batch(),
             batch_id=self._batch_id,
         )
 
@@ -119,7 +119,7 @@ class ServerlessDataProcHelper(_BaseDataProcHelper):
 
         return response
 
-    def _batch(self) -> Batch:
+    def _create_batch(self) -> Batch:
         # create the Dataproc Serverless job config
         # need to pin dataproc version to 1.1 as it now defaults to 2.0
         # https://cloud.google.com/dataproc-serverless/docs/concepts/properties

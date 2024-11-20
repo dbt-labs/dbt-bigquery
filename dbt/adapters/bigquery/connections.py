@@ -441,6 +441,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 source_ref_array,
                 destination_ref,
                 job_config=CopyJobConfig(write_disposition=write_disposition),
+                retry=self._retry.create_reopen_with_deadline(conn),
             )
             copy_job.result(timeout=self._retry.create_job_execution_timeout(fallback=300))
 

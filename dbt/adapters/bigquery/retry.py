@@ -56,7 +56,7 @@ class RetryFactory:
         This strategy mimics what was accomplished with _retry_and_handle
         """
         return Retry(
-            predicate=_BufferedPredicate(self._retries),
+            predicate=_DeferredException(self._retries),
             initial=_DEFAULT_INITIAL_DELAY,
             maximum=_DEFAULT_MAXIMUM_DELAY,
             deadline=self._job_deadline,
@@ -64,7 +64,7 @@ class RetryFactory:
         )
 
 
-class _BufferedPredicate:
+class _DeferredException:
     """
     Count ALL errors, not just retryable errors, up to a threshold.
     Raise the next error, regardless of whether it is retryable.

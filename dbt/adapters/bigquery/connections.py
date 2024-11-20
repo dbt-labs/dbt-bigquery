@@ -442,7 +442,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
                 destination_ref,
                 job_config=CopyJobConfig(write_disposition=write_disposition),
             )
-            copy_job.result(timeout=self._retry.create_job_execution_timeout(300))
+            copy_job.result(timeout=self._retry.create_job_execution_timeout(fallback=300))
 
     def write_dataframe_to_table(
         self,
@@ -493,7 +493,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             with open(file_path, "rb") as f:
                 job = client.load_table_from_file(f, table, rewind=True, job_config=config)
 
-        response = job.result(retry=self._retry.create_retry(fallback_timeout=fallback_timeout))
+        response = job.result(retry=self._retry.create_retry(fallback=fallback_timeout))
 
         if response.state != "DONE":
             raise DbtRuntimeError("BigQuery Timeout Exceeded")
@@ -583,14 +583,14 @@ class BigQueryConnectionManager(BaseConnectionManager):
             logger.debug(
                 self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
             )
+
+        timeout = self._retry.create_job_execution_timeout()
         try:
-            iterator = query_job.result(
-                max_results=limit, timeout=self._retry.create_job_execution_timeout()
-            )
-            return query_job, iterator
+            iterator = query_job.result(max_results=limit, timeout=timeout)
         except TimeoutError:
-            exc = f"Operation did not complete within the designated timeout of {self._retry.create_job_execution_timeout()} seconds."
+            exc = f"Operation did not complete within the designated timeout of {timeout} seconds."
             raise TimeoutError(exc)
+        return query_job, iterator
 
     def _labels_from_query_comment(self, comment: str) -> Dict:
         try:

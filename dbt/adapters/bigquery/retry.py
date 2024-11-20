@@ -27,21 +27,6 @@ _DEFAULT_MAXIMUM_DELAY = 3 * _SECOND
 _DEFAULT_POLLING_MAXIMUM_DELAY = 10 * _SECOND
 
 
-_REOPENABLE_ERRORS = (
-    ConnectionResetError,
-    ConnectionError,
-)
-
-
-_RETRYABLE_ERRORS = (
-    ServerError,
-    BadRequest,
-    BadGateway,
-    ConnectionResetError,
-    ConnectionError,
-)
-
-
 class RetryFactory:
 
     def __init__(self, credentials: BigQueryCredentials) -> None:
@@ -50,29 +35,25 @@ class RetryFactory:
         self._job_execution_timeout = credentials.job_execution_timeout_seconds
         self._job_deadline = credentials.job_retry_deadline_seconds
 
-    def create_job_creation_timeout(self, fallback: Optional[float] = None) -> Optional[float]:
+    def create_job_creation_timeout(self, fallback: float = _MINUTE) -> float:
         return (
-            self._job_creation_timeout or fallback or _MINUTE
+            self._job_creation_timeout or fallback
         )  # keep _MINUTE here so it's not overridden by passing fallback=None
 
-    def create_job_execution_timeout(self, fallback: Optional[float] = None) -> Optional[float]:
+    def create_job_execution_timeout(self, fallback: float = _DAY) -> float:
         return (
-            self._job_execution_timeout or fallback or _DAY
+            self._job_execution_timeout or fallback
         )  # keep _DAY here so it's not overridden by passing fallback=None
 
     def create_retry(
-        self, timeout: Optional[float] = None, fallback_timeout: Optional[float] = None
+        self, timeout: Optional[float] = None, fallback: Optional[float] = None
     ) -> Retry:
         return DEFAULT_RETRY.with_timeout(
-            timeout or self.create_job_execution_timeout(fallback_timeout)
+            timeout or self._job_execution_timeout or fallback or _DAY
         )
 
-    def create_polling(
-        self, timeout: Optional[float] = None, fallback_timeout: Optional[float] = None
-    ) -> Retry:
-        return DEFAULT_POLLING.with_timeout(
-            timeout or self.create_job_execution_timeout(fallback_timeout)
-        )
+    def create_polling(self, timeout: Optional[float] = None, fallback: float = _DAY) -> Retry:
+        return DEFAULT_POLLING.with_timeout(timeout or self._job_execution_timeout or fallback)
 
     def create_reopen_with_deadline(self, connection: Connection) -> Retry:
         """
@@ -119,7 +100,7 @@ class _BufferedPredicate:
 def _create_reopen_on_error(connection: Connection) -> Callable[[Exception], None]:
 
     def on_error(error: Exception):
-        if isinstance(error, _REOPENABLE_ERRORS):
+        if isinstance(error, (ConnectionResetError, ConnectionError)):
             _logger.warning("Reopening connection after {!r}".format(error))
             connection.handle.close()
 
@@ -140,7 +121,9 @@ def _create_reopen_on_error(connection: Connection) -> Callable[[Exception], Non
 
 def _is_retryable(error: Exception) -> bool:
     """Return true for errors that are unlikely to occur again if retried."""
-    if isinstance(error, _RETRYABLE_ERRORS):
+    if isinstance(
+        error, (BadGateway, BadRequest, ConnectionError, ConnectionResetError, ServerError)
+    ):
         return True
     elif isinstance(error, Forbidden) and any(
         e["reason"] == "rateLimitExceeded" for e in error.errors

@@ -671,7 +671,6 @@ class BigQueryAdapter(BaseAdapter):
             table_name,
             table_schema,
             field_delimiter,
-            fallback_timeout=300,
         )
 
     @available.parse_none
@@ -692,7 +691,6 @@ class BigQueryAdapter(BaseAdapter):
             database,
             table_schema,
             table_name,
-            fallback_timeout=300,
             **kwargs,
         )
 

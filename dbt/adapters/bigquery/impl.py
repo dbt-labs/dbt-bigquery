@@ -1,9 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
-import json
 from multiprocessing.context import SpawnContext
 import threading
-import time
 from typing import (
     Any,
     Dict,
@@ -22,7 +20,7 @@ import google.api_core
 import google.auth
 import google.oauth2
 import google.cloud.bigquery
-from google.cloud.bigquery import AccessEntry, SchemaField, Table as BigQueryTable
+from google.cloud.bigquery import AccessEntry, Client, SchemaField, Table as BigQueryTable
 import google.cloud.exceptions
 import pytz
 
@@ -454,22 +452,6 @@ class BigQueryAdapter(BaseAdapter):
             logger.debug("get_columns_in_select_sql error: {}".format(e))
             return []
 
-    @classmethod
-    def poll_until_job_completes(cls, job, timeout):
-        retry_count = timeout
-
-        while retry_count > 0 and job.state != "DONE":
-            retry_count -= 1
-            time.sleep(1)
-            job.reload()
-
-        if job.state != "DONE":
-            raise dbt_common.exceptions.DbtRuntimeError("BigQuery Timeout Exceeded")
-
-        elif job.error_result:
-            message = "\n".join(error["message"].strip() for error in job.errors)
-            raise dbt_common.exceptions.DbtRuntimeError(message)
-
     def _bq_table_to_relation(self, bq_table) -> Union[BigQueryRelation, None]:
         if bq_table is None:
             return None
@@ -669,55 +651,50 @@ class BigQueryAdapter(BaseAdapter):
     @available.parse_none
     def load_dataframe(
         self,
-        database,
-        schema,
-        table_name,
+        database: str,
+        schema: str,
+        table_name: str,
         agate_table: "agate.Table",
-        column_override,
-        field_delimiter,
-    ):
-        bq_schema = self._agate_to_schema(agate_table, column_override)
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
+        column_override: Dict[str, str],
+        field_delimiter: str,
+    ) -> None:
+        connection = self.connections.get_thread_connection()
+        client: Client = connection.handle
+        table_schema = self._agate_to_schema(agate_table, column_override)
+        file_path = agate_table.original_abspath  # type: ignore
 
-        table_ref = self.connections.table_ref(database, schema, table_name)
-
-        load_config = google.cloud.bigquery.LoadJobConfig()
-        load_config.skip_leading_rows = 1
-        load_config.schema = bq_schema
-        load_config.field_delimiter = field_delimiter
-        job_id = self.connections.generate_job_id()
-        with open(agate_table.original_abspath, "rb") as f:  # type: ignore
-            job = client.load_table_from_file(
-                f, table_ref, rewind=True, job_config=load_config, job_id=job_id
-            )
-
-        timeout = self.connections.get_job_execution_timeout_seconds(conn) or 300
-        with self.connections.exception_handler("LOAD TABLE"):
-            self.poll_until_job_completes(job, timeout)
+        self.connections.write_dataframe_to_table(
+            client,
+            file_path,
+            database,
+            schema,
+            table_name,
+            table_schema,
+            field_delimiter,
+            fallback_timeout=300,
+        )
 
     @available.parse_none
     def upload_file(
-        self, local_file_path: str, database: str, table_schema: str, table_name: str, **kwargs
+        self,
+        local_file_path: str,
+        database: str,
+        table_schema: str,
+        table_name: str,
+        **kwargs,
     ) -> None:
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
+        connection = self.connections.get_thread_connection()
+        client: Client = connection.handle
 
-        table_ref = self.connections.table_ref(database, table_schema, table_name)
-
-        load_config = google.cloud.bigquery.LoadJobConfig()
-        for k, v in kwargs["kwargs"].items():
-            if k == "schema":
-                setattr(load_config, k, json.loads(v))
-            else:
-                setattr(load_config, k, v)
-
-        with open(local_file_path, "rb") as f:
-            job = client.load_table_from_file(f, table_ref, rewind=True, job_config=load_config)
-
-        timeout = self.connections.get_job_execution_timeout_seconds(conn) or 300
-        with self.connections.exception_handler("LOAD TABLE"):
-            self.poll_until_job_completes(job, timeout)
+        self.connections.write_file_to_table(
+            client,
+            local_file_path,
+            database,
+            table_schema,
+            table_name,
+            fallback_timeout=300,
+            **kwargs,
+        )
 
     @classmethod
     def _catalog_filter_table(
@@ -753,7 +730,7 @@ class BigQueryAdapter(BaseAdapter):
         macro_resolver: Optional[MacroResolverProtocol] = None,
     ) -> Tuple[Optional[AdapterResponse], FreshnessResponse]:
         conn = self.connections.get_thread_connection()
-        client: google.cloud.bigquery.Client = conn.handle
+        client: Client = conn.handle
 
         table_ref = self.get_table_ref_from_relation(source)
         table = client.get_table(table_ref)

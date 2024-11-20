@@ -45,15 +45,11 @@ class RetryFactory:
             self._job_execution_timeout or fallback
         )  # keep _DAY here so it's not overridden by passing fallback=None
 
-    def create_retry(
-        self, timeout: Optional[float] = None, fallback: Optional[float] = None
-    ) -> Retry:
-        return DEFAULT_RETRY.with_timeout(
-            timeout or self._job_execution_timeout or fallback or _DAY
-        )
+    def create_retry(self, fallback: Optional[float] = None) -> Retry:
+        return DEFAULT_RETRY.with_timeout(self._job_execution_timeout or fallback or _DAY)
 
-    def create_polling(self, timeout: Optional[float] = None, fallback: float = _DAY) -> Retry:
-        return DEFAULT_POLLING.with_timeout(timeout or self._job_execution_timeout or fallback)
+    def create_polling(self, model_timeout: Optional[float] = None) -> Retry:
+        return DEFAULT_POLLING.with_timeout(model_timeout or self._job_execution_timeout or _DAY)
 
     def create_reopen_with_deadline(self, connection: Connection) -> Retry:
         """

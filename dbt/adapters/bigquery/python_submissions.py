@@ -43,7 +43,7 @@ class _BaseDataProcHelper(PythonJobHelper):
 
         # set retry policy, default to timeout after 24 hours
         retry = RetryFactory(credentials)
-        self._polling_retry = retry.create_polling(timeout=parsed_model["config"].get("timeout"))
+        self._polling_retry = retry.create_polling(model_timeout=parsed_model["config"].get("timeout"))
 
     def _write_to_gcs(self, compiled_code: str) -> None:
         bucket = self._storage_client.get_bucket(self._gcs_bucket)

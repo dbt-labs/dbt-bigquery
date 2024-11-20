@@ -85,7 +85,7 @@ class _DeferredException:
         # if the error is retryable, and we haven't breached the threshold, log and continue
         if _is_retryable(error) and self._error_count <= self._retries:
             _logger.debug(
-                f"Retry attempt {self._error_count} of { self._retries} after error: {repr(error)}"
+                f"Retry attempt {self._error_count} of {self._retries} after error: {repr(error)}"
             )
             return True
 

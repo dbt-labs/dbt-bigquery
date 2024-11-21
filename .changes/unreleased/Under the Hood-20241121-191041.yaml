@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: 'refactor(incremental): optimize ''insert_overwrite'' strategy'
+time: 2024-11-21T19:10:41.341213+01:00
+custom:
+    Author: AxelThevenot
+    Issue: "1409"

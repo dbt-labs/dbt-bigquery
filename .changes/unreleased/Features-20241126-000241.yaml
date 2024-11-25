@@ -1,0 +1,6 @@
+kind: Features
+body: copy tables and partitions in parallel
+time: 2024-11-26T00:02:41.54479+01:00
+custom:
+    Author: AxelThevenot
+    Issue: "1237"

@@ -409,7 +409,7 @@ class BigQueryAdapter(BaseAdapter):
         return bq_schema
 
     @available.parse(lambda *a, **k: "")
-    def copy_table(self, source, destination, materialization):
+    def copy_table(self, source, destination, materialization, partition_ids=None):
         if materialization == "incremental":
             write_disposition = WRITE_APPEND
         elif materialization == "table":
@@ -421,7 +421,7 @@ class BigQueryAdapter(BaseAdapter):
                 f"{materialization}"
             )
 
-        self.connections.copy_bq_table(source, destination, write_disposition)
+        self.connections.copy_bq_table(source, destination, write_disposition, partition_ids)
 
         return "COPY TABLE with materialization: {}".format(materialization)
 

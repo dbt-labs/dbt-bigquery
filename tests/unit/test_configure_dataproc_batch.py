@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from dbt.adapters.bigquery.dataproc.batch import update_batch_from_config
+from dbt.adapters.bigquery.python_submissions import _update_batch_from_config
 from google.cloud import dataproc_v1
 
 from .test_bigquery_adapter import BaseTestBigQueryAdapter
@@ -12,7 +12,7 @@ from .test_bigquery_adapter import BaseTestBigQueryAdapter
 # parsed credentials
 class TestConfigureDataprocBatch(BaseTestBigQueryAdapter):
     @patch(
-        "dbt.adapters.bigquery.connections.get_bigquery_defaults",
+        "dbt.adapters.bigquery.credentials._create_bigquery_defaults",
         return_value=("credentials", "project_id"),
     )
     def test_update_dataproc_serverless_batch(self, mock_get_bigquery_defaults):
@@ -39,7 +39,7 @@ class TestConfigureDataprocBatch(BaseTestBigQueryAdapter):
 
         batch = dataproc_v1.Batch()
 
-        batch = update_batch_from_config(raw_batch_config, batch)
+        batch = _update_batch_from_config(raw_batch_config, batch)
 
         def to_str_values(d):
             """google's protobuf types expose maps as dict[str, str]"""
@@ -64,7 +64,7 @@ class TestConfigureDataprocBatch(BaseTestBigQueryAdapter):
         )
 
     @patch(
-        "dbt.adapters.bigquery.connections.get_bigquery_defaults",
+        "dbt.adapters.bigquery.credentials._create_bigquery_defaults",
         return_value=("credentials", "project_id"),
     )
     def test_default_dataproc_serverless_batch(self, mock_get_bigquery_defaults):

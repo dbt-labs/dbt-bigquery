@@ -1,9 +1,13 @@
 from dataclasses import dataclass, field
+from itertools import chain, islice
 from typing import FrozenSet, Optional, TypeVar
 
-from itertools import chain, islice
+from dbt_common.exceptions import CompilationError
+from dbt_common.utils.dict import filter_null_values
 from dbt.adapters.base.relation import BaseRelation, ComponentName, InformationSchema
+from dbt.adapters.contracts.relation import RelationConfig, RelationType
 from dbt.adapters.relation_configs import RelationConfigChangeAction
+
 from dbt.adapters.bigquery.relation_configs import (
     BigQueryClusterConfigChange,
     BigQueryMaterializedViewConfig,
@@ -11,9 +15,6 @@ from dbt.adapters.bigquery.relation_configs import (
     BigQueryOptionsConfigChange,
     BigQueryPartitionConfigChange,
 )
-from dbt.adapters.contracts.relation import RelationType, RelationConfig
-from dbt_common.exceptions import CompilationError
-from dbt_common.utils.dict import filter_null_values
 
 
 Self = TypeVar("Self", bound="BigQueryRelation")

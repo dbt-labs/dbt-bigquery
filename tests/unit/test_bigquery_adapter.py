@@ -203,7 +203,7 @@ class BaseTestBigQueryAdapter(unittest.TestCase):
 
 class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
     @patch(
-        "dbt.adapters.bigquery.connections.get_bigquery_defaults",
+        "dbt.adapters.bigquery.credentials._create_bigquery_defaults",
         return_value=("credentials", "project_id"),
     )
     @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())
@@ -244,10 +244,12 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         mock_open_connection.assert_called_once()
 
     @patch(
-        "dbt.adapters.bigquery.connections.get_bigquery_defaults",
+        "dbt.adapters.bigquery.credentials._create_bigquery_defaults",
         return_value=("credentials", "project_id"),
     )
-    @patch("dbt.adapters.bigquery.BigQueryConnectionManager.open", return_value=_bq_conn())
+    @patch(
+        "dbt.adapters.bigquery.connections.BigQueryConnectionManager.open", return_value=_bq_conn()
+    )
     def test_acquire_connection_dataproc_serverless(
         self, mock_open_connection, mock_get_bigquery_defaults
     ):
@@ -386,23 +388,25 @@ class TestBigQueryAdapterAcquire(BaseTestBigQueryAdapter):
         adapter.connections.thread_connections.update({key: master, 1: model})
         self.assertEqual(len(list(adapter.cancel_open_connections())), 1)
 
-    @patch("dbt.adapters.bigquery.impl.google.auth.default")
-    @patch("dbt.adapters.bigquery.impl.google.cloud.bigquery")
-    def test_location_user_agent(self, mock_bq, mock_auth_default):
+    @patch("dbt.adapters.bigquery.clients.ClientOptions")
+    @patch("dbt.adapters.bigquery.credentials.default")
+    @patch("dbt.adapters.bigquery.clients.BigQueryClient")
+    def test_location_user_agent(self, MockClient, mock_auth_default, MockClientOptions):
         creds = MagicMock()
         mock_auth_default.return_value = (creds, MagicMock())
         adapter = self.get_adapter("loc")
 
         connection = adapter.acquire_connection("dummy")
-        mock_client = mock_bq.Client
+        mock_client_options = MockClientOptions.return_value
 
-        mock_client.assert_not_called()
+        MockClient.assert_not_called()
         connection.handle
-        mock_client.assert_called_once_with(
+        MockClient.assert_called_once_with(
             "dbt-unit-000000",
             creds,
             location="Luna Station",
             client_info=HasUserAgent(),
+            client_options=mock_client_options,
         )
 
 

@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import Optional, List, TypeVar, Iterable, Type, Any, Dict, Union
+from typing import Any, Dict, Iterable, List, Optional, Type, TypeVar, Union
+
+from google.cloud.bigquery import SchemaField
 
 from dbt.adapters.base.column import Column
 
-from google.cloud.bigquery import SchemaField
 
 _PARENT_DATA_TYPE_KEY = "__parent_data_type"
 

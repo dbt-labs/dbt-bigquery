@@ -1,0 +1,6 @@
+kind: Features
+body: Adds Iceberg support as a new table format configuration
+time: 2024-11-26T21:54:21.990317Z
+custom:
+    Author: borjavb
+    Issue: "1370"

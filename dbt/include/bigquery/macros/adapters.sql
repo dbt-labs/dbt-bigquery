@@ -38,13 +38,13 @@
         {%- if not base_location-%}
             {% do exceptions.raise_compiler_error("base_location not found") %}
         {% endif %}
-           {% set connection = config.get('connection') %}
+        {% set connection = config.get('connection') %}
         {%- if not connection-%}
            {% do exceptions.raise_compiler_error("Bq connection not found") %}
         {% endif %}
         {% set sub_path = relation.identifier %}
         {% set connection = "WITH CONNECTION `"~connection~"`" %}
-        {#-- pass this through {{ bigquery_table_options(config, model, temporary) }}-#}
+        {#-- pass this through {{ bigquery_table_options() }}-#}
         {% set options %}
          OPTIONS(
             file_format = 'PARQUET',

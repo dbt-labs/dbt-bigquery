@@ -17,6 +17,28 @@
   {% do return(strategy) %}
 {% endmacro %}
 
+
+{% macro dbt_bigquery_validate_insert_overwrite_fn(config, strategy) %}
+  {#-- Find and validate the function used for insert_overwrite #}
+  {%- set insert_overwrite_fn = config.get('insert_overwrite_fn', none) -%}
+  {%- set default_fn = 'merge' -%}
+  {% if insert_overwrite_fn is none and strategy in ['insert_overwrite','microbatch']%}  
+      {{return (default_fn)}}
+  {% elif insert_overwrite_fn is not in ["delete+insert"] and strategy in ['insert_overwrite','microbatch']%}  
+      {% set wrong_fn -%}
+      The 'insert_overwrite_fn' option has to be either 'merge' (default) or 'delete+insert'.
+      {%- endset %}
+      {% do exceptions.raise_compiler_error(wrong_strategy_msg) %}
+  {% elif insert_overwrite_fn is not none and strategy not ['insert_overwrite','microbatch'] %}   
+      {% set wrong_strategy_msg -%}
+      The 'insert_overwrite_fn' option requires the 'incremental_strategy' option to be set to 'insert_overwrite' or 'microbatch'.
+      {%- endset %}
+      {% do exceptions.raise_compiler_error(wrong_strategy_msg) %}
+  {% else %}
+    {% return(insert_overwrite_fn) %}
+  {% endif %}    
+{% endmacro %}
+
 {% macro source_sql_with_partition(partition_by, source_sql) %}
 
   {%- if partition_by.time_ingestion_partitioning %}
@@ -43,19 +65,19 @@
 {% endmacro %}
 
 {% macro bq_generate_incremental_build_sql(
-    strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions, incremental_predicates
+    strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions, incremental_predicates, insert_overwrite_fn
 ) %}
   {#-- if partitioned, use BQ scripting to get the range of partition values to be updated --#}
   {% if strategy == 'insert_overwrite' %}
 
     {% set build_sql = bq_generate_incremental_insert_overwrite_build_sql(
-        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
+        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions, insert_overwrite_fn
     ) %}
 
   {% elif strategy == 'microbatch' %}
 
     {% set build_sql = bq_generate_microbatch_build_sql(
-        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
+        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions, insert_overwrite_fn
     ) %}
 
   {% else %} {# strategy == 'merge' #}
@@ -81,6 +103,8 @@
 
   {#-- Validate early so we don't run SQL if the strategy is invalid --#}
   {% set strategy = dbt_bigquery_validate_get_incremental_strategy(config) -%}
+  {#-- Validate early that the fn strategy is set correctly for insert_overwrite--#}
+  {% set insert_overwrite_fn = dbt_bigquery_validate_insert_overwrite_fn(config, strategy) -%}
 
   {%- set raw_partition_by = config.get('partition_by', none) -%}
   {%- set partition_by = adapter.parse_partition_by(raw_partition_by) -%}
@@ -153,7 +177,7 @@
     {% endif %}
 
     {% set build_sql = bq_generate_incremental_build_sql(
-        strategy, tmp_relation, target_relation, compiled_code, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, partition_by.copy_partitions, incremental_predicates
+        strategy, tmp_relation, target_relation, compiled_code, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, partition_by.copy_partitions, incremental_predicates, insert_overwrite_fn
     ) %}
 
     {%- call statement('main') -%}

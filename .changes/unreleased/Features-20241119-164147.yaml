@@ -1,0 +1,6 @@
+kind: Features
+body: Support non-incremental materialized view
+time: 2024-11-19T16:41:47.458086+09:00
+custom:
+    Author: yu-iskw
+    Issue: "672"

@@ -12,7 +12,7 @@
     {% else %}
 
         alter materialized view {{ relation }}
-            set {{ bigquery_options(configuration_changes.options.context.as_ddl_dict()) }}
+            set {{ bigquery_options(configuration_changes.options.context.as_alter_dict()) }}
 
     {%- endif %}
 

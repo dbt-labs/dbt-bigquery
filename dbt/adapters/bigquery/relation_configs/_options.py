@@ -93,12 +93,8 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
         SEE https://cloud.google.com/bigquery/docs/materialized-views-manage
         """
         non_available_options = ["allow_non_incremental_definition"]
-        options = {
-            k: v for k, v in self.as_ddl_dict().items()
-            if k not in non_available_options
-        }
+        options = {k: v for k, v in self.as_ddl_dict().items() if k not in non_available_options}
         return options
-
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> Self:

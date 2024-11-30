@@ -24,8 +24,8 @@
         {{ columns }}
       {% endif %}
     {%- if table_format == "iceberg" and partition_config is not none-%}
+        {#-- Nov 2024. Limitations: PARTITION BY cannot be used in iceberg-#}
         {% do exceptions.raise_compiler_error("Partition by not yet available in iceberg tables, use cluster by instead") %}
-        {#-- PARTITION BY cannot be used in iceberg-#}
     {%- else -%}
         {{ partition_by(partition_config) }}
     {% endif %}
@@ -33,31 +33,9 @@
     {{ cluster_by(raw_cluster_by) }}
 
     {% if table_format == "iceberg" %}
-
-        {% set base_location = config.get('base_location') %}
-        {%- if not base_location-%}
-            {% do exceptions.raise_compiler_error("base_location not found") %}
-        {% endif %}
-        {% set connection = config.get('connection') %}
-        {%- if not connection-%}
-           {% do exceptions.raise_compiler_error("Bq connection not found") %}
-        {% endif %}
-        {% set sub_path = relation.identifier %}
-        {% set connection = "WITH CONNECTION `"~connection~"`" %}
-        {#-- pass this through {{ bigquery_table_options() }}-#}
-        {% set options %}
-         OPTIONS(
-            file_format = 'PARQUET',
-            table_format = 'ICEBERG',
-            storage_uri = '{{base_location}}/{{sub_path}}'
-        )
-        {%- endset -%}
-
-        {{ connection }}
-        {{ options }}
-
+       {{ bigquery_iceberg_table_options(config, relation) }}
+       {{ bigquery_iceberg_connection(config) }}
     {% endif %}
-
 
     {#-- PARTITION BY cannot be used with the AS query_statement clause.
          https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#partition_expression

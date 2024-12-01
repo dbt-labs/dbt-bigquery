@@ -33,8 +33,8 @@
     {{ cluster_by(raw_cluster_by) }}
 
     {% if table_format == "iceberg" %}
-       {{ bigquery_iceberg_table_options(config, relation) }}
-       {{ bigquery_iceberg_connection(config) }}
+      {{ bigquery_iceberg_connection(config) }}
+      {{ bigquery_iceberg_table_options(config, relation) }}
     {% endif %}
 
     {#-- PARTITION BY cannot be used with the AS query_statement clause.

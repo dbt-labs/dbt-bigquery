@@ -13,6 +13,7 @@ from tests.functional.adapter.incremental.incremental_strategy_fixtures import (
     microbatch_input_sql,
     microbatch_model_no_partition_by_sql,
     microbatch_model_invalid_partition_by_sql,
+    microbatch_model_no_unique_id_copy_partitions_sql,
 )
 
 
@@ -53,3 +54,8 @@ class TestBigQueryMicrobatchInvalidPartitionByGranularity:
             "The 'microbatch' strategy requires a `partition_by` config with the same granularity as its configured `batch_size`"
             in stdout
         )
+
+class TestBigQueryMicrobatchWithCopyPartitions(BaseMicrobatch):
+    @pytest.fixture(scope="class")
+    def microbatch_model_sql(self) -> str:
+        return microbatch_model_invalid_partition_by_sql

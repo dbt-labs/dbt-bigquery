@@ -27,7 +27,7 @@ defaults:
     shell: bash
 
 env:
-  RELEASE_BRANCH: "1.6.latest" # must test against most recent .latest branch to have parity for dependency with core
+  RELEASE_BRANCH: "1.9.latest" # must test against most recent .latest branch to have parity for dependency with core
 
 jobs:
   aggregate-release-data:

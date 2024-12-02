@@ -1,6 +1,0 @@
-kind: Features
-body: add is_retryable test case when raise ServiceUnavailable
-time: 2024-05-05T01:18:38.737882+09:00
-custom:
-  Author: jx2lee
-  Issue: "682"

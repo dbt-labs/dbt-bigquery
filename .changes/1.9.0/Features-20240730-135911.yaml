@@ -1,6 +1,0 @@
-kind: Features
-body: Add support for cancelling queries on keyboard interrupt
-time: 2024-07-30T13:59:11.585452-07:00
-custom:
-  Author: d-cole MichelleArk colin-rogers-dbt
-  Issue: "917"

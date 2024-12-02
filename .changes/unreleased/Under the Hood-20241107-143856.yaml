@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: Create a retry factory to simplify retry strategies across dbt-bigquery
+time: 2024-11-07T14:38:56.210445-05:00
+custom:
+  Author: mikealfare osalama
+  Issue: "1395"

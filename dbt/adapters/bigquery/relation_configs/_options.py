@@ -128,13 +128,13 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
                 }
             )
 
-        options: Self = super().from_dict(kwargs_dict)  # type: ignore
+        options: Self = super().from_dict(kwargs_dict)
         return options
 
     @classmethod
     def parse_relation_config(cls, relation_config: RelationConfig) -> Dict[str, Any]:
         config_dict = {
-            option: relation_config.config.extra.get(option)  # type: ignore
+            option: relation_config.config.extra.get(option)
             for option in [
                 "enable_refresh",
                 "refresh_interval_minutes",
@@ -148,13 +148,11 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
         }
 
         # update dbt-specific versions of these settings
-        if hours_to_expiration := relation_config.config.extra.get(  # type: ignore
-            "hours_to_expiration"
-        ):  # type: ignore
+        if hours_to_expiration := relation_config.config.extra.get("hours_to_expiration"):
             config_dict.update(
                 {"expiration_timestamp": datetime.now() + timedelta(hours=hours_to_expiration)}
             )
-        if not relation_config.config.persist_docs:  # type: ignore
+        if not relation_config.config.persist_docs:
             del config_dict["description"]
 
         return config_dict

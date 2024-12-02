@@ -1,9 +1,13 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from itertools import chain, islice
 from typing import FrozenSet, Optional, TypeVar
 
-from itertools import chain, islice
+from dbt_common.exceptions import CompilationError
+from dbt_common.utils.dict import filter_null_values
 from dbt.adapters.base.relation import BaseRelation, ComponentName, InformationSchema
+from dbt.adapters.contracts.relation import RelationConfig, RelationType
 from dbt.adapters.relation_configs import RelationConfigChangeAction
+
 from dbt.adapters.bigquery.relation_configs import (
     BigQueryClusterConfigChange,
     BigQueryMaterializedViewConfig,
@@ -11,9 +15,6 @@ from dbt.adapters.bigquery.relation_configs import (
     BigQueryOptionsConfigChange,
     BigQueryPartitionConfigChange,
 )
-from dbt.adapters.contracts.relation import RelationType, RelationConfig
-from dbt_common.exceptions import CompilationError
-from dbt_common.utils.dict import filter_null_values
 
 
 Self = TypeVar("Self", bound="BigQueryRelation")
@@ -23,9 +24,23 @@ Self = TypeVar("Self", bound="BigQueryRelation")
 class BigQueryRelation(BaseRelation):
     quote_character: str = "`"
     location: Optional[str] = None
-    renameable_relations: FrozenSet[RelationType] = frozenset({RelationType.Table})
-    replaceable_relations: FrozenSet[RelationType] = frozenset(
-        {RelationType.Table, RelationType.View}
+    require_alias: bool = False
+
+    renameable_relations: FrozenSet[RelationType] = field(
+        default_factory=lambda: frozenset(
+            {
+                RelationType.Table,
+            }
+        )
+    )
+
+    replaceable_relations: FrozenSet[RelationType] = field(
+        default_factory=lambda: frozenset(
+            {
+                RelationType.View,
+                RelationType.Table,
+            }
+        )
     )
 
     def matches(
@@ -64,7 +79,7 @@ class BigQueryRelation(BaseRelation):
     def materialized_view_from_relation_config(
         cls, relation_config: RelationConfig
     ) -> BigQueryMaterializedViewConfig:
-        return BigQueryMaterializedViewConfig.from_relation_config(relation_config)  # type: ignore
+        return BigQueryMaterializedViewConfig.from_relation_config(relation_config)
 
     @classmethod
     def materialized_view_config_changeset(

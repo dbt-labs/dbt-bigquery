@@ -1,0 +1,7 @@
+kind: Under the Hood
+body: Separate credentials functionality into its own module for reuse in retry and
+  python submissions
+time: 2024-11-04T17:38:15.940962-05:00
+custom:
+  Author: mikealfare
+  Issue: "1391"

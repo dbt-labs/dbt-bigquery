@@ -111,7 +111,7 @@ class PartitionConfig(dbtClassMixin):
             This doesn't currently collect `time_ingestion_partitioning` and `copy_partitions`
             because this was built for materialized views, which do not support those settings.
         """
-        config_dict: Dict[str, Any] = relation_config.config.extra.get("partition_by")  # type: ignore
+        config_dict: Dict[str, Any] = relation_config.config.extra.get("partition_by")
         if "time_ingestion_partitioning" in config_dict:
             del config_dict["time_ingestion_partitioning"]
         if "copy_partitions" in config_dict:

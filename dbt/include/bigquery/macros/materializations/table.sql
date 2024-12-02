@@ -49,12 +49,19 @@
 from pyspark.sql import SparkSession
 {%- set raw_partition_by = config.get('partition_by', none) -%}
 {%- set raw_cluster_by = config.get('cluster_by', none) -%}
+{%- set enable_list_inference = config.get('enable_list_inference', true) -%}
+{%- set intermediate_format = config.get('intermediate_format', none) -%}
+
 {%- set partition_config = adapter.parse_partition_by(raw_partition_by) %}
 
 spark = SparkSession.builder.appName('smallTest').getOrCreate()
 
 spark.conf.set("viewsEnabled","true")
 spark.conf.set("temporaryGcsBucket","{{target.gcs_bucket}}")
+spark.conf.set("enableListInference", "{{ enable_list_inference }}")
+{% if intermediate_format %}
+spark.conf.set("intermediateFormat", "{{ intermediate_format }}")
+{% endif %}
 
 {{ compiled_code }}
 dbt = dbtObj(spark.read.format("bigquery").load)
@@ -106,10 +113,19 @@ else:
   msg = f"{type(df)} is not a supported type for dbt Python materialization"
   raise Exception(msg)
 
+# For writeMethod we need to use "indirect" if materializing a partitioned table
+# otherwise we can use "direct". Note that indirect will fail if the GCS bucket has a retention policy set on it.
+{%- if partition_config %}
+      {%- set write_method = 'indirect' -%}
+{%- else %}
+      {% set write_method = 'direct' -%}
+{%- endif %}
+
 df.write \
   .mode("overwrite") \
   .format("bigquery") \
-  .option("writeMethod", "indirect").option("writeDisposition", 'WRITE_TRUNCATE') \
+  .option("writeMethod", "{{ write_method }}") \
+  .option("writeDisposition", 'WRITE_TRUNCATE') \
   {%- if partition_config is not none %}
   {%- if partition_config.data_type | lower in ('date','timestamp','datetime') %}
   .option("partitionField", "{{- partition_config.field -}}") \

@@ -2,9 +2,9 @@
 import sys
 
 # require a supported version of Python
-if sys.version_info < (3, 8):
+if sys.version_info < (3, 9):
     print("Error: dbt does not support this version of Python.")
-    print("Please upgrade to Python 3.8 or higher.")
+    print("Please upgrade to Python 3.9 or higher.")
     sys.exit(1)
 
 try:
@@ -36,7 +36,6 @@ def _dbt_bigquery_version() -> str:
 
 
 package_name = "dbt-bigquery"
-package_version = "1.8.0a1"
 description = """The BigQuery adapter plugin for dbt"""
 
 setup(
@@ -51,14 +50,17 @@ setup(
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
     install_requires=[
-        "dbt-common<1.0",
-        "dbt-adapters~=0.1.0a1",
-        "google-cloud-bigquery~=3.0",
+        "dbt-common>=1.10,<2.0",
+        "dbt-adapters>=1.7,<2.0",
+        # 3.20 introduced pyarrow>=3.0 under the `pandas` extra
+        "google-cloud-bigquery[pandas]>=3.0,<4.0",
         "google-cloud-storage~=2.4",
         "google-cloud-dataproc~=5.0",
         # ----
         # Expect compatibility with all new versions of these packages, so lower bounds only.
         "google-api-core>=2.11.0",
+        # add dbt-core to ensure backwards compatibility of installation, this is not a functional dependency
+        "dbt-core>=1.8.0",
     ],
     zip_safe=False,
     classifiers=[
@@ -67,10 +69,10 @@ setup(
         "Operating System :: Microsoft :: Windows",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.9",
 )

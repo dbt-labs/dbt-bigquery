@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import Optional, List, TypeVar, Iterable, Type, Any, Dict, Union
+from typing import Any, Dict, Iterable, List, Optional, Type, TypeVar, Union
+
+from google.cloud.bigquery import SchemaField
 
 from dbt.adapters.base.column import Column
 
-from google.cloud.bigquery import SchemaField
 
 _PARENT_DATA_TYPE_KEY = "__parent_data_type"
 
@@ -18,7 +19,7 @@ class BigQueryColumn(Column):
         "INTEGER": "INT64",
     }
     fields: List[Self]  # type: ignore
-    mode: str  # type: ignore
+    mode: str
 
     def __init__(
         self,
@@ -110,7 +111,7 @@ class BigQueryColumn(Column):
     def is_float(self):
         return self.dtype.lower() == "float64"
 
-    def can_expand_to(self: Self, other_column: Self) -> bool:  # type: ignore
+    def can_expand_to(self: Self, other_column: Self) -> bool:
         """returns True if both columns are strings"""
         return self.is_string() and other_column.is_string()
 
@@ -124,7 +125,7 @@ class BigQueryColumn(Column):
             fields = [field.column_to_bq_schema() for field in self.fields]  # type: ignore[attr-defined]
             kwargs = {"fields": fields}
 
-        return SchemaField(self.name, self.dtype, self.mode, **kwargs)  # type: ignore[arg-type]
+        return SchemaField(self.name, self.dtype, self.mode, **kwargs)
 
 
 def get_nested_column_data_types(

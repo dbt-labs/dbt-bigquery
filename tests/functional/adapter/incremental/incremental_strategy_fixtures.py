@@ -570,7 +570,7 @@ microbatch_model_no_unique_id_sql = """
     begin=modules.datetime.datetime(2020, 1, 1, 0, 0, 0)
     )
 }}
-select * from {{ ref('input_model') }}
+select id, cast(event_time as timestamp) as event_time from {{ ref('input_model') }}
 """
 
 microbatch_input_sql = """
@@ -580,6 +580,24 @@ union all
 select 2 as id, TIMESTAMP '2020-01-02 00:00:00-0' as event_time
 union all
 select 3 as id, TIMESTAMP '2020-01-03 00:00:00-0' as event_time
+"""
+
+microbatch_input_event_time_date_sql = """
+{{ config(materialized='table', event_time='event_time') }}
+select 1 as id, DATE '2020-01-01' as event_time
+union all
+select 2 as id, DATE '2020-01-02' as event_time
+union all
+select 3 as id, DATE '2020-01-03' as event_time
+"""
+
+microbatch_input_event_time_datetime_sql = """
+{{ config(materialized='table', event_time='event_time') }}
+select 1 as id, DATETIME '2020-01-01' as event_time
+union all
+select 2 as id, DATETIME '2020-01-02' as event_time
+union all
+select 3 as id, DATETIME '2020-01-03' as event_time
 """
 
 microbatch_model_no_partition_by_sql = """

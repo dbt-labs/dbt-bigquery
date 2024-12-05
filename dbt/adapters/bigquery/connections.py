@@ -519,10 +519,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
         # backwards compatibility: fill in with defaults if not specified
         database = database or conn.credentials.database
         schema = schema or conn.credentials.schema
-        return client.get_table(
-            table=self.table_ref(database, schema, identifier),
-            retry=self._retry.create_reopen_with_deadline(conn),
-        )
+        return client.get_table(self.table_ref(database, schema, identifier))
 
     def drop_dataset(self, database, schema) -> None:
         conn = self.get_thread_connection()

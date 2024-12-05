@@ -77,7 +77,7 @@ defaults:
     shell: bash
 
 env:
-  PYTHON_TARGET_VERSION: 3.12
+  PYTHON_DEFAULT_VERSION: 3.9
   NOTIFICATION_PREFIX: "[Release Prep]"
 
 jobs:
@@ -100,7 +100,7 @@ jobs:
           echo Deploy to:            ${{ inputs.deploy-to }}
           echo Nightly release:      ${{ inputs.is-nightly-release }}
           # ENVIRONMENT VARIABLES
-          echo Python version:       ${{ env.PYTHON_TARGET_VERSION }}
+          echo Python version:       ${{ env.PYTHON_DEFAULT_VERSION }}
           echo Notification prefix:  ${{ env.NOTIFICATION_PREFIX }}
 
       - name: "Checkout ${{ github.event.repository.name }}@${{ inputs.branch }}"
@@ -108,8 +108,11 @@ jobs:
         with:
           ref: ${{ inputs.branch }}
 
-      - name: "Setup `hatch`"
-        uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_DEFAULT_VERSION }}
+
+      - uses: pypa/hatch@install
 
       - name: "Parse input version"
         id: semver
@@ -223,8 +226,11 @@ jobs:
         with:
           ref: ${{ needs.release-branch.outputs.name }}
 
-      - name: "Setup `hatch`"
-        uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_DEFAULT_VERSION }}
+
+      - uses: pypa/hatch@install
 
       - name: "Install `changie`"
         run: |
@@ -296,8 +302,11 @@ jobs:
         with:
           ref: ${{ needs.release-branch.outputs.name }}
 
-      - name: "Setup `hatch`"
-        uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_DEFAULT_VERSION }}
+
+      - uses: pypa/hatch@install
 
       - name: "Bump version to ${{ inputs.version }}"
         run: hatch version ${{ inputs.version }}
@@ -338,8 +347,11 @@ jobs:
         with:
           ref: ${{ needs.release-branch.outputs.name }}
 
-      - name: "Setup `hatch`"
-        uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: pypa/hatch@install
 
       - name: "Run unit tests"
         run: hatch run unit-tests
@@ -361,8 +373,11 @@ jobs:
         with:
           ref: ${{ needs.release-branch.outputs.name }}
 
-      - name: "Set up `hatch`"
-        uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_DEFAULT_VERSION }}
+
+      - uses: pypa/hatch@install
 
       - name: "Run integration tests"
         run: hatch run integration-tests

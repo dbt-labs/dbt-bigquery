@@ -39,7 +39,7 @@ on:
       env_setup_script_path:
         description: "Environment setup script path"
         type: string
-        default: "scripts/env-setup.sh"
+        default: "./.github/scripts/env-setup.sh"
         required: false
       s3_bucket_name:
         description: "AWS S3 bucket name"
@@ -88,7 +88,7 @@ on:
       env_setup_script_path:
         description: "Environment setup script path"
         type: string
-        default: "scripts/env-setup.sh"
+        default: "./.github/scripts/env-setup.sh"
         required: false
       s3_bucket_name:
         description: "AWS S3 bucket name"
@@ -121,7 +121,7 @@ defaults:
 jobs:
   release-prep:
     name: "Release prep: generate changelog, bump version"
-    uses: dbt-labs/dbt-snowflake/.github/workflows/release_prep_hatch.yml@main
+    uses: ./.github/workflows/release_prep_hatch.yml
     with:
       branch: ${{ inputs.branch }}
       version: ${{ inputs.version }}

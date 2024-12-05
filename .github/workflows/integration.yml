@@ -195,6 +195,13 @@ jobs:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha }}
 
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - uses: pypa/hatch@install
+
       - name: Update Adapters and Core branches (update dev_requirements.txt)
         if: github.event_name == 'workflow_dispatch'
         run: |
@@ -203,13 +210,6 @@ jobs:
             ${{ inputs.dbt_core_branch }} \
             ${{ inputs.dbt_common_branch }}
           cat hatch.toml
-
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.9"
-
-      - uses: pypa/hatch@install
 
       - run: hatch run integration-tests -k "not TestPython"
         env:

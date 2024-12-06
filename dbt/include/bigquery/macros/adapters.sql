@@ -3,7 +3,7 @@
     {%- set raw_partition_by = config.get('partition_by', none) -%}
     {%- set raw_cluster_by = config.get('cluster_by', none) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
-
+    {%- set table_format = config.get('table_format', 'default') -%}
     {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
     {%- if partition_config.time_ingestion_partitioning -%}
     {%- set columns = get_columns_with_types_in_query_sql(sql) -%}
@@ -23,10 +23,19 @@
         {#-- cannot do contracts at the same time as time ingestion partitioning -#}
         {{ columns }}
       {% endif %}
-    {{ partition_by(partition_config) }}
+    {%- if table_format == "iceberg" and partition_config is not none-%}
+        {#-- Nov 2024. Limitations: PARTITION BY cannot be used in iceberg-#}
+        {% do exceptions.raise_compiler_error("Partition by not yet available in iceberg tables, use cluster by instead") %}
+    {%- else -%}
+        {{ partition_by(partition_config) }}
+    {% endif %}
+
     {{ cluster_by(raw_cluster_by) }}
 
-    {{ bigquery_table_options(config, model, temporary) }}
+    {% if table_format == "iceberg" %}
+      {{ bigquery_iceberg_connection(config) }}
+      {{ bigquery_iceberg_table_options(config, relation) }}
+    {% endif %}
 
     {#-- PARTITION BY cannot be used with the AS query_statement clause.
          https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#partition_expression

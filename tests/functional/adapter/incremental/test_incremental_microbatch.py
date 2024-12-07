@@ -81,6 +81,7 @@ class TestBigQueryMicrobatchInvalidPartitionByGranularity:
             in stdout
         )
 
+
 class TestBigQueryMicrobatchWithCopyPartitions(BaseMicrobatch):
     @pytest.fixture(scope="class")
     def microbatch_model_sql(self) -> str:

@@ -29,7 +29,7 @@ dependencies = [
 setup = "pre-commit install"
 code-quality = "pre-commit run --all-files"
 unit-tests = "python -m pytest {args:tests/unit}"
-integration-tests = "python -m pytest {args:tests/functional}"
+integration-tests = "python -m pytest --profile service_account {args:tests/functional}"
 docker-dev = [
     "docker build -f docker/dev.Dockerfile -t dbt-bigquery-dev .",
 	"docker run --rm -it --name dbt-bigquery-dev -v $(shell pwd):/opt/code dbt-bigquery-dev",

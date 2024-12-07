@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: Move from setup.py to pyproject.toml and to hatch as a dev tool
+time: 2024-11-17T19:47:46.341-05:00
+custom:
+  Author: mikealfare
+  Issue: "1407"

@@ -1,6 +1,0 @@
-kind: Features
-body: Adds the ability to set optional `quota_project` in profile
-time: 2024-09-11T23:48:59.767649+01:00
-custom:
-    Author: jcarpenter12
-    Issue: 1343 1344

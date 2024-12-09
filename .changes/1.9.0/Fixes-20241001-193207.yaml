@@ -1,7 +1,0 @@
-kind: Fixes
-body: Catch additional database error exception, NotFound, as a DbtDatabaseError instead
-  of defaulting to a DbtRuntimeError
-time: 2024-10-01T19:32:07.304353-04:00
-custom:
-  Author: mikealfare
-  Issue: "1360"

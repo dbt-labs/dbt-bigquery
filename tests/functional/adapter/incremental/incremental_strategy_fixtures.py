@@ -629,3 +629,21 @@ microbatch_model_invalid_partition_by_sql = """
 }}
 select * from {{ ref('input_model') }}
 """
+
+microbatch_model_no_unique_id_copy_partitions_sql = """
+{{ config(
+    materialized='incremental',
+    incremental_strategy='microbatch',
+    partition_by={
+      'field': 'event_time',
+      'data_type': 'timestamp',
+      'granularity': 'day',
+      'copy_partitions': true
+    },
+    event_time='event_time',
+    batch_size='day',
+    begin=modules.datetime.datetime(2020, 1, 1, 0, 0, 0)
+    )
+}}
+select * from {{ ref('input_model') }}
+"""

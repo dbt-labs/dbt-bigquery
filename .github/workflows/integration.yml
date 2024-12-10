@@ -226,11 +226,9 @@ jobs:
   # python integration tests are slow so we only run them seperately and for a single OS / python version
   test-python:
     name: "test-python"
-    needs: test-metadata
+    needs: test
     runs-on: ubuntu-latest
     if: >-
-      needs.test-metadata.outputs.matrix &&
-      fromJSON( needs.test-metadata.outputs.matrix ).include[0] &&
       (
         github.event_name != 'pull_request_target' ||
         github.event.pull_request.head.repo.full_name == github.repository ||
@@ -260,7 +258,7 @@ jobs:
 
       - uses: pypa/hatch@install
 
-      - run: hatch run integration-tests tests/functional -k "TestPython" --ddtrace
+      - run: hatch run integration-tests tests/functional -n1 -k "TestPython" --ddtrace
         env:
           BIGQUERY_TEST_SERVICE_ACCOUNT_JSON: ${{ secrets.BIGQUERY_TEST_SERVICE_ACCOUNT_JSON }}
           BIGQUERY_TEST_ALT_DATABASE: ${{ secrets.BIGQUERY_TEST_ALT_DATABASE }}

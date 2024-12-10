@@ -46,8 +46,9 @@ Changelog = "https://github.com/dbt-labs/dbt-bigquery/blob/main/CHANGELOG.md"
 [tool.mypy]
 mypy_path = "third-party-stubs/"
 
-[tool.pytest]
+[tool.pytest.ini_options]
 testpaths = ["tests/functional", "tests/unit"]
+env_files = ["test.env"]
 addopts = "-v -n auto"
 color = true
 filterwarnings = [

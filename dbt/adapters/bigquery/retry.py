@@ -30,16 +30,20 @@ class RetryFactory:
         self._job_deadline = credentials.job_retry_deadline_seconds
 
     def create_job_creation_timeout(self, fallback: float = _MINUTE) -> float:
-        return self._job_creation_timeout or fallback
+        return (
+            self._job_creation_timeout or fallback
+        )  # keep _MINUTE here so it's not overridden by passing fallback=None
 
     def create_job_execution_timeout(self, fallback: float = _DAY) -> float:
-        return self._job_execution_timeout or fallback
+        return (
+            self._job_execution_timeout or fallback
+        )  # keep _DAY here so it's not overridden by passing fallback=None
 
-    def create_retry(self) -> Retry:
-        return DEFAULT_JOB_RETRY.with_timeout(self.create_job_execution_timeout(5 * _MINUTE))
+    def create_retry(self, fallback: Optional[float] = None) -> Retry:
+        return DEFAULT_JOB_RETRY.with_timeout(self._job_execution_timeout or fallback or _DAY)
 
     def create_polling(self, model_timeout: Optional[float] = None) -> Retry:
-        return DEFAULT_POLLING.with_timeout(model_timeout or self.create_job_execution_timeout())
+        return DEFAULT_POLLING.with_timeout(model_timeout or self._job_execution_timeout or _DAY)
 
     def create_reopen_with_deadline(self, connection: Connection) -> Retry:
         """

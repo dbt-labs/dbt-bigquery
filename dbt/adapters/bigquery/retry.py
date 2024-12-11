@@ -3,8 +3,8 @@ from typing import Callable, Optional
 from google.api_core.exceptions import Forbidden
 from google.api_core.future.polling import DEFAULT_POLLING
 from google.api_core.retry import Retry
-from google.cloud.bigquery.retry import DEFAULT_RETRY
-from google.cloud.exceptions import BadGateway, BadRequest, ServerError
+from google.cloud.bigquery.retry import DEFAULT_RETRY, _job_should_retry
+from google.cloud.exceptions import BadRequest
 from requests.exceptions import ConnectionError
 
 from dbt.adapters.contracts.connection import Connection, ConnectionState
@@ -74,6 +74,11 @@ class _DeferredException:
         self._retries: int = retries
         self._error_count = 0
 
+    @staticmethod
+    def _is_retryable(error: Exception) -> bool:
+        """Return true for errors that are unlikely to occur again if retried."""
+        return _job_should_retry(error) or isinstance(error, BadRequest)
+
     def __call__(self, error: Exception) -> bool:
         # exit immediately if the user does not want retries
         if self._retries == 0:
@@ -83,7 +88,7 @@ class _DeferredException:
         self._error_count += 1
 
         # if the error is retryable, and we haven't breached the threshold, log and continue
-        if _is_retryable(error) and self._error_count <= self._retries:
+        if self._is_retryable(error) and self._error_count <= self._retries:
             _logger.debug(
                 f"Retry attempt {self._error_count} of {self._retries} after error: {repr(error)}"
             )
@@ -113,16 +118,3 @@ def _create_reopen_on_error(connection: Connection) -> Callable[[Exception], Non
                 raise FailedToConnectError(str(e))
 
     return on_error
-
-
-def _is_retryable(error: Exception) -> bool:
-    """Return true for errors that are unlikely to occur again if retried."""
-    if isinstance(
-        error, (BadGateway, BadRequest, ConnectionError, ConnectionResetError, ServerError)
-    ):
-        return True
-    elif isinstance(error, Forbidden) and any(
-        e["reason"] == "rateLimitExceeded" for e in error.errors
-    ):
-        return True
-    return False

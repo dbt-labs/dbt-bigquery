@@ -53,7 +53,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         assert new_mock_client is not self.mock_client
 
     def test_is_retryable(self):
-        _is_retryable = dbt.adapters.bigquery.retry._is_retryable
+        _is_retryable = dbt.adapters.bigquery.retry._DeferredException(1)._is_retryable
         exceptions = dbt.adapters.bigquery.impl.google.cloud.exceptions
         internal_server_error = exceptions.InternalServerError("code broke")
         bad_request_error = exceptions.BadRequest("code broke")

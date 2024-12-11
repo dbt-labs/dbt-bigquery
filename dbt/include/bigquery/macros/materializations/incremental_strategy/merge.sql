@@ -27,8 +27,12 @@
         {% do predicates.append(avoid_require_partition_filter) %}
     {%- endif -%}
 
-    {% set build_sql = get_merge_sql(target_relation, source_sql, unique_key, dest_columns, predicates) %}
+    -- 1. Run merge statement
+    {{ get_merge_sql(target_relation, source_sql, unique_key, dest_columns, predicates) }};
 
-    {{ return(build_sql) }}
+    {% if tmp_relation_exists -%}
+    -- 2. clean up the temp table if we have used one
+      drop table if exists {{ tmp_relation }};
+    {%- endif -%}
 
 {% endmacro %}

@@ -1,6 +1,5 @@
 from typing import Callable, Optional
 
-from google.api_core.exceptions import Forbidden
 from google.api_core.future.polling import DEFAULT_POLLING
 from google.api_core.retry import Retry
 from google.cloud.bigquery.retry import DEFAULT_RETRY, _job_should_retry

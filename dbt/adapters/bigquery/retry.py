@@ -91,7 +91,7 @@ class _DeferredException:
 
 def _create_reopen_on_error(connection: Connection) -> Callable[[Exception], None]:
 
-    def on_error(error: Exception) -> None:
+    def on_error(error: Exception):
         if isinstance(error, (ConnectionResetError, ConnectionError)):
             _logger.warning("Reopening connection after {!r}".format(error))
             connection.handle.close()

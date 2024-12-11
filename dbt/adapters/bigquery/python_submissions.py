@@ -43,7 +43,7 @@ class _BaseDataProcHelper(PythonJobHelper):
 
         # set retry policy, default to timeout after 24 hours
         retry = RetryFactory(credentials)
-        self._polling_retry = retry.create_job_execution_polling(
+        self._polling_retry = retry.create_polling(
             model_timeout=parsed_model["config"].get("timeout")
         )
 

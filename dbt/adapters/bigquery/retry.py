@@ -72,7 +72,6 @@ class _DeferredException:
         self._retries: int = retries
         self._error_count = 0
 
-
     def __call__(self, error: Exception) -> bool:
         # exit immediately if the user does not want retries
         if self._retries == 0:

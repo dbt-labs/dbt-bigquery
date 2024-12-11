@@ -1,6 +1,0 @@
-kind: Fixes
-body: Fix null column index issue during `dbt docs generate` for external tables
-time: 2024-02-01T14:53:23.434624-05:00
-custom:
-  Author: mikealfare
-  Issue: "1079"

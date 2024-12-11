@@ -1,9 +1,18 @@
 from dataclasses import dataclass, field
+from itertools import chain, islice
 from typing import FrozenSet, Optional, TypeVar
 
-from itertools import chain, islice
-from dbt.adapters.base.relation import BaseRelation, ComponentName, InformationSchema
+from dbt_common.exceptions import CompilationError
+from dbt_common.utils.dict import filter_null_values
+from dbt.adapters.base.relation import (
+    BaseRelation,
+    ComponentName,
+    InformationSchema,
+    EventTimeFilter,
+)
+from dbt.adapters.contracts.relation import RelationConfig, RelationType
 from dbt.adapters.relation_configs import RelationConfigChangeAction
+
 from dbt.adapters.bigquery.relation_configs import (
     BigQueryClusterConfigChange,
     BigQueryMaterializedViewConfig,
@@ -11,9 +20,6 @@ from dbt.adapters.bigquery.relation_configs import (
     BigQueryOptionsConfigChange,
     BigQueryPartitionConfigChange,
 )
-from dbt.adapters.contracts.relation import RelationType, RelationConfig
-from dbt_common.exceptions import CompilationError
-from dbt_common.utils.dict import filter_null_values
 
 
 Self = TypeVar("Self", bound="BigQueryRelation")
@@ -114,6 +120,24 @@ class BigQueryRelation(BaseRelation):
 
     def information_schema(self, identifier: Optional[str] = None) -> "BigQueryInformationSchema":
         return BigQueryInformationSchema.from_relation(self, identifier)
+
+    def _render_event_time_filtered(self, event_time_filter: EventTimeFilter) -> str:
+        """
+        Returns "" if start and end are both None
+        """
+        filter = ""
+        if event_time_filter.start and event_time_filter.end:
+            filter = f"cast({event_time_filter.field_name} as timestamp) >= '{event_time_filter.start}' and cast({event_time_filter.field_name} as timestamp) < '{event_time_filter.end}'"
+        elif event_time_filter.start:
+            filter = (
+                f"cast({event_time_filter.field_name} as timestamp) >= '{event_time_filter.start}'"
+            )
+        elif event_time_filter.end:
+            filter = (
+                f"cast({event_time_filter.field_name} as timestamp) < '{event_time_filter.end}'"
+            )
+
+        return filter
 
 
 @dataclass(frozen=True, eq=False, repr=False)

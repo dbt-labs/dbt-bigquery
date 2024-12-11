@@ -1,9 +1,10 @@
 from typing import Callable, Optional
 
+from google.api_core.exceptions import Forbidden
 from google.api_core.future.polling import DEFAULT_POLLING
 from google.api_core.retry import Retry
 from google.cloud.bigquery.retry import DEFAULT_JOB_RETRY
-from google.cloud.exceptions import BadRequest
+from google.cloud.exceptions import BadGateway, BadRequest, ServerError
 from requests.exceptions import ConnectionError
 
 from dbt.adapters.contracts.connection import Connection, ConnectionState
@@ -28,19 +29,19 @@ class RetryFactory:
         self._job_execution_timeout = credentials.job_execution_timeout_seconds
         self._job_deadline = credentials.job_retry_deadline_seconds
 
-    def create_job_creation_timeout(self) -> float:
-        return self._job_creation_timeout or 1 * _MINUTE
+    def create_job_creation_timeout(self, fallback: float = _MINUTE) -> float:
+        return self._job_creation_timeout or fallback
 
-    def create_job_execution_timeout(self, fallback: float = 1 * _DAY) -> float:
+    def create_job_execution_timeout(self, fallback: float = _DAY) -> float:
         return self._job_execution_timeout or fallback
 
-    def create_job_execution_retry(self) -> Retry:
+    def create_retry(self) -> Retry:
         return DEFAULT_JOB_RETRY.with_timeout(self.create_job_execution_timeout(5 * _MINUTE))
 
-    def create_job_execution_polling(self, model_timeout: Optional[float] = None) -> Retry:
+    def create_polling(self, model_timeout: Optional[float] = None) -> Retry:
         return DEFAULT_POLLING.with_timeout(model_timeout or self.create_job_execution_timeout())
 
-    def create_job_execution_retry_with_reopen(self, connection: Connection) -> Retry:
+    def create_reopen_with_deadline(self, connection: Connection) -> Retry:
         """
         This strategy mimics what was accomplished with _retry_and_handle
         """
@@ -112,15 +113,13 @@ def _create_reopen_on_error(connection: Connection) -> Callable[[Exception], Non
 
 
 def _is_retryable(error: Exception) -> bool:
-    """
-    Extend the default predicate `_job_should_retry` to include BadRequest
-
-    Because `_job_should_retry` is private, take the predicate directly off of `DEFAULT_JOB_RETRY`.
-    This is expected to be more stable.
-    """
-
-    # this is effectively an or, but it's more readable, especially if we add more in the future
-    if isinstance(error, BadRequest):
+    """Return true for errors that are unlikely to occur again if retried."""
+    if isinstance(
+        error, (BadGateway, BadRequest, ConnectionError, ConnectionResetError, ServerError)
+    ):
         return True
-
-    return DEFAULT_JOB_RETRY._predicate(error)
+    elif isinstance(error, Forbidden) and any(
+        e["reason"] == "rateLimitExceeded" for e in error.errors
+    ):
+        return True
+    return False

@@ -1,6 +1,0 @@
-kind: "Dependencies"
-body: "Bump ubuntu from 22.04 to 24.04 in /docker"
-time: 2024-05-20T23:02:08.00000Z
-custom:
-  Author: dependabot[bot]
-  PR: 1247

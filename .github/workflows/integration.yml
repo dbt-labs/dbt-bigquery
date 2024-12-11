@@ -33,6 +33,7 @@ on:
   # all PRs, important to note that `pull_request_target` workflows
   # will run in the context of the target branch of a PR
   pull_request_target:
+    types: [opened, reopened, synchronize, labeled]
   # manual trigger
   workflow_dispatch:
     inputs:
@@ -126,7 +127,8 @@ jobs:
             bigquery:
               - 'dbt/**'
               - 'tests/**'
-              - 'dev-requirements.txt'
+              - 'hatch.toml'
+              - 'pyproject.toml'
               - '.github/**'
               - '*.py'
 
@@ -163,8 +165,6 @@ jobs:
       matrix: ${{ fromJSON(needs.test-metadata.outputs.matrix) }}
 
     env:
-      TOXENV: integration-${{ matrix.adapter }}
-      PYTEST_ADDOPTS: "-v --color=yes -n4 --csv integration_results.csv"
       DBT_INVOCATION_ENV: github-actions
       DD_CIVISIBILITY_AGENTLESS_ENABLED: true
       DD_API_KEY: ${{ secrets.DATADOG_API_KEY }}
@@ -200,12 +200,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install python dependencies
-        run: |
-          python -m pip install --user --upgrade pip
-          python -m pip install tox
-          python -m pip --version
-          tox --version
+      - uses: pypa/hatch@install
 
       - name: Update Adapters and Core branches (update dev_requirements.txt)
         if: github.event_name == 'workflow_dispatch'
@@ -214,10 +209,9 @@ jobs:
             ${{ inputs.dbt_adapters_branch }} \
             ${{ inputs.dbt_core_branch }} \
             ${{ inputs.dbt_common_branch }}
-          cat dev-requirements.txt
+          cat hatch.toml
 
-      - name: Run tox (bigquery)
-        if: matrix.adapter == 'bigquery'
+      - run: hatch run integration-tests tests/functional -k "not TestPython"
         env:
           BIGQUERY_TEST_SERVICE_ACCOUNT_JSON: ${{ secrets.BIGQUERY_TEST_SERVICE_ACCOUNT_JSON }}
           BIGQUERY_TEST_ALT_DATABASE: ${{ secrets.BIGQUERY_TEST_ALT_DATABASE }}
@@ -228,36 +222,13 @@ jobs:
           DATAPROC_REGION: us-central1
           DATAPROC_CLUSTER_NAME: dbt-test-1
           GCS_BUCKET: dbt-ci
-        run: tox -- --ddtrace
-
-      - name: Get current date
-        if: always()
-        id: date
-        run: |
-          echo "date=$(date +'%Y-%m-%dT%H_%M_%S')" >> $GITHUB_OUTPUT #no colons allowed for artifacts
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: logs_${{ matrix.python-version }}_${{ matrix.os }}_${{ matrix.adapter }}-${{ steps.date.outputs.date }}
-          path: ./logs
-          overwrite: true
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: integration_results_${{ matrix.python-version }}_${{ matrix.os }}_${{ matrix.adapter }}-${{ steps.date.outputs.date }}.csv
-          path: integration_results.csv
-          overwrite: true
 
   # python integration tests are slow so we only run them seperately and for a single OS / python version
   test-python:
     name: "test-python"
-    needs: test-metadata
+    needs: test
     runs-on: ubuntu-latest
     if: >-
-      needs.test-metadata.outputs.matrix &&
-      fromJSON( needs.test-metadata.outputs.matrix ).include[0] &&
       (
         github.event_name != 'pull_request_target' ||
         github.event.pull_request.head.repo.full_name == github.repository ||
@@ -280,19 +251,14 @@ jobs:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Set up Python 3.8
+      - name: Set up Python 3.9
         uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: "3.9"
 
-      - name: Install python dependencies
-        run: |
-          python -m pip install --user --upgrade pip
-          python -m pip install tox
-          python -m pip --version
-          tox --version
+      - uses: pypa/hatch@install
 
-      - name: Run tox (python models)
+      - run: hatch run integration-tests tests/functional -n1 -k "TestPython" --ddtrace
         env:
           BIGQUERY_TEST_SERVICE_ACCOUNT_JSON: ${{ secrets.BIGQUERY_TEST_SERVICE_ACCOUNT_JSON }}
           BIGQUERY_TEST_ALT_DATABASE: ${{ secrets.BIGQUERY_TEST_ALT_DATABASE }}
@@ -303,7 +269,6 @@ jobs:
           DATAPROC_REGION: us-central1
           DATAPROC_CLUSTER_NAME: dbt-test-1
           GCS_BUCKET: dbt-ci
-        run: tox -e python-tests -- --ddtrace
 
   require-label-comment:
     runs-on: ubuntu-latest

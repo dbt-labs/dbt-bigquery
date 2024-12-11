@@ -50,11 +50,15 @@ jobs:
           commit_sha=$(git rev-parse HEAD)
           echo "release_commit=$commit_sha" >> $GITHUB_OUTPUT
 
-      - name: "Get Current Version Number"
-        id: version-number-sources
-        run: |
-          current_version=`awk -F"current_version = " '{print $2}' .bumpversion.cfg | tr '\n' ' '`
-          echo "current_version=$current_version" >> $GITHUB_OUTPUT
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - uses: pypa/hatch@install
+
+      - id: version-number-sources
+        run: echo "current_version=$(hatch version)" >> $GITHUB_OUTPUT
 
       - name: "Audit Version And Parse Into Parts"
         id: semver
@@ -108,10 +112,5 @@ jobs:
       sha: ${{ needs.aggregate-release-data.outputs.commit_sha }}
       target_branch: ${{ needs.aggregate-release-data.outputs.release_branch }}
       version_number: ${{ needs.aggregate-release-data.outputs.version_number }}
-      build_script_path: "scripts/build-dist.sh"
-      env_setup_script_path: "scripts/env-setup.sh"
-      s3_bucket_name: "core-team-artifacts"
-      package_test_command: "dbt -h"
-      test_run: true
       nightly_release: true
     secrets: inherit

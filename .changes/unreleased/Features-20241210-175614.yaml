@@ -1,0 +1,6 @@
+kind: Features
+body: Display Job URL at Info Log Level
+time: 2024-12-10T17:56:14.943063-08:00
+custom:
+    Author: thatInfrastructureGuy
+    Issue: "696"

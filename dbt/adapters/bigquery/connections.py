@@ -578,9 +578,7 @@ class BigQueryConnectionManager(BaseConnectionManager):
             and query_job.job_id is not None
             and query_job.project is not None
         ):
-            logger.debug(
-                self._bq_job_link(query_job.location, query_job.project, query_job.job_id)
-            )
+            logger.info(self._bq_job_link(query_job.location, query_job.project, query_job.job_id))
 
         timeout = self._retry.create_job_execution_timeout()
         try:

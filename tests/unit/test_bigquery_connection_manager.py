@@ -39,7 +39,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
     def test_retry_connection_reset(self, mock_client_factory):
         new_mock_client = mock_client_factory.return_value
 
-        @self.connections._retry.create_job_execution_retry_with_reopen(self.mock_connection)
+        @self.connections._retry.create_reopen_with_deadline(self.mock_connection)
         def generate_connection_reset_error():
             raise ConnectionResetError
 

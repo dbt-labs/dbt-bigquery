@@ -80,6 +80,7 @@ jobs:
         uses: pypa/hatch@install
 
       - run: hatch run unit-tests
+        working-directory: ./dbt-bigquery
 
   build:
     name: build packages
@@ -104,12 +105,15 @@ jobs:
 
       - name: Build distributions
         run: hatch build
+        working-directory: ./dbt-bigquery
 
       - name: Show distributions
         run: ls -lh dist/
+        working-directory: ./dbt-bigquery
 
       - name: Check distribution descriptions
         run: hatch run build:check-all
+        working-directory: ./dbt-bigquery
 
       - name: Check if this is an alpha version
         id: check-is-alpha
@@ -117,6 +121,7 @@ jobs:
           export is_alpha=0
           if [[ "$(ls -lh dist/)" == *"a1"* ]]; then export is_alpha=1; fi
           echo "is_alpha=$is_alpha" >> $GITHUB_OUTPUT
+        working-directory: ./dbt-bigquery
 
       - uses: actions/upload-artifact@v4
         with:

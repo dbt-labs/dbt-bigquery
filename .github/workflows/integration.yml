@@ -205,11 +205,12 @@ jobs:
       - name: Update Adapters and Core branches (update dev_requirements.txt)
         if: github.event_name == 'workflow_dispatch'
         run: |
-          ./.github/scripts/update_dev_dependency_branches.sh \
+          scripts/update_dev_dependency_branches.sh \
             ${{ inputs.dbt_adapters_branch }} \
             ${{ inputs.dbt_core_branch }} \
             ${{ inputs.dbt_common_branch }}
           cat hatch.toml
+        working-directory: ./dbt-bigquery
 
       - run: hatch run integration-tests tests/functional -k "not TestPython"
         env:
@@ -222,6 +223,7 @@ jobs:
           DATAPROC_REGION: us-central1
           DATAPROC_CLUSTER_NAME: dbt-test-1
           GCS_BUCKET: dbt-ci
+        working-directory: ./dbt-bigquery
 
   # python integration tests are slow so we only run them seperately and for a single OS / python version
   test-python:
@@ -269,6 +271,7 @@ jobs:
           DATAPROC_REGION: us-central1
           DATAPROC_CLUSTER_NAME: dbt-test-1
           GCS_BUCKET: dbt-ci
+        working-directory: ./dbt-bigquery
 
   require-label-comment:
     runs-on: ubuntu-latest

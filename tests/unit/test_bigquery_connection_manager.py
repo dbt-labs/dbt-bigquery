@@ -53,7 +53,7 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         assert new_mock_client is not self.mock_client
 
     def test_is_retryable(self):
-        _is_retryable = dbt.adapters.bigquery.retry._is_retryable
+        _is_retryable = google.cloud.bigquery.retry._job_should_retry
         exceptions = dbt.adapters.bigquery.impl.google.cloud.exceptions
         internal_server_error = exceptions.InternalServerError("code broke")
         bad_request_error = exceptions.BadRequest("code broke")
@@ -65,7 +65,9 @@ class TestBigQueryConnectionManager(unittest.TestCase):
         service_unavailable_error = exceptions.ServiceUnavailable("service is unavailable")
 
         self.assertTrue(_is_retryable(internal_server_error))
-        self.assertTrue(_is_retryable(bad_request_error))
+        self.assertFalse(
+            _is_retryable(bad_request_error)
+        )  # this was removed after initially being included
         self.assertTrue(_is_retryable(connection_error))
         self.assertFalse(_is_retryable(client_error))
         self.assertTrue(_is_retryable(rate_limit_error))

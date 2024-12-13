@@ -61,7 +61,7 @@ class BigQueryMaterializedViewConfig(BigQueryBaseRelationConfig):
         if cluster := config_dict.get("cluster"):
             kwargs_dict.update({"cluster": BigQueryClusterConfig.from_dict(cluster)})
 
-        materialized_view: "BigQueryMaterializedViewConfig" = super().from_dict(kwargs_dict)  # type: ignore
+        materialized_view: "BigQueryMaterializedViewConfig" = super().from_dict(kwargs_dict)
         return materialized_view
 
     @classmethod

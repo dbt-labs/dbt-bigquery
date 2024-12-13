@@ -25,13 +25,13 @@ class BigQueryClusterConfig(BigQueryBaseRelationConfig):
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> Self:
         kwargs_dict = {"fields": config_dict.get("fields")}
-        return super().from_dict(kwargs_dict)  # type: ignore
+        return super().from_dict(kwargs_dict)
 
     @classmethod
     def parse_relation_config(cls, relation_config: RelationConfig) -> Dict[str, Any]:
         config_dict = {}
 
-        if cluster_by := relation_config.config.extra.get("cluster_by"):  # type: ignore
+        if cluster_by := relation_config.config.extra.get("cluster_by"):
             # users may input a single field as a string
             if isinstance(cluster_by, str):
                 cluster_by = [cluster_by]
@@ -40,7 +40,7 @@ class BigQueryClusterConfig(BigQueryBaseRelationConfig):
         return config_dict
 
     @classmethod
-    def parse_bq_table(cls, table: BigQueryTable) -> Dict[str, Any]:  # type: ignore
+    def parse_bq_table(cls, table: BigQueryTable) -> Dict[str, Any]:
         config_dict = {"fields": frozenset(table.clustering_fields)}
         return config_dict
 

@@ -32,7 +32,7 @@ class BigQueryBaseRelationConfig(RelationConfigBase):
     def from_relation_config(cls, relation_config: RelationConfig) -> Self:
         relation_config_dict = cls.parse_relation_config(relation_config)
         relation = cls.from_dict(relation_config_dict)
-        return relation  # type: ignore
+        return relation
 
     @classmethod
     def parse_relation_config(cls, relation_config: RelationConfig) -> Dict:
@@ -44,7 +44,7 @@ class BigQueryBaseRelationConfig(RelationConfigBase):
     def from_bq_table(cls, table: BigQueryTable) -> Self:
         relation_config = cls.parse_bq_table(table)
         relation = cls.from_dict(relation_config)
-        return relation  # type: ignore
+        return relation
 
     @classmethod
     def parse_bq_table(cls, table: BigQueryTable) -> Dict:

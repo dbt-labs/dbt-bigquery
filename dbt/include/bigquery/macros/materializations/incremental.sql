@@ -4,10 +4,14 @@
 
   {% set invalid_strategy_msg -%}
     Invalid incremental strategy provided: {{ strategy }}
-    Expected one of: 'merge', 'insert_overwrite'
+    Expected one of: 'merge', 'insert_overwrite', 'microbatch'
   {%- endset %}
-  {% if strategy not in ['merge', 'insert_overwrite'] %}
+  {% if strategy not in ['merge', 'insert_overwrite', 'microbatch'] %}
     {% do exceptions.raise_compiler_error(invalid_strategy_msg) %}
+  {% endif %}
+
+  {% if strategy == 'microbatch' %}
+    {% do bq_validate_microbatch_config(config) %}
   {% endif %}
 
   {% do return(strategy) %}
@@ -48,8 +52,13 @@
         tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
     ) %}
 
-  {% else %} {# strategy == 'merge' #}
+  {% elif strategy == 'microbatch' %}
 
+    {% set build_sql = bq_generate_microbatch_build_sql(
+        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
+    ) %}
+
+  {% else %} {# strategy == 'merge' #}
     {% set build_sql = bq_generate_incremental_merge_build_sql(
         tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, incremental_predicates
     ) %}
@@ -86,9 +95,9 @@
 
   {{ run_hooks(pre_hooks) }}
 
-  {% if partition_by.copy_partitions is true and strategy != 'insert_overwrite' %} {#-- We can't copy partitions with merge strategy --#}
+  {% if partition_by.copy_partitions is true and strategy not in ['insert_overwrite', 'microbatch'] %} {#-- We can't copy partitions with merge strategy --#}
         {% set wrong_strategy_msg -%}
-        The 'copy_partitions' option requires the 'incremental_strategy' option to be set to 'insert_overwrite'.
+        The 'copy_partitions' option requires the 'incremental_strategy' option to be set to 'insert_overwrite' or 'microbatch'.
         {%- endset %}
         {% do exceptions.raise_compiler_error(wrong_strategy_msg) %}
 
@@ -151,10 +160,6 @@
       {{ build_sql }}
     {% endcall %}
 
-    {%- if language == 'python' and tmp_relation -%}
-      {{ adapter.drop_relation(tmp_relation) }}
-    {%- endif -%}
-
   {% endif %}
 
   {{ run_hooks(post_hooks) }}
@@ -165,6 +170,10 @@
   {% do apply_grants(target_relation, grant_config, should_revoke) %}
 
   {% do persist_docs(target_relation, model) %}
+
+  {%- if tmp_relation_exists -%}
+    {{ adapter.drop_relation(tmp_relation) }}
+  {%- endif -%}
 
   {{ return({'relations': [target_relation]}) }}
 

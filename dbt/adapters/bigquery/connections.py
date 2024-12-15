@@ -402,17 +402,14 @@ class BigQueryConnectionManager(BaseConnectionManager):
         _, iterator = self.raw_execute(sql, use_legacy_sql=True)
         return self.get_table_from_response(iterator)
 
-    def copy_bq_table(self, source, destination, write_disposition) -> None:
+    def copy_bq_table(self, source, destination, write_disposition, partition_ids=None) -> None:
         conn = self.get_thread_connection()
         client: Client = conn.handle
 
         # -------------------------------------------------------------------------------
-        #  BigQuery allows to use copy API using two different formats:
-        #  1. client.copy_table(source_table_id, destination_table_id)
-        #     where source_table_id = "your-project.source_dataset.source_table"
-        #  2. client.copy_table(source_table_ids, destination_table_id)
-        #     where source_table_ids = ["your-project.your_dataset.your_table_name", ...]
-        #  Let's use uniform function call and always pass list there
+        #  BigQuery allows to use copy API on the same table in parallel
+        #  so each source (and if partition of each source if given) is copied
+        #  into the destination table in parallel.
         # -------------------------------------------------------------------------------
         if type(source) is not list:
             source = [source]
@@ -436,14 +433,32 @@ class BigQueryConnectionManager(BaseConnectionManager):
             ", ".join(source_ref.path for source_ref in source_ref_array),
             destination_ref.path,
         )
+
         with self.exception_handler(msg):
-            copy_job = client.copy_table(
-                source_ref_array,
-                destination_ref,
-                job_config=CopyJobConfig(write_disposition=write_disposition),
-                retry=self._retry.create_reopen_with_deadline(conn),
-            )
-            copy_job.result(timeout=self._retry.create_job_execution_timeout(fallback=300))
+
+            copy_jobs = []
+
+            # Runs all the copy jobs in parallel
+            for source_ref in source_ref_array:
+
+                for partition_id in partition_ids or [None]:
+                    source_ref_partition = (
+                        f"{source_ref}${partition_id}" if partition_id else source_ref
+                    )
+                    destination_ref_partition = (
+                        f"{destination_ref}${partition_id}" if partition_id else destination_ref
+                    )
+                    copy_job = client.copy_table(
+                        source_ref_partition,
+                        destination_ref_partition,
+                        job_config=CopyJobConfig(write_disposition=write_disposition),
+                        retry=self._retry.create_reopen_with_deadline(conn),
+                    )
+                    copy_jobs.append(copy_job)
+
+            # Waits for the jobs to finish
+            for copy_job in copy_jobs:
+                copy_job.result(timeout=self._retry.create_job_execution_timeout(fallback=300))
 
     def write_dataframe_to_table(
         self,

@@ -1,0 +1,7 @@
+kind: Fixes
+body: Fix issue where dbt-bigquery was not retrying in certain retryable scenarios,
+  e.g. 503's
+time: 2024-11-20T16:31:01.60689-05:00
+custom:
+  Author: mikealfare
+  Issue: "682"

@@ -37,9 +37,7 @@ def create_gcs_client(credentials: BigQueryCredentials) -> StorageClient:
 
 
 # dataproc does not appear to have a default retry like BQ and GCS
-def create_dataproc_job_controller_client(
-    credentials: BigQueryCredentials,
-) -> JobControllerClient:
+def create_dataproc_job_controller_client(credentials: BigQueryCredentials) -> JobControllerClient:
     return JobControllerClient(
         credentials=create_google_credentials(credentials),
         client_options=ClientOptions(api_endpoint=_dataproc_endpoint(credentials)),

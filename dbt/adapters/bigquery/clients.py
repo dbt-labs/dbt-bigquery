@@ -1,9 +1,7 @@
 from google.api_core.client_info import ClientInfo
 from google.api_core.client_options import ClientOptions
 from google.auth.exceptions import DefaultCredentialsError
-from google.cloud.bigquery import Client as BigQueryClient, DEFAULT_RETRY
-from google.cloud.dataproc_v1 import BatchControllerClient, JobControllerClient
-from google.cloud.storage import Client as StorageClient
+from google.cloud import bigquery, dataproc_v1, storage
 
 from dbt.adapters.events.logging import AdapterLogger
 
@@ -18,7 +16,7 @@ from dbt.adapters.bigquery.credentials import (
 _logger = AdapterLogger("BigQuery")
 
 
-def create_bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
+def create_bigquery_client(credentials: BigQueryCredentials) -> bigquery.Client:
     try:
         return _create_bigquery_client(credentials)
     except DefaultCredentialsError:
@@ -27,35 +25,37 @@ def create_bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
         return _create_bigquery_client(credentials)
 
 
-@DEFAULT_RETRY
-def create_gcs_client(credentials: BigQueryCredentials) -> StorageClient:
-    return StorageClient(
+@storage.DEFAULT_RETRY
+def create_gcs_client(credentials: BigQueryCredentials) -> storage.Client:
+    return storage.Client(
         project=credentials.execution_project,
         credentials=create_google_credentials(credentials),
     )
 
 
-@DEFAULT_RETRY
-def create_dataproc_job_controller_client(credentials: BigQueryCredentials) -> JobControllerClient:
-    return JobControllerClient(
+@dataproc_v1.DEFAULT_RETRY
+def create_dataproc_job_controller_client(
+    credentials: BigQueryCredentials,
+) -> dataproc_v1.JobControllerClient:
+    return dataproc_v1.JobControllerClient(
         credentials=create_google_credentials(credentials),
         client_options=ClientOptions(api_endpoint=_dataproc_endpoint(credentials)),
     )
 
 
-@DEFAULT_RETRY
+@dataproc_v1.DEFAULT_RETRY
 def create_dataproc_batch_controller_client(
     credentials: BigQueryCredentials,
-) -> BatchControllerClient:
-    return BatchControllerClient(
+) -> dataproc_v1.BatchControllerClient:
+    return dataproc_v1.BatchControllerClient(
         credentials=create_google_credentials(credentials),
         client_options=ClientOptions(api_endpoint=_dataproc_endpoint(credentials)),
     )
 
 
-@DEFAULT_RETRY
-def _create_bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
-    return BigQueryClient(
+@bigquery.DEFAULT_RETRY
+def _create_bigquery_client(credentials: BigQueryCredentials) -> bigquery.Client:
+    return bigquery.Client(
         credentials.execution_project,
         create_google_credentials(credentials),
         location=getattr(credentials, "location", None),

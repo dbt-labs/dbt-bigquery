@@ -1,7 +1,10 @@
 from google.api_core.client_info import ClientInfo
 from google.api_core.client_options import ClientOptions
 from google.auth.exceptions import DefaultCredentialsError
-from google.cloud import bigquery, dataproc_v1, storage
+from google.cloud.bigquery import Client as BigQueryClient, DEFAULT_RETRY as BQ_DEFAULT_RETRY
+from google.cloud.dataproc_v1 import BatchControllerClient, JobControllerClient
+from google.cloud.storage import Client as StorageClient
+from google.cloud.storage.retry import DEFAULT_RETRY as GCS_DEFAULT_RETRY
 
 from dbt.adapters.events.logging import AdapterLogger
 
@@ -16,7 +19,7 @@ from dbt.adapters.bigquery.credentials import (
 _logger = AdapterLogger("BigQuery")
 
 
-def create_bigquery_client(credentials: BigQueryCredentials) -> bigquery.Client:
+def create_bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
     try:
         return _create_bigquery_client(credentials)
     except DefaultCredentialsError:
@@ -25,37 +28,37 @@ def create_bigquery_client(credentials: BigQueryCredentials) -> bigquery.Client:
         return _create_bigquery_client(credentials)
 
 
-@storage.DEFAULT_RETRY
-def create_gcs_client(credentials: BigQueryCredentials) -> storage.Client:
-    return storage.Client(
+@GCS_DEFAULT_RETRY
+def create_gcs_client(credentials: BigQueryCredentials) -> StorageClient:
+    return StorageClient(
         project=credentials.execution_project,
         credentials=create_google_credentials(credentials),
     )
 
 
-@dataproc_v1.DEFAULT_RETRY
+# dataproc does not appear to have a default retry like BQ and GCS
 def create_dataproc_job_controller_client(
     credentials: BigQueryCredentials,
-) -> dataproc_v1.JobControllerClient:
-    return dataproc_v1.JobControllerClient(
+) -> JobControllerClient:
+    return JobControllerClient(
         credentials=create_google_credentials(credentials),
         client_options=ClientOptions(api_endpoint=_dataproc_endpoint(credentials)),
     )
 
 
-@dataproc_v1.DEFAULT_RETRY
+# dataproc does not appear to have a default retry like BQ and GCS
 def create_dataproc_batch_controller_client(
     credentials: BigQueryCredentials,
-) -> dataproc_v1.BatchControllerClient:
-    return dataproc_v1.BatchControllerClient(
+) -> BatchControllerClient:
+    return BatchControllerClient(
         credentials=create_google_credentials(credentials),
         client_options=ClientOptions(api_endpoint=_dataproc_endpoint(credentials)),
     )
 
 
-@bigquery.DEFAULT_RETRY
-def _create_bigquery_client(credentials: BigQueryCredentials) -> bigquery.Client:
-    return bigquery.Client(
+@BQ_DEFAULT_RETRY
+def _create_bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
+    return BigQueryClient(
         credentials.execution_project,
         create_google_credentials(credentials),
         location=getattr(credentials, "location", None),

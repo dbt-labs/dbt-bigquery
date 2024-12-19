@@ -22,6 +22,7 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
     refresh_interval_minutes: Optional[float] = 30
     expiration_timestamp: Optional[datetime] = None
     max_staleness: Optional[str] = None
+    allow_non_incremental_definition: Optional[bool] = False
     kms_key_name: Optional[str] = None
     description: Optional[str] = None
     labels: Optional[Dict[str, str]] = None
@@ -58,6 +59,7 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
             "refresh_interval_minutes": numeric,
             "expiration_timestamp": interval,
             "max_staleness": interval,
+            "allow_non_incremental_definition": boolean,
             "kms_key_name": string,
             "description": escaped_string,
             "labels": array,
@@ -78,6 +80,22 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
 
         return options
 
+    def as_alter_dict(self) -> Dict[str, Any]:
+        """
+        Return a dict of options that can be used in an ALTER MATERIALIZED VIEW statement.
+
+        According to our research, some options are not available for ALTER statements,
+        even though the documentation implies that they are. For instance,
+        `allow_non_incremental_definition` is not available for ALTER as of writing.
+        If we want to change the `allow_non_incremental_definition` option, we need to refresh
+        the dbt Model.
+
+        SEE https://cloud.google.com/bigquery/docs/materialized-views-manage
+        """
+        non_available_options = ["allow_non_incremental_definition"]
+        options = {k: v for k, v in self.as_ddl_dict().items() if k not in non_available_options}
+        return options
+
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> Self:
         setting_formatters = {
@@ -85,6 +103,7 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
             "refresh_interval_minutes": float_setting,
             "expiration_timestamp": None,
             "max_staleness": None,
+            "allow_non_incremental_definition": None,
             "kms_key_name": None,
             "description": None,
             "labels": None,
@@ -101,7 +120,13 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
         # avoid picking up defaults on dependent options
         # e.g. don't set `refresh_interval_minutes` = 30 when the user has `enable_refresh` = False
         if kwargs_dict["enable_refresh"] is False:
-            kwargs_dict.update({"refresh_interval_minutes": None, "max_staleness": None})
+            kwargs_dict.update(
+                {
+                    "refresh_interval_minutes": None,
+                    "max_staleness": None,
+                    "allow_non_incremental_definition": None,
+                }
+            )
 
         options: Self = super().from_dict(kwargs_dict)
         return options
@@ -115,6 +140,7 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
                 "refresh_interval_minutes",
                 "expiration_timestamp",
                 "max_staleness",
+                "allow_non_incremental_definition",
                 "kms_key_name",
                 "description",
                 "labels",
@@ -138,6 +164,7 @@ class BigQueryOptionsConfig(BigQueryBaseRelationConfig):
             "refresh_interval_minutes": table.mview_refresh_interval.seconds / 60,
             "expiration_timestamp": table.expires,
             "max_staleness": None,
+            "allow_non_incremental_definition": None,
             "description": table.description,
         }
 

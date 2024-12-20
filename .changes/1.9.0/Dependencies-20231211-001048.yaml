@@ -1,6 +1,0 @@
-kind: "Dependencies"
-body: "Update pre-commit requirement from ~=3.5 to ~=3.7"
-time: 2023-12-11T00:10:48.00000Z
-custom:
-  Author: dependabot[bot]
-  PR: 1052

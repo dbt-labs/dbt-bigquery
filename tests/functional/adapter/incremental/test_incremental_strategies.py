@@ -28,6 +28,8 @@ from tests.functional.adapter.incremental.incremental_strategy_fixtures import (
     overwrite_day_with_time_partition_datetime_sql,
     overwrite_static_day_sql,
     overwrite_static_day_delete_and_insert_sub_strategy_sql,
+    overwrite_static_day_merge_sub_strategy_sql,
+    overwrite_static_day_copy_partitions_sub_strategy_sql,
 )
 
 
@@ -50,8 +52,10 @@ class TestBigQueryScripting(SeedConfigBase):
             "incremental_overwrite_time.sql": overwrite_time_sql,
             "incremental_overwrite_day_with_time_partition.sql": overwrite_day_with_time_ingestion_sql,
             "incremental_overwrite_day_with_time_partition_datetime.sql": overwrite_day_with_time_partition_datetime_sql,
-            "incremental_overwrite_static_day.sql": overwrite_static_day_sql,
-            "incremental_overwrite_static_day_with_deleteinsert.sql": overwrite_static_day_delete_and_insert_sub_strategy_sql
+            "incremental_overwrite_static_substrategy_day.sql": overwrite_static_day_sql,
+            "incremental_overwrite_static_substrategy_day_with_deleteinsert.sql": overwrite_static_day_delete_and_insert_sub_strategy_sql,
+            "incremental_overwrite_static_substrategy_day_with_merge.sql": overwrite_static_day_merge_sub_strategy_sql,
+            "incremental_overwrite_static_substrategy_day_with_copy_partitions.sql": overwrite_static_day_copy_partitions_sub_strategy_sql,
         }
 
     @pytest.fixture(scope="class")
@@ -86,8 +90,13 @@ class TestBigQueryScripting(SeedConfigBase):
                 "incremental_overwrite_day_with_time_partition_datetime",
                 "incremental_overwrite_day_with_time_partition_expected",
             ),
-            ("incremental_overwrite_static_day", "incremental_overwrite_day_expected"),
-            ("incremental_overwrite_static_day_with_deleteinsert", "incremental_overwrite_day_expected"),
+            ("incremental_overwrite_static_substrategy_day", "incremental_overwrite_day_expected"),
+            (
+                "incremental_overwrite_static_substrategy_day_with_deleteinsert",
+                "incremental_overwrite_static_substrategy_day_with_merge",
+                "incremental_overwrite_static_substrategy_day_with_copy_partitions",
+                "incremental_overwrite_day_expected",
+            ),
         ]
         db_with_schema = f"{project.database}.{project.test_schema}"
         for incremental_strategy in incremental_strategies:

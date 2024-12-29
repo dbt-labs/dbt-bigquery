@@ -1,0 +1,6 @@
+kind: Features
+body: add multiple substrategies for insert_overwrite and microbatch
+time: 2024-12-29T17:47:52.647374Z
+custom:
+    Author: borjavb
+    Issue: "1409"

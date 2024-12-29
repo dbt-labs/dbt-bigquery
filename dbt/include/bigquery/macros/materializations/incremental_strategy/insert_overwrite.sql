@@ -1,5 +1,5 @@
 {% macro bq_generate_incremental_insert_overwrite_build_sql(
-    tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions, insert_overwrite_fn
+    tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy
 ) %}
     {% if partition_by is none %}
       {% set missing_partition_msg -%}
@@ -9,7 +9,7 @@
     {% endif %}
 
     {% set build_sql = bq_insert_overwrite_sql(
-        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions, insert_overwrite_fn
+        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy
     ) %}
 
     {{ return(build_sql) }}
@@ -38,17 +38,17 @@
 {% endmacro %}
 
 {% macro bq_insert_overwrite_sql(
-    tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions, insert_overwrite_fn
+    tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy
 ) %}
   {% if partitions is not none and partitions != [] %} {# static #}
-      {{ bq_static_insert_overwrite_sql(tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions, insert_overwrite_fn) }}
+      {{ bq_static_insert_overwrite_sql(tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy) }}
   {% else %} {# dynamic #}
-      {{ bq_dynamic_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, copy_partitions, insert_overwrite_fn) }}
+      {{ bq_dynamic_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, incremental_substrategy) }}
   {% endif %}
 {% endmacro %}
 
 {% macro bq_static_insert_overwrite_sql(
-    tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions, insert_overwrite_fn
+    tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy
 ) %}
 
       {% set predicate -%}
@@ -75,35 +75,35 @@
         )
       {%- endset -%}
 
-      {% if copy_partitions %}
+      {% if incremental_substrategy == 'copy_partitions' %}
           {% do bq_copy_partitions(tmp_relation, target_relation, partitions, partition_by) %}
       {% else %}
 
-      {#-- In case we're putting the model SQL _directly_ into the MERGE statement,
-         we need to prepend the MERGE statement with the user-configured sql_header,
-         which may be needed to resolve that model SQL (e.g. referencing a variable or UDF in the header)
-         in the "temporary table exists" case, we save the model SQL result as a temp table first, wherein the
-         sql_header is included by the create_table_as macro.
-      #}
-      
-      {% if insert_overwrite_fn == 'delete+insert' %}
-        -- 1. run insert_overwrite with delete+insert transaction strategy optimisation
-        {{ bq_get_insert_overwrite_with_delete_and_insert_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }};
-      {% else %}
-        -- 1. run insert_overwrite with merge strategy optimisation
-        {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }};
+        {#-- In case we're putting the model SQL _directly_ into the MERGE/insert+delete transaction,
+          we need to prepend the merge/transaction statement with the user-configured sql_header,
+          which may be needed to resolve that model SQL (e.g. referencing a variable or UDF in the header)
+          in the "temporary table exists" case, we save the model SQL result as a temp table first, wherein the
+          sql_header is included by the create_table_as macro.
+        #}
+
+        {% if incremental_substrategy == 'delete+insert' %}
+          -- 1. run insert_overwrite with delete+insert transaction strategy optimisation
+          {{ bq_get_insert_overwrite_with_delete_and_insert_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }};
+        {% else %}
+          -- 1. run insert_overwrite with merge strategy optimisation
+          {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }};
+        {% endif %}
+
+        {%- if tmp_relation_exists -%}
+        -- 2. clean up the temp table
+        drop table if exists {{ tmp_relation }};
+        {%- endif -%}
+
       {% endif %}
-
-      {%- if tmp_relation_exists -%}
-      -- 2. clean up the temp table
-      drop table if exists {{ tmp_relation }};
-      {%- endif -%}
-
-  {% endif %}
 {% endmacro %}
 
 {% macro bq_dynamic_copy_partitions_insert_overwrite_sql(
-  tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, copy_partitions
+  tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists
   ) %}
   {%- if tmp_relation_exists is false -%}
   {# We run temp table creation in a separated script to move to partitions copy if it does not already exist #}
@@ -123,9 +123,9 @@
   drop table if exists {{ tmp_relation }}
 {% endmacro %}
 
-{% macro bq_dynamic_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, copy_partitions) %}
-  {%- if copy_partitions is true %}
-     {{ bq_dynamic_copy_partitions_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, copy_partitions) }}
+{% macro bq_dynamic_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, incremental_substrategy) %}
+  {% if incremental_substrategy == 'copy_partitions' %}
+     {{ bq_dynamic_copy_partitions_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists) }}
   {% else -%}
       {% set predicate -%}
           {{ partition_by.render_wrapped(alias='DBT_INTERNAL_DEST') }} in unnest(dbt_partitions_for_replacement)
@@ -161,7 +161,7 @@
           from {{ tmp_relation }}
       );
 
-      {% if  insert_overwrite_fn == 'delete+insert' %}
+      {% if  incremental_substrategy == 'delete+insert' %}
         -- 3. run insert_overwrite with the delete+insert transaction strategy optimisation
         {{ bq_get_insert_overwrite_with_delete_and_insert_sql(target_relation, source_sql, dest_columns, [predicate]) }};
       {% else %}
@@ -185,11 +185,11 @@
     {{ sql_header if sql_header is not none and include_sql_header }}
 
     begin
-        begin transaction; 
+        begin transaction;
 
             -- (as of Nov 2024)
-            -- DELETE operations are free if the partition is a DATE 
-            -- * Not free if the partitions are granular (hourly, monthly) 
+            -- DELETE operations are free if the partition is a DATE
+            -- * Not free if the partitions are granular (hourly, monthly)
             --   or some other conditions like subqueries and so on.
             delete from {{ target }} as DBT_INTERNAL_DEST
             where true

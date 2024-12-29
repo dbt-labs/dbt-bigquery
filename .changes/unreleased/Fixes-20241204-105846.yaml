@@ -1,0 +1,7 @@
+kind: Fixes
+body: Cast `event_time` to a timestamp prior to comparing against microbatch start/end
+  time
+time: 2024-12-04T10:58:46.573608-05:00
+custom:
+  Author: michelleark
+  Issue: "1422"

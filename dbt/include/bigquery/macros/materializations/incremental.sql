@@ -119,9 +119,9 @@
 
   {{ run_hooks(pre_hooks) }}
 
-  {% if partition_by.copy_partitions is true and strategy != 'insert_overwrite' %} {#-- We can't copy partitions with merge strategy --#}
+  {% if partition_by.copy_partitions is true and strategy not in ['insert_overwrite', 'microbatch'] %} {#-- We can't copy partitions with merge strategy --#}
         {% set wrong_strategy_msg -%}
-        The 'copy_partitions' option requires the 'incremental_strategy' option to be set to 'insert_overwrite'.
+        The 'copy_partitions' option requires the 'incremental_strategy' option to be set to 'insert_overwrite' or 'microbatch'.
         {%- endset %}
         {% do exceptions.raise_compiler_error(wrong_strategy_msg) %}
 

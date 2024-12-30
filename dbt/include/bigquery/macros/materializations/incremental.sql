@@ -30,7 +30,7 @@
       {% set wrong_fn -%}
       The 'incremental_substrategy' option has to be either 'merge' (default), 'delete+insert' or 'copy_partitions'.
       {%- endset %}
-      {% do exceptions.raise_compiler_error(wrong_strategy_msg) %}
+      {% do exceptions.raise_compiler_error(wrong_fn) %}
     {% endif %}
   {% elif incremental_substrategy is not none%}
       {% set wrong_strategy_msg -%}
@@ -176,7 +176,7 @@
     {% endif %}
 
     {% set build_sql = bq_generate_incremental_build_sql(
-        strategy, tmp_relation, target_relation, compiled_code, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy, 
+        strategy, tmp_relation, target_relation, compiled_code, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy, incremental_predicates
     ) %}
 
     {%- call statement('main') -%}

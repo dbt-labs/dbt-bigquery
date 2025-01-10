@@ -123,7 +123,7 @@ jobs:
     name: "Release prep: generate changelog, bump version"
     uses: ./.github/workflows/release_prep_hatch.yml
     with:
-      branch: ${{ inputs.branch }}
+      branch: ${{ inputs.target_branch }}
       version: ${{ inputs.version_number }}
       deploy-to: "prod"
     secrets: inherit

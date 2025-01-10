@@ -69,23 +69,27 @@
 
 {% endmacro %}
 
+
+{% macro generate_temp_schema(base_relation, temp_schema = none) %}
+  {%- if temp_schema is not none-%}
+      {%- set temp_relation = base_relation.incorporate(path={
+        "schema": temp_schema
+        }) -%}
+        {%- do create_schema(temp_relation) -%}
+  {% endif %}
+{% endmacro %}
+
 {% materialization incremental, adapter='bigquery', supported_languages=['sql', 'python'] -%}
 
   {%- set unique_key = config.get('unique_key') -%}
-  {%- set temp_schema = config.get('temp_schema') -%}
+  {%- set tmp_schema = config.get('tmp_schema') -%}
   {%- set full_refresh_mode = (should_full_refresh()) -%}
   {%- set language = model['language'] %}
 
   {%- set target_relation = this %}
   {%- set existing_relation = load_relation(this) %}
-  {%- set temp_schema = config.get('temp_schema') -%}
-  {%- if temp_schema is not none-%}
-      {%- set temp_relation = this.incorporate(path={
-        "schema": temp_schema
-        }) -%}
-        {%- do create_schema(temp_relation) -%}
-  {% endif %}
-  {%- set tmp_relation = make_temp_relation(temp_relation) %}
+  {%- set tmp_updated_relation = generate_tmp_schema(this, tmp_schema) -%}
+  {%- set tmp_relation = make_temp_relation(tmp_updated_relation) %}
 
   {#-- Validate early so we don't run SQL if the strategy is invalid --#}
   {% set strategy = dbt_bigquery_validate_get_incremental_strategy(config) -%}

@@ -232,6 +232,10 @@ jobs:
 
       - uses: pypa/hatch@install
 
+      - name: "Add Homebrew To PATH"
+        run: |
+          echo "/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin" >> $GITHUB_PATH
+
       - name: "Install `changie`"
         run: |
           brew tap miniscruff/changie https://github.com/miniscruff/changie

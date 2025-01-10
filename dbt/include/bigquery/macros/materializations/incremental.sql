@@ -72,11 +72,9 @@
 
 {% macro generate_tmp_schema(base_relation, tmp_schema=none) %}
   {%- if tmp_schema is not none-%}
-      {%- set tmp_relation = base_relation.incorporate(path={
-        "schema": tmp_schema
-        }) -%}
-        {%- do create_schema(tmp_relation) -%}
-        {{ return(tmp_relation) }}
+      {%- set tmp_relation = base_relation.incorporate(path={"schema": tmp_schema }) -%}
+      {%- do create_schema(tmp_relation) -%}
+      {{ return(tmp_relation) }}
   {% endif %}
   {{ return(base_relation) }}
 {% endmacro %}

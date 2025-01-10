@@ -124,7 +124,7 @@ jobs:
     uses: ./.github/workflows/release_prep_hatch.yml
     with:
       branch: ${{ inputs.branch }}
-      version: ${{ inputs.version }}
+      version: ${{ inputs.version_number }}
       deploy-to: ${{ inputs.deploy-to }}
     secrets: inherit
 
@@ -145,7 +145,7 @@ jobs:
       - uses: pypa/hatch@install
       - id: archive
         run: |
-          archive_name=${{ github.event.repository.name }}-${{ inputs.version }}-${{ inputs.deploy-to }}
+          archive_name=${{ github.event.repository.name }}-${{ inputs.version_number }}-${{ inputs.deploy-to }}
           echo "name=$archive_name" >> $GITHUB_OUTPUT
       - run: hatch build && hatch run build:check-all
       - uses: actions/upload-artifact@v4

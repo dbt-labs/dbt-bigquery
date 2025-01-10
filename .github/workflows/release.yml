@@ -125,7 +125,7 @@ jobs:
     with:
       branch: ${{ inputs.branch }}
       version: ${{ inputs.version_number }}
-      deploy-to: ${{ inputs.deploy-to }}
+      deploy-to: "prod"
     secrets: inherit
 
   build-release:
@@ -160,7 +160,7 @@ jobs:
     needs: build-release
     runs-on: ubuntu-latest
     environment:
-      name: ${{ inputs.deploy-to }}
+      name: "prod"
       url: ${{ vars.PYPI_PROJECT_URL }}
     permissions:
       # this permission is required for trusted publishing

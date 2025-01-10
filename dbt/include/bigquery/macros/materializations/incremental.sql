@@ -70,13 +70,15 @@
 {% endmacro %}
 
 
-{% macro generate_temp_schema(base_relation, temp_schema = none) %}
-  {%- if temp_schema is not none-%}
-      {%- set temp_relation = base_relation.incorporate(path={
-        "schema": temp_schema
+{% macro generate_temp_schema(base_relation, tmp_schema = none) %}
+  {%- if tmp_schema is not none-%}
+      {%- set tmp_relation = base_relation.incorporate(path={
+        "schema": tmp_schema
         }) -%}
-        {%- do create_schema(temp_relation) -%}
+        {%- do create_schema(tmp_relation) -%}
+        {{ return(tmp_relation) }}
   {% endif %}
+  {{ return(base_relation) }}
 {% endmacro %}
 
 {% materialization incremental, adapter='bigquery', supported_languages=['sql', 'python'] -%}
@@ -88,8 +90,8 @@
 
   {%- set target_relation = this %}
   {%- set existing_relation = load_relation(this) %}
-  {%- set tmp_updated_relation = generate_tmp_schema(this, tmp_schema) -%}
-  {%- set tmp_relation = make_temp_relation(tmp_updated_relation) %}
+  {%- set tmp_set_schema = generate_tmp_schema(this, tmp_schema) -%}
+  {%- set tmp_relation = make_temp_relation(tmp_set_schema) %}
 
   {#-- Validate early so we don't run SQL if the strategy is invalid --#}
   {% set strategy = dbt_bigquery_validate_get_incremental_strategy(config) -%}

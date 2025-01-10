@@ -154,18 +154,6 @@ jobs:
           path: dist/
           retention-days: 3
 
-  github-release:
-    name: GitHub Release
-    if: ${{ !failure() && !cancelled() && !inputs.only_docker }}
-    needs: [build-release, release-prep]
-    uses: dbt-labs/dbt-adapters/.github/workflows/github-release.yml@main
-    with:
-      sha: ${{ needs.bump-version-generate-changelog.outputs.final_sha }}
-      version_number: ${{ inputs.version_number }}
-      changelog_path: ${{ needs.bump-version-generate-changelog.outputs.changelog_path }}
-      test_run: ${{ inputs.test_run }}
-      archive_name: ${{ needs.build-release.outputs.archive-name }}
-
   pypi-release:
     name: PyPI Release
     if: ${{ !failure() && !cancelled() && !inputs.only_docker }}
@@ -184,28 +172,12 @@ jobs:
           repository-url: ${{ vars.PYPI_REPOSITORY_URL }}
           archive-name: ${{ needs.build-release.outputs.archive-name }}
 
-  docker-release:
-    name: "Docker Release"
-    # We cannot release to docker on a test run because it uses the tag in GitHub as
-    # what we need to release but draft releases don't actually tag the commit so it
-    # finds nothing to release
-    if: ${{ !failure() && !cancelled() && (!inputs.test_run || inputs.only_docker) }}
-    needs: github-release
-    permissions:
-      packages: write
-    uses: dbt-labs/dbt-release/.github/workflows/release-docker.yml@main
-    with:
-      version_number: ${{ inputs.version_number }}
-      test_run: ${{ inputs.test_run }}
-
   slack-notification:
     name: Slack Notification
     if: ${{ failure() && (!inputs.test_run || inputs.nightly_release) }}
     needs:
       [
-        github-release,
         pypi-release,
-        docker-release,
       ]
     uses: dbt-labs/dbt-release/.github/workflows/slack-post-notification.yml@main
     with:

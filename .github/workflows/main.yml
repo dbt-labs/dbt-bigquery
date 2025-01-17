@@ -175,10 +175,6 @@ jobs:
           python -m pip install --user --upgrade pip
           python -m pip install --upgrade wheel setuptools twine check-wheel-contents
           python -m pip --version
-      - uses: actions/download-artifact@v3
-        with:
-          name: dist
-          path: dist/
 
       - name: Show distributions
         run: ls -lh dist/

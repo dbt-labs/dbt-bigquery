@@ -714,6 +714,55 @@ with data as (
 select * from data
 """.lstrip()
 
+overwrite_static_day_commit_delete_and_insert_sub_strategy_sql = """
+{% set partitions_to_replace = [
+  "'2020-01-01'",
+  "'2020-01-02'",
+] %}
+
+{{
+    config(
+        materialized="incremental",
+        incremental_strategy="insert_overwrite",
+        incremental_substrategy='commit+delete+insert',
+        cluster_by="id",
+        partition_by={
+            "field": "date_time",
+            "data_type": "datetime",
+            "granularity": "day"
+        },
+        partitions=partitions_to_replace,
+        on_schema_change="sync_all_columns"
+    )
+}}
+
+
+with data as (
+
+    {% if not is_incremental() %}
+
+        select 1 as id, cast('2020-01-01' as datetime) as date_time union all
+        select 2 as id, cast('2020-01-01' as datetime) as date_time union all
+        select 3 as id, cast('2020-01-01' as datetime) as date_time union all
+        select 4 as id, cast('2020-01-01' as datetime) as date_time
+
+    {% else %}
+
+        -- we want to overwrite the 4 records in the 2020-01-01 partition
+        -- with the 2 records below, but add two more in the 2020-01-02 partition
+        select 10 as id, cast('2020-01-01' as datetime) as date_time union all
+        select 20 as id, cast('2020-01-01' as datetime) as date_time union all
+        select 30 as id, cast('2020-01-02' as datetime) as date_time union all
+        select 40 as id, cast('2020-01-02' as datetime) as date_time
+
+    {% endif %}
+
+)
+
+select * from data
+""".lstrip()
+
+
 
 overwrite_static_day_merge_sub_strategy_sql = """
 {% set partitions_to_replace = [

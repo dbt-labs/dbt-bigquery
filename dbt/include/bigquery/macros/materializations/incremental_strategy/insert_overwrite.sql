@@ -87,8 +87,11 @@
         #}
 
         {% if incremental_substrategy == 'delete+insert' %}
-          -- 1. run insert_overwrite with delete+insert transaction strategy optimisation
+          -- 1. run insert_overwrite with delete+insert (without a transaction) strategy optimisation
           {{ bq_get_insert_overwrite_with_delete_and_insert_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }};
+        {% elif incremental_substrategy == 'commit+delete+insert' %}
+          -- 1. run insert_overwrite with delete+insert (with a transaction) strategy optimisation
+          {{ bq_get_insert_overwrite_with_delete_and_insert_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists, transactional=True) }};
         {% else %}
           -- 1. run insert_overwrite with merge strategy optimisation
           {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }};
@@ -162,8 +165,11 @@
       );
 
       {% if  incremental_substrategy == 'delete+insert' %}
-        -- 3. run insert_overwrite with the delete+insert transaction strategy optimisation
+        -- 3. run insert_overwrite with the delete+insert (without a transaction) strategy optimisation
         {{ bq_get_insert_overwrite_with_delete_and_insert_sql(target_relation, source_sql, dest_columns, [predicate]) }};
+      {% elif incremental_substrategy == 'commit+delete+insert' %}
+        -- 3. run insert_overwrite with the delete+insert (with a transaction) strategy optimisation
+        {{ bq_get_insert_overwrite_with_delete_and_insert_sql(target_relation, source_sql, dest_columns, [predicate], transactional=True) }};
       {% else %}
         -- 3. run insert_overwrite with the merge strategy optimisation
         {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate]) }};
@@ -177,39 +183,39 @@
 
 
 
-{% macro bq_get_insert_overwrite_with_delete_and_insert_sql(target, source, dest_columns, predicates, include_sql_header) -%}
+{% macro bq_get_insert_overwrite_with_delete_and_insert_sql(target, source, dest_columns, predicates, include_sql_header, transactional=False) -%}
     {%- set predicates = [] if predicates is none else [] + predicates -%}
     {%- set dest_cols_csv = get_quoted_csv(dest_columns | map(attribute="name")) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
 
     {{ sql_header if sql_header is not none and include_sql_header }}
 
+    {% if transactional %}
+    -- We can rely on a multi-statement transaction to enable atomicity
+    -- If something goes south, nothing is committed
+    -- DELETE + INSERT allow for isolation lock
     begin
-        begin transaction;
+    begin transaction ;
+    {% endif %}
+        -- DELETE operations are free https://cloud.google.com/bigquery/docs/using-dml-with-partitioned-tables#using_dml_delete_to_delete_partitions
+        delete from {{ target }} as DBT_INTERNAL_DEST
+        where true
+        {% if predicates %} and {{ predicates | join(' and ') }} {% endif %};
 
-            -- (as of Nov 2024)
-            -- DELETE operations are free if the partition is a DATE
-            -- * Not free if the partitions are granular (hourly, monthly)
-            --   or some other conditions like subqueries and so on.
-            delete from {{ target }} as DBT_INTERNAL_DEST
-            where true
-            {%- if predicates %}
-                {% for predicate in predicates %}
-                    and {{ predicate }}
-                {% endfor %}
-            {%- endif -%};
-
-
-            insert into {{ target }} ({{ dest_cols_csv }})
-            (
-                select {{ dest_cols_csv }}
-                from {{ source }}
-            );
-
-        commit transaction;
+        -- INSERT the data
+        insert into {{ target }} ({{ dest_cols_csv }})
+        (
+            select {{ dest_cols_csv }}
+            from {{ source }}
+        )
+    {% if transactional %}
+    -- leaving the trailing ; out of the if as the calling macro already adds a leading ; to this output
+    ; commit transaction;
 
     exception when error then
-        raise using message = FORMAT("Error: %s", @@error.message);
+        -- If things go south, abort and rollback
+        raise using message = FORMAT("dbt error while commit+delete+instert: %s", @@error.message);
         rollback transaction;
     end
+    {% endif %}
 {% endmacro %}

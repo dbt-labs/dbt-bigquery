@@ -26,9 +26,9 @@
   {%- set incremental_substrategy = config.get('incremental_substrategy', 'copy_partitions' if copy_partitions else 'merge') -%}
 
   {% if strategy in ['insert_overwrite', 'microbatch'] %}
-    {% if incremental_substrategy not in ['merge', 'delete+insert', 'copy_partitions'] %}
+    {% if incremental_substrategy not in ['merge', 'commit+delete+insert', 'delete+insert', 'copy_partitions'] %}
       {% set wrong_fn -%}
-      The 'incremental_substrategy' option has to be either 'merge' (default), 'delete+insert' or 'copy_partitions'.
+      The 'incremental_substrategy' option has to be either 'merge' (default), 'commit+delete+insert', 'delete+insert' or 'copy_partitions'.
       {%- endset %}
       {% do exceptions.raise_compiler_error(wrong_fn) %}
     {% endif %}

@@ -90,15 +90,12 @@ class TestBigQueryScripting(SeedConfigBase):
                 "incremental_overwrite_day_with_time_partition_datetime",
                 "incremental_overwrite_day_with_time_partition_expected",
             ),
-            (   
-                "incremental_overwrite_static_substrategy_day",
-                "incremental_overwrite_day_expected"
-            ),
+            ("incremental_overwrite_static_substrategy_day", "incremental_overwrite_day_expected"),
             (   
                 "incremental_overwrite_static_substrategy_day_with_deleteinsert",
                 "incremental_overwrite_day_expected",
             ),
-            (  
+            (
                 "incremental_overwrite_static_substrategy_day_with_merge",
                 "incremental_overwrite_day_expected",
             ),

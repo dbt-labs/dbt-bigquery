@@ -6,6 +6,10 @@ from dbt.tests.adapter.simple_snapshot.test_snapshot import (
     BaseSimpleSnapshotBase,
     BaseSnapshotCheck,
 )
+from dbt.tests.adapter.simple_snapshot.new_record_mode import (
+    SnapshotNewRecordMode,
+)
+
 
 SNAPSHOT_TIMESTAMP_SQL = """
 {% snapshot snapshot %}
@@ -100,4 +104,8 @@ class TestSnapshot(BaseSimpleSnapshotBase):
 
 
 class TestSnapshotCheck(BaseSnapshotCheck):
+    pass
+
+
+class TestBigQuerySnapshotNewRecordMode(SnapshotNewRecordMode):
     pass

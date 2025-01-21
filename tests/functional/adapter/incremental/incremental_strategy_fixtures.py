@@ -762,8 +762,6 @@ with data as (
 select * from data
 """.lstrip()
 
-
-
 overwrite_static_day_merge_sub_strategy_sql = """
 {% set partitions_to_replace = [
   "'2020-01-01'",

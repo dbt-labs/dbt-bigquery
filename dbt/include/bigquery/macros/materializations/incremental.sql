@@ -17,18 +17,26 @@
   {% do return(strategy) %}
 {% endmacro %}
 
+{% macro dbt_bigquery_optimize_substrategy(partitions) %}
+  {#-- Set the optimal substrategy based on the nature of the overwrite#}
+  {% if partitions is not none and partitions != [] %} {# static #}
+    {{ return("delete+insert") }}
+  {% else %} {# dynamic #}
+    {{ return("copy_partitions")  }}  
+  {% endif %}
+{% endmacro %}
 
-{% macro dbt_bigquery_validate_incremental_substrategy(config, strategy, copy_partitions) %}
-  {#-- Find and validate the function used for insert_overwrite
+{% macro dbt_bigquery_validate_incremental_substrategy(config, strategy, copy_partitions, partitions) %}
+  {# -- Find and validate the function used for insert_overwrite
     Legacy behaviour was to pass the copy_partitions as part of the `partition_by` clause
     So we need to bring back that optionality into this validation.
   #}
   {%- set incremental_substrategy = config.get('incremental_substrategy', 'copy_partitions' if copy_partitions else 'merge') -%}
 
   {% if strategy in ['insert_overwrite', 'microbatch'] %}
-    {% if incremental_substrategy not in ['merge', 'commit+delete+insert', 'delete+insert', 'copy_partitions'] %}
+    {% if incremental_substrategy not in ['merge', 'commit+delete+insert', 'delete+insert', 'copy_partitions', 'auto'] %}
       {% set wrong_fn -%}
-      The 'incremental_substrategy' option has to be either 'merge' (default), 'commit+delete+insert', 'delete+insert' or 'copy_partitions'.
+      The 'incremental_substrategy' option has to be either 'merge' (default), 'commit+delete+insert', 'delete+insert', 'copy_partitions' or 'auto'
       {%- endset %}
       {% do exceptions.raise_compiler_error(wrong_fn) %}
     {% endif %}
@@ -38,7 +46,12 @@
       {%- endset %}
       {% do exceptions.raise_compiler_error(wrong_strategy_msg) %}
   {% endif %}
-  {{ return(incremental_substrategy) }}
+
+  {% if incremental_substrategy == 'auto' %}
+    {{ return(dbt_bigquery_optimize_substrategy(partitions)) }}
+  {% else %}  
+    {{ return(incremental_substrategy) }}
+  {% endif %}
 {% endmacro %}
 
 {% macro source_sql_with_partition(partition_by, source_sql) %}
@@ -112,7 +125,7 @@
   {%- set cluster_by = config.get('cluster_by', none) -%}
 
   {#-- Validate early that the incremental substrategy is set correctly for insert_overwrite or microbatch--#}
-  {% set incremental_substrategy = dbt_bigquery_validate_incremental_substrategy(config, strategy, partition_by.copy_partitions) -%}
+  {% set incremental_substrategy = dbt_bigquery_validate_incremental_substrategy(config, strategy, partition_by.copy_partitions, partitions) -%}
 
 
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}

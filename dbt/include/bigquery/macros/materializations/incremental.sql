@@ -34,20 +34,22 @@
   {%- set incremental_substrategy = config.get('incremental_substrategy', 'copy_partitions' if copy_partitions else 'merge') -%}
 
   {% if strategy in ['insert_overwrite', 'microbatch'] %}
-    {% if incremental_substrategy not in ['merge', 'commit+delete+insert', 'delete+insert', 'copy_partitions', 'auto'] %}
+    {% if incremental_substrategy not in ['merge', 'commit+delete+insert', 'delete+insert', 'copy_partitions', 'optimal'] %}
       {% set wrong_fn -%}
-      The 'incremental_substrategy' option has to be either 'merge' (default), 'commit+delete+insert', 'delete+insert', 'copy_partitions' or 'auto'
+      The 'incremental_substrategy' option has to be either 'merge' (default), 'commit+delete+insert', 
+      'delete+insert', 'copy_partitions' or 'optimal'
       {%- endset %}
       {% do exceptions.raise_compiler_error(wrong_fn) %}
     {% endif %}
   {% elif incremental_substrategy is not none%}
       {% set wrong_strategy_msg -%}
-      The 'incremental_substrategy' option requires the 'incremental_strategy' option to be set to 'insert_overwrite' or 'microbatch'.
+      The 'incremental_substrategy' option requires the 'incremental_strategy' 
+      option to be set to 'insert_overwrite' or 'microbatch'.
       {%- endset %}
       {% do exceptions.raise_compiler_error(wrong_strategy_msg) %}
   {% endif %}
 
-  {% if incremental_substrategy == 'auto' %}
+  {% if incremental_substrategy == 'optimal' %}
     {{ return(dbt_bigquery_optimize_substrategy(partitions)) }}
   {% else %}  
     {{ return(incremental_substrategy) }}

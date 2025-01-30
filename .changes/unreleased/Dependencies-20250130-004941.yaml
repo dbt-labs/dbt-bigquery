@@ -1,0 +1,6 @@
+kind: "Dependencies"
+body: "Update google-cloud-storage requirement from ~=2.4 to ~=3.0"
+time: 2025-01-30T00:49:41.00000Z
+custom:
+  Author: dependabot[bot]
+  PR: 1462

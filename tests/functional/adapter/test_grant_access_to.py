@@ -21,6 +21,24 @@ def select_1(dataset: str, materialized: str):
     )
 
 
+def select_1_materialized_view(dataset: str):
+    config = f"""config(
+                materialized='materialized_view',
+                grant_access_to=[
+                  {{'project': 'dbt-test-env', 'dataset': '{dataset}'}},
+                ]
+            )"""
+    return (
+        "{{"
+        + config
+        + "}}"
+        + """
+           SELECT one, COUNT(1) AS count_one
+           FROM {{ ref('select_1_table') }}
+           GROUP BY one"""
+    )
+
+
 BAD_CONFIG_TABLE_NAME = "bad_view"
 BAD_CONFIG_TABLE = """
 {{ config(
@@ -75,15 +93,16 @@ class TestAccessGrantSucceeds:
         return {
             "select_1.sql": select_1(dataset=dataset, materialized="view"),
             "select_1_table.sql": select_1(dataset=dataset, materialized="table"),
+            "select_1_materialized_view.sql": select_1_materialized_view(dataset=dataset),
         }
 
     def test_grant_access_succeeds(self, project, setup_grant_schema, teardown_grant_schema):
         # Need to run twice to validate idempotency
         results = run_dbt(["run"])
-        assert len(results) == 2
+        assert len(results) == 3
         time.sleep(10)
         results = run_dbt(["run"])
-        assert len(results) == 2
+        assert len(results) == 3
 
 
 class TestAccessGrantFails:

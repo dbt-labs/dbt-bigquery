@@ -43,12 +43,12 @@ jobs:
 
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v4.3.0
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
@@ -79,12 +79,12 @@ jobs:
 
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4.3.0
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -104,24 +104,32 @@ jobs:
         run: |
           echo "date=$(date +'%Y-%m-%dT%H_%M_%S')" >> $GITHUB_OUTPUT #no colons allowed for artifacts
 
-  build:
-    name: build packages
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit_results_${{ matrix.python-version }}-${{ steps.date.outputs.date }}.csv
+          path: unit_results.csv
+          overwrite: true
 
-    runs-on: ubuntu-latest
-
-    outputs:
-      is_alpha: ${{ steps.check-is-alpha.outputs.is_alpha }}
-
+  test-build:
+    name: verify packages / python ${{ matrix.python-version }} / ${{ matrix.os }} / ${{ matrix.dist-type }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+        python-version: ['3.9', '3.10', '3.11']
+        dist-type: ["whl", "gz"]
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@v4.3.0
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: ${{ matrix.python-version }}
 
       - name: Install python dependencies
         run: |
@@ -136,12 +144,10 @@ jobs:
         run: ls -lh dist/
 
       - name: Check distribution descriptions
-        run: |
-          twine check dist/*
+        run: twine check dist/*
 
       - name: Check wheel contents
-        run: |
-          check-wheel-contents dist/*.whl --ignore W007,W008
+        run: check-wheel-contents dist/*.whl --ignore W007,W008
 
       - name: Check if this is an alpha version
         id: check-is-alpha
@@ -150,44 +156,10 @@ jobs:
           if [[ "$(ls -lh dist/)" == *"a1"* ]]; then export is_alpha=1; fi
           echo "is_alpha=$is_alpha" >> $GITHUB_OUTPUT
 
-  test-build:
-    name: verify packages / python ${{ matrix.python-version }} / ${{ matrix.os }}
+      - name: Install ${{ matrix.dist-type }} distributions
+        if: ${{ steps.check-is-alpha.outputs.is_alpha == 0 }}
+        run: find ./dist/*.${{ matrix.dist-type }} -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/
 
-    if: needs.build.outputs.is_alpha == 0
-
-    needs: build
-
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-14, windows-latest]
-        python-version: ['3.9', '3.10', '3.11']
-
-    steps:
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4.3.0
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install python dependencies
-        run: |
-          python -m pip install --user --upgrade pip
-          python -m pip install --upgrade wheel setuptools twine check-wheel-contents
-          python -m pip --version
-
-      - name: Show distributions
-        run: ls -lh dist/
-
-      - name: Install wheel distributions
-        run: |
-          find ./dist/*.whl -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/
-      - name: Check wheel distributions
-        run: |
-          dbt --version
-      - name: Install source distributions
-        run: |
-          find ./dist/*.gz -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/
-      - name: Check source distributions
-        run: |
-          dbt --version
+      - name: Check ${{ matrix.dist-type }} distributions
+        if: ${{ steps.check-is-alpha.outputs.is_alpha == 0 }}
+        run: python -c "import dbt.adapters.bigquery"

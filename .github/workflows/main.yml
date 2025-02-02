@@ -104,13 +104,6 @@ jobs:
         run: |
           echo "date=$(date +'%Y-%m-%dT%H_%M_%S')" >> $GITHUB_OUTPUT #no colons allowed for artifacts
 
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: unit_results_${{ matrix.python-version }}-${{ steps.date.outputs.date }}.csv
-          path: unit_results.csv
-          overwrite: true
-
   test-build:
     name: verify packages / python ${{ matrix.python-version }} / ${{ matrix.os }} / ${{ matrix.dist-type }}
     runs-on: ${{ matrix.os }}

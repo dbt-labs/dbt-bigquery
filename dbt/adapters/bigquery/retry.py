@@ -1,10 +1,8 @@
 from typing import Callable, Optional
 
-from google.api_core.exceptions import Forbidden
 from google.api_core.future.polling import DEFAULT_POLLING
 from google.api_core.retry import Retry
-from google.cloud.bigquery.retry import DEFAULT_RETRY
-from google.cloud.exceptions import BadGateway, BadRequest, ServerError
+from google.cloud.bigquery.retry import DEFAULT_JOB_RETRY, _job_should_retry
 from requests.exceptions import ConnectionError
 
 from dbt.adapters.contracts.connection import Connection, ConnectionState
@@ -17,14 +15,8 @@ from dbt.adapters.bigquery.credentials import BigQueryCredentials
 
 _logger = AdapterLogger("BigQuery")
 
-
-_SECOND = 1.0
-_MINUTE = 60 * _SECOND
-_HOUR = 60 * _MINUTE
-_DAY = 24 * _HOUR
-_DEFAULT_INITIAL_DELAY = _SECOND
-_DEFAULT_MAXIMUM_DELAY = 3 * _SECOND
-_DEFAULT_POLLING_MAXIMUM_DELAY = 10 * _SECOND
+_MINUTE = 60.0
+_DAY = 24 * 60 * 60.0
 
 
 class RetryFactory:
@@ -46,7 +38,7 @@ class RetryFactory:
         )  # keep _DAY here so it's not overridden by passing fallback=None
 
     def create_retry(self, fallback: Optional[float] = None) -> Retry:
-        return DEFAULT_RETRY.with_timeout(self._job_execution_timeout or fallback or _DAY)
+        return DEFAULT_JOB_RETRY.with_timeout(self._job_execution_timeout or fallback or _DAY)
 
     def create_polling(self, model_timeout: Optional[float] = None) -> Retry:
         return DEFAULT_POLLING.with_timeout(model_timeout or self._job_execution_timeout or _DAY)
@@ -55,13 +47,20 @@ class RetryFactory:
         """
         This strategy mimics what was accomplished with _retry_and_handle
         """
-        return Retry(
-            predicate=_DeferredException(self._retries),
-            initial=_DEFAULT_INITIAL_DELAY,
-            maximum=_DEFAULT_MAXIMUM_DELAY,
-            deadline=self._job_deadline,
-            on_error=_create_reopen_on_error(connection),
+
+        retry = DEFAULT_JOB_RETRY.with_delay(maximum=3.0).with_predicate(
+            _DeferredException(self._retries)
         )
+
+        # there is no `with_on_error` method, but we want to retain the defaults on `DEFAULT_JOB_RETRY
+        retry._on_error = _create_reopen_on_error(connection)
+
+        # don't override the default deadline to None if the user did not provide one,
+        # the process will never end
+        if deadline := self._job_deadline:
+            return retry.with_deadline(deadline)
+
+        return retry
 
 
 class _DeferredException:
@@ -83,7 +82,7 @@ class _DeferredException:
         self._error_count += 1
 
         # if the error is retryable, and we haven't breached the threshold, log and continue
-        if _is_retryable(error) and self._error_count <= self._retries:
+        if _job_should_retry(error) and self._error_count <= self._retries:
             _logger.debug(
                 f"Retry attempt {self._error_count} of {self._retries} after error: {repr(error)}"
             )
@@ -113,16 +112,3 @@ def _create_reopen_on_error(connection: Connection) -> Callable[[Exception], Non
                 raise FailedToConnectError(str(e))
 
     return on_error
-
-
-def _is_retryable(error: Exception) -> bool:
-    """Return true for errors that are unlikely to occur again if retried."""
-    if isinstance(
-        error, (BadGateway, BadRequest, ConnectionError, ConnectionResetError, ServerError)
-    ):
-        return True
-    elif isinstance(error, Forbidden) and any(
-        e["reason"] == "rateLimitExceeded" for e in error.errors
-    ):
-        return True
-    return False

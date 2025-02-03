@@ -8,6 +8,7 @@ packages = ["dbt"]
 packages = ["dbt"]
 
 [envs.default]
+python = "3.9"
 dependencies = [
     "dbt-adapters @ git+https://github.com/dbt-labs/dbt-adapters.git",
     "dbt-common @ git+https://github.com/dbt-labs/dbt-common.git",

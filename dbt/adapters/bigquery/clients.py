@@ -1,10 +1,10 @@
 from google.api_core.client_info import ClientInfo
 from google.api_core.client_options import ClientOptions
-from google.api_core.retry import Retry
 from google.auth.exceptions import DefaultCredentialsError
-from google.cloud.bigquery import Client as BigQueryClient
+from google.cloud.bigquery import Client as BigQueryClient, DEFAULT_RETRY as BQ_DEFAULT_RETRY
 from google.cloud.dataproc_v1 import BatchControllerClient, JobControllerClient
 from google.cloud.storage import Client as StorageClient
+from google.cloud.storage.retry import DEFAULT_RETRY as GCS_DEFAULT_RETRY
 
 from dbt.adapters.events.logging import AdapterLogger
 
@@ -28,7 +28,7 @@ def create_bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
         return _create_bigquery_client(credentials)
 
 
-@Retry()  # google decorator. retries on transient errors with exponential backoff
+@GCS_DEFAULT_RETRY
 def create_gcs_client(credentials: BigQueryCredentials) -> StorageClient:
     return StorageClient(
         project=credentials.execution_project,
@@ -36,7 +36,7 @@ def create_gcs_client(credentials: BigQueryCredentials) -> StorageClient:
     )
 
 
-@Retry()  # google decorator. retries on transient errors with exponential backoff
+# dataproc does not appear to have a default retry like BQ and GCS
 def create_dataproc_job_controller_client(credentials: BigQueryCredentials) -> JobControllerClient:
     return JobControllerClient(
         credentials=create_google_credentials(credentials),
@@ -44,7 +44,7 @@ def create_dataproc_job_controller_client(credentials: BigQueryCredentials) -> J
     )
 
 
-@Retry()  # google decorator. retries on transient errors with exponential backoff
+# dataproc does not appear to have a default retry like BQ and GCS
 def create_dataproc_batch_controller_client(
     credentials: BigQueryCredentials,
 ) -> BatchControllerClient:
@@ -54,7 +54,7 @@ def create_dataproc_batch_controller_client(
     )
 
 
-@Retry()  # google decorator. retries on transient errors with exponential backoff
+@BQ_DEFAULT_RETRY
 def _create_bigquery_client(credentials: BigQueryCredentials) -> BigQueryClient:
     return BigQueryClient(
         credentials.execution_project,

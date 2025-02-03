@@ -96,13 +96,29 @@ class TestAccessGrantSucceeds:
             "select_1_materialized_view.sql": select_1_materialized_view(dataset=dataset),
         }
 
-    def test_grant_access_succeeds(self, project, setup_grant_schema, teardown_grant_schema):
+    def test_grant_access_succeeds(self, project, setup_grant_schema, teardown_grant_schema, unique_schema):
         # Need to run twice to validate idempotency
         results = run_dbt(["run"])
         assert len(results) == 3
         time.sleep(10)
         results = run_dbt(["run"])
         assert len(results) == 3
+        time.sleep(3)
+
+        with project.adapter.connection_named("__test_grants"):
+            client = project.adapter.connections.get_thread_connection().handle
+            dataset_name = get_schema_name(unique_schema)
+            dataset_id = "{}.{}".format("dbt-test-env", dataset_name)
+            bq_dataset = client.get_dataset(dataset_id)
+
+            authorized_view_names = []
+            for access_entry in bq_dataset.access_entries:
+                if access_entry.entity_type != "view":
+                    continue
+
+                authorized_view_names.append(access_entry.entity_id["tableId"])
+
+            assert set(authorized_view_names) == set(["select_1", "select_1_materialized_view"])
 
 
 class TestAccessGrantFails:

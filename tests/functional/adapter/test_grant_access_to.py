@@ -104,7 +104,6 @@ class TestAccessGrantSucceeds:
         # Materialized view excluded since it would produce an error since source table is replaced
         results = run_dbt(["run", "--exclude", "select_1_materialized_view"])
         assert len(results) == 2
-        time.sleep(3)
 
         with project.adapter.connection_named("__test_grants"):
             client = project.adapter.connections.get_thread_connection().handle

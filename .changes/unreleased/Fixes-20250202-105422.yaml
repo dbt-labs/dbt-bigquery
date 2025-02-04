@@ -1,0 +1,6 @@
+kind: Fixes
+body: Fix silently ignoring materialized view authorization
+time: 2025-02-02T10:54:22.12198+01:00
+custom:
+  Author: kubikb
+  Issue: "1471"

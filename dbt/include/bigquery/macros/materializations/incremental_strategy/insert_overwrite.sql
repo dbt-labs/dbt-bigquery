@@ -1,5 +1,5 @@
 {% macro bq_generate_incremental_insert_overwrite_build_sql(
-    tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
+    tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy
 ) %}
     {% if partition_by is none %}
       {% set missing_partition_msg -%}
@@ -9,7 +9,7 @@
     {% endif %}
 
     {% set build_sql = bq_insert_overwrite_sql(
-        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
+        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy
     ) %}
 
     {{ return(build_sql) }}
@@ -38,17 +38,17 @@
 {% endmacro %}
 
 {% macro bq_insert_overwrite_sql(
-    tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
+    tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy
 ) %}
   {% if partitions is not none and partitions != [] %} {# static #}
-      {{ bq_static_insert_overwrite_sql(tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions) }}
+      {{ bq_static_insert_overwrite_sql(tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy) }}
   {% else %} {# dynamic #}
-      {{ bq_dynamic_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, copy_partitions) }}
+      {{ bq_dynamic_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, incremental_substrategy) }}
   {% endif %}
 {% endmacro %}
 
 {% macro bq_static_insert_overwrite_sql(
-    tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
+    tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy
 ) %}
 
       {% set predicate -%}
@@ -75,32 +75,41 @@
         )
       {%- endset -%}
 
-      {% if copy_partitions %}
+      {% if incremental_substrategy == 'copy_partitions' %}
           {% do bq_copy_partitions(tmp_relation, target_relation, partitions, partition_by) %}
       {% else %}
 
-      {#-- In case we're putting the model SQL _directly_ into the MERGE statement,
-         we need to prepend the MERGE statement with the user-configured sql_header,
-         which may be needed to resolve that model SQL (e.g. referencing a variable or UDF in the header)
-         in the "temporary table exists" case, we save the model SQL result as a temp table first, wherein the
-         sql_header is included by the create_table_as macro.
-      #}
-      -- 1. run the merge statement
-      {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }};
+        {#-- In case we're putting the model SQL _directly_ into the MERGE/insert+delete transaction,
+          we need to prepend the merge/transaction statement with the user-configured sql_header,
+          which may be needed to resolve that model SQL (e.g. referencing a variable or UDF in the header)
+          in the "temporary table exists" case, we save the model SQL result as a temp table first, wherein the
+          sql_header is included by the create_table_as macro.
+        #}
 
-      {%- if tmp_relation_exists -%}
-      -- 2. clean up the temp table
-      drop table if exists {{ tmp_relation }};
-      {%- endif -%}
+        {% if incremental_substrategy == 'delete+insert' %}
+          -- 1. run insert_overwrite with delete+insert (without a transaction) strategy optimisation
+          {{ bq_get_insert_overwrite_with_delete_and_insert_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }};
+        {% elif incremental_substrategy == 'commit+delete+insert' %}
+          -- 1. run insert_overwrite with delete+insert (with a transaction) strategy optimisation
+          {{ bq_get_insert_overwrite_with_delete_and_insert_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists, transactional=True) }};
+        {% else %}
+          -- 1. run insert_overwrite with merge strategy optimisation
+          {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }};
+        {% endif %}
 
-  {% endif %}
+        {%- if tmp_relation_exists -%}
+        -- 2. clean up the temp table
+        drop table if exists {{ tmp_relation }};
+        {%- endif -%}
+
+      {% endif %}
 {% endmacro %}
 
 {% macro bq_dynamic_copy_partitions_insert_overwrite_sql(
-  tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, copy_partitions
+  tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists
   ) %}
   {%- if tmp_relation_exists is false -%}
-  {# We run temp table creation in a separated script to move to partitions copy if it doesn't already exist #}
+  {# We run temp table creation in a separated script to move to partitions copy if it does not already exist #}
     {%- call statement('create_tmp_relation_for_copy', language='sql') -%}
       {{ bq_create_table_as(partition_by, True, tmp_relation, sql, 'sql')
     }}
@@ -117,9 +126,9 @@
   drop table if exists {{ tmp_relation }}
 {% endmacro %}
 
-{% macro bq_dynamic_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, copy_partitions) %}
-  {%- if copy_partitions is true %}
-     {{ bq_dynamic_copy_partitions_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, copy_partitions) }}
+{% macro bq_dynamic_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists, incremental_substrategy) %}
+  {% if incremental_substrategy == 'copy_partitions' %}
+     {{ bq_dynamic_copy_partitions_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists) }}
   {% else -%}
       {% set predicate -%}
           {{ partition_by.render_wrapped(alias='DBT_INTERNAL_DEST') }} in unnest(dbt_partitions_for_replacement)
@@ -155,12 +164,58 @@
           from {{ tmp_relation }}
       );
 
-      -- 3. run the merge statement
-      {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate]) }};
-
+      {% if  incremental_substrategy == 'delete+insert' %}
+        -- 3. run insert_overwrite with the delete+insert (without a transaction) strategy optimisation
+        {{ bq_get_insert_overwrite_with_delete_and_insert_sql(target_relation, source_sql, dest_columns, [predicate]) }};
+      {% elif incremental_substrategy == 'commit+delete+insert' %}
+        -- 3. run insert_overwrite with the delete+insert (with a transaction) strategy optimisation
+        {{ bq_get_insert_overwrite_with_delete_and_insert_sql(target_relation, source_sql, dest_columns, [predicate], transactional=True) }};
+      {% else %}
+        -- 3. run insert_overwrite with the merge strategy optimisation
+        {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate]) }};
+      {% endif %}
       -- 4. clean up the temp table
       drop table if exists {{ tmp_relation }}
 
   {% endif %}
 
+{% endmacro %}
+
+
+
+{% macro bq_get_insert_overwrite_with_delete_and_insert_sql(target, source, dest_columns, predicates, include_sql_header, transactional=False) -%}
+    {%- set predicates = [] if predicates is none else [] + predicates -%}
+    {%- set dest_cols_csv = get_quoted_csv(dest_columns | map(attribute="name")) -%}
+    {%- set sql_header = config.get('sql_header', none) -%}
+
+    {{ sql_header if sql_header is not none and include_sql_header }}
+
+    {% if transactional %}
+    -- We can rely on a multi-statement transaction to enable atomicity
+    -- If something goes south, nothing is committed
+    -- DELETE + INSERT allow for isolation lock
+    begin
+    begin transaction ;
+    {% endif %}
+        -- DELETE operations are free https://cloud.google.com/bigquery/docs/using-dml-with-partitioned-tables#using_dml_delete_to_delete_partitions
+        delete from {{ target }} as DBT_INTERNAL_DEST
+        where true
+        {% if predicates %} and {{ predicates | join(' and ') }} {% endif %};
+
+        -- INSERT the data
+        insert into {{ target }} ({{ dest_cols_csv }})
+        (
+            select {{ dest_cols_csv }}
+            from {{ source }}
+        )
+    {% if transactional %}
+    -- leaving the trailing ; out of the if as the calling macro already adds a leading ; to this output
+    ; commit transaction;
+
+    exception when error then
+        -- If things go south, abort and rollback
+        raise using message = FORMAT("dbt error while commit+delete+instert: %s", @@error.message);
+        rollback transaction;
+    end
+    {% endif %}
 {% endmacro %}

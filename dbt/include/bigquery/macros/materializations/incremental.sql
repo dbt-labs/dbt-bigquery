@@ -17,6 +17,43 @@
   {% do return(strategy) %}
 {% endmacro %}
 
+{% macro dbt_bigquery_optimize_substrategy(partitions) %}
+  {#-- Set the optimal substrategy based on the nature of the overwrite#}
+  {% if partitions is not none and partitions != [] %} {# static #}
+    {{ return("delete+insert") }}
+  {% else %} {# dynamic #}
+    {{ return("copy_partitions") }}
+  {% endif %}
+{% endmacro %}
+
+{% macro dbt_bigquery_validate_incremental_substrategy(config, strategy, copy_partitions, partitions) %}
+  {# -- Find and validate the function used for insert_overwrite
+    Legacy behaviour was to pass the copy_partitions as part of the `partition_by` clause
+    So we need to bring back that optionality into this validation.
+  #}
+  {%- set incremental_substrategy = config.get('incremental_substrategy', 'copy_partitions' if copy_partitions else 'merge') -%}
+
+  {% if strategy in ['insert_overwrite', 'microbatch'] %}
+    {% if incremental_substrategy not in ['merge', 'commit+delete+insert', 'delete+insert', 'copy_partitions', 'optimal'] %}
+      {% set wrong_fn -%}
+      The 'incremental_substrategy' option has to be either 'merge' (default), 'commit+delete+insert', 'delete+insert', 'copy_partitions' or 'optimal'
+      {%- endset %}
+      {% do exceptions.raise_compiler_error(wrong_fn) %}
+    {% endif %}
+  {% elif incremental_substrategy is not none%}
+      {% set wrong_strategy_msg -%}
+      The 'incremental_substrategy' option requires the 'incremental_strategy' option to be set to 'insert_overwrite' or 'microbatch'.
+      {%- endset %}
+      {% do exceptions.raise_compiler_error(wrong_strategy_msg) %}
+  {% endif %}
+
+  {% if incremental_substrategy == 'optimal' %}
+    {{ return(dbt_bigquery_optimize_substrategy(partitions)) }}
+  {% else %}
+    {{ return(incremental_substrategy) }}
+  {% endif %}
+{% endmacro %}
+
 {% macro source_sql_with_partition(partition_by, source_sql) %}
 
   {%- if partition_by.time_ingestion_partitioning %}
@@ -43,19 +80,19 @@
 {% endmacro %}
 
 {% macro bq_generate_incremental_build_sql(
-    strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions, incremental_predicates
+    strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy, incremental_predicates
 ) %}
   {#-- if partitioned, use BQ scripting to get the range of partition values to be updated --#}
   {% if strategy == 'insert_overwrite' %}
 
     {% set build_sql = bq_generate_incremental_insert_overwrite_build_sql(
-        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
+        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy
     ) %}
 
   {% elif strategy == 'microbatch' %}
 
     {% set build_sql = bq_generate_microbatch_build_sql(
-        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
+        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy
     ) %}
 
   {% else %} {# strategy == 'merge' #}
@@ -87,6 +124,10 @@
   {%- set partitions = config.get('partitions', none) -%}
   {%- set cluster_by = config.get('cluster_by', none) -%}
 
+  {#-- Validate early that the incremental substrategy is set correctly for insert_overwrite or microbatch--#}
+  {% set incremental_substrategy = dbt_bigquery_validate_incremental_substrategy(config, strategy, partition_by.copy_partitions, partitions) -%}
+
+
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
   {% set incremental_predicates = config.get('predicates', default=none) or config.get('incremental_predicates', default=none) %}
 
@@ -95,13 +136,8 @@
 
   {{ run_hooks(pre_hooks) }}
 
-  {% if partition_by.copy_partitions is true and strategy not in ['insert_overwrite', 'microbatch'] %} {#-- We can't copy partitions with merge strategy --#}
-        {% set wrong_strategy_msg -%}
-        The 'copy_partitions' option requires the 'incremental_strategy' option to be set to 'insert_overwrite' or 'microbatch'.
-        {%- endset %}
-        {% do exceptions.raise_compiler_error(wrong_strategy_msg) %}
 
-  {% elif existing_relation is none %}
+  {% if existing_relation is none %}
       {%- call statement('main', language=language) -%}
         {{ bq_create_table_as(partition_by, False, target_relation, compiled_code, language) }}
       {%- endcall -%}
@@ -153,7 +189,7 @@
     {% endif %}
 
     {% set build_sql = bq_generate_incremental_build_sql(
-        strategy, tmp_relation, target_relation, compiled_code, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, partition_by.copy_partitions, incremental_predicates
+        strategy, tmp_relation, target_relation, compiled_code, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_substrategy, incremental_predicates
     ) %}
 
     {%- call statement('main') -%}

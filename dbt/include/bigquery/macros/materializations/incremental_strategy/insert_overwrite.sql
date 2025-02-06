@@ -1,3 +1,41 @@
+{% macro bigquery__get_insert_overwrite_merge_sql(target, source, dest_columns, predicates, include_sql_header) -%}
+    {#-- The only time include_sql_header is True: --#}
+    {#-- BigQuery + insert_overwrite strategy + "static" partitions config --#}
+    {#-- We should consider including the sql header at the materialization level instead --#}
+
+    {%- set predicates = [] if predicates is none else [] + predicates -%}
+    {%- set dest_cols_csv = get_quoted_csv(dest_columns | map(attribute="name")) -%}
+    {%- set sql_header = config.get('sql_header', none) -%}
+
+    {{ sql_header if sql_header is not none and include_sql_header }}
+
+    begin
+    begin transaction;
+
+        delete from {{ target }} as DBT_INTERNAL_DEST
+        where true
+        {%- if predicates %}
+            {% for predicate in predicates %}
+                and {{ predicate }}
+            {% endfor %}
+        {%- endif -%};
+
+        insert into {{ target }} ({{ dest_cols_csv }})
+        (
+            select {{ dest_cols_csv }}
+            from {{ source }}
+        );
+
+        commit transaction;
+
+    exception when error then
+        -- Roll if any error to avoid deleting rows.
+        raise using message = @@error.message;
+        rollback transaction;
+    end
+
+{% endmacro %}
+
 {% macro bq_generate_incremental_insert_overwrite_build_sql(
     tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, copy_partitions
 ) %}

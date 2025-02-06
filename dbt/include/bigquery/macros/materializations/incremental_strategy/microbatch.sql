@@ -30,8 +30,7 @@
 {% macro bq_generate_static_partitions(config, granularity) %}
   {% set event_time_start = config.get("__dbt_internal_microbatch_event_time_start") %}
   {% set event_time_end = config.get("__dbt_internal_microbatch_event_time_end") %}
-
-  {% set range_of_dates = generate_dates_in_range(event_time_start,event_time_end,granularity) %}
+  {% set range_of_dates = generate_dates_in_range(event_time_start, event_time_end, granularity) %}
 
   {{ return(range_of_dates) }}
 {% endmacro %}

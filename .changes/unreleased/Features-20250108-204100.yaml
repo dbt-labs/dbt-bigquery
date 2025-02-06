@@ -1,0 +1,6 @@
+kind: Features
+body: allow changing the schema destination of tmp tables
+time: 2025-01-08T20:41:00.190868Z
+custom:
+    Author: borjavb
+    Issue: "1443"

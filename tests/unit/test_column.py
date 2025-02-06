@@ -1,6 +1,148 @@
+from typing import Dict, Optional, Union
 import pytest
 
-from dbt.adapters.bigquery.column import get_nested_column_data_types
+from dbt.adapters.bigquery.column import (
+    get_nested_column_data_types,
+    _update_nested_column_data_types,
+    _PARENT_DATA_TYPE_KEY,
+)
+
+
+@pytest.mark.parametrize(
+    "column_name, column_data_type, column_rendered_constraint, nested_column_data_types, expected_output",
+    [
+        # Flat column – with constraints
+        ("a", "string", "not null", {}, {"a": "string not null"}),
+        # Flat column – with constraints
+        ("a", "string", None, {}, {"a": "string"}),
+        # Flat column – with constraints
+        ("a", None, "not null", {}, {"a": None}),
+        # Flat column – without constraints
+        ("a", None, None, {}, {"a": None}),
+        # Parent nested column – with constraints
+        ("a", "struct", "not null", {}, {"a": "struct not null"}),
+        # Single nested column, 1 level – with constraints
+        ("b.c", "string", "not null", {}, {"b": {"c": "string not null"}}),
+        # Single nested column, 1 level – without constraints
+        ("b.c", None, None, {}, {"b": {"c": None}}),
+        # Second nested column, 1 level – with constraints
+        (
+            "b.d",
+            "int64",
+            None,
+            {"b": {"c": "string not null"}},
+            {"b": {"c": "string not null", "d": "int64"}},
+        ),
+        # Single nested column, 1 level, parent constraints – with constraints
+        (
+            "b.c",
+            "string",
+            None,
+            {"b": "struct"},
+            {"b": {_PARENT_DATA_TYPE_KEY: "struct", "c": "string"}},
+        ),
+        # Second nested column, 1 level, parent constraints – with constraints
+        (
+            "b.d",
+            "int64",
+            "unique",
+            {"b": {_PARENT_DATA_TYPE_KEY: "struct", "c": "string"}},
+            {"b": {_PARENT_DATA_TYPE_KEY: "struct", "c": "string", "d": "int64 unique"}},
+        ),
+        # Combining flat + nested columns
+        ("b.c", "string", None, {"a": "string"}, {"a": "string", "b": {"c": "string"}}),
+        (
+            "a",
+            "string",
+            "not null",
+            {"b": {_PARENT_DATA_TYPE_KEY: "struct", "c": "string", "d": "int64 unique"}},
+            {
+                "b": {_PARENT_DATA_TYPE_KEY: "struct", "c": "string", "d": "int64 unique"},
+                "a": "string not null",
+            },
+        ),
+        # Multiple nested columns
+        (
+            "c.d",
+            None,
+            None,
+            {"b": {"c": "string not null"}},
+            {"b": {"c": "string not null"}, "c": {"d": None}},
+        ),
+        # Multiple nested columns
+        (
+            "c.d",
+            None,
+            None,
+            {"b": {"c": "string not null"}},
+            {"b": {"c": "string not null"}, "c": {"d": None}},
+        ),
+        # Multiple levels of nesting
+        (
+            "b.c.d",
+            "string",
+            "not null",
+            {},
+            {"b": {"c": {"d": "string not null"}}},
+        ),
+        (
+            "b.c.e",
+            None,
+            "not null",
+            {"b": {"c": {"d": "string not null"}}},
+            {"b": {"c": {"d": "string not null", "e": None}}},
+        ),
+        (
+            "b.c.e",
+            None,
+            "not null",
+            {
+                "b": {
+                    _PARENT_DATA_TYPE_KEY: "struct",
+                    "c": {"d": "string not null"},
+                    "d": "int64 unique",
+                }
+            },
+            {
+                "b": {
+                    _PARENT_DATA_TYPE_KEY: "struct",
+                    "c": {"d": "string not null", "e": None},
+                    "d": "int64 unique",
+                }
+            },
+        ),
+        (
+            "b.c.e.f",
+            "int64",
+            "not null",
+            {
+                "b": {
+                    _PARENT_DATA_TYPE_KEY: "struct",
+                    "c": {"d": "string not null"},
+                    "d": "int64 unique",
+                }
+            },
+            {
+                "b": {
+                    _PARENT_DATA_TYPE_KEY: "struct",
+                    "c": {"d": "string not null", "e": {"f": "int64 not null"}},
+                    "d": "int64 unique",
+                }
+            },
+        ),
+    ],
+)
+def test__update_nested_column_data_types(
+    column_name: str,
+    column_data_type: Optional[str],
+    column_rendered_constraint: Optional[str],
+    nested_column_data_types: Dict[str, Optional[Union[str, Dict]]],
+    expected_output: Dict[str, Optional[Union[str, Dict]]],
+):
+    _update_nested_column_data_types(
+        column_name, column_data_type, column_rendered_constraint, nested_column_data_types
+    )
+    assert nested_column_data_types == expected_output
 
 
 @pytest.mark.parametrize(

@@ -1,0 +1,6 @@
+kind: Under the Hood
+body: Adds unit tests for recursive `_update_nested_column_data_types` method in `column.py`.
+time: 2024-09-15T16:20:35.79228-06:00
+custom:
+  Author: anaghshineh
+  PR: 1348

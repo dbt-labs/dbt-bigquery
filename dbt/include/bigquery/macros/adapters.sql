@@ -100,6 +100,9 @@
   {% if for_columns and config.persist_column_docs() and model.columns %}
     {% do alter_column_comment(relation, model.columns) %}
   {% endif %}
+  {% if config.persist_relation_docs() and model.description %}
+    {{ adapter.update_table_description(model['database'], model['schema'], model['alias'], model['description']) }}
+  {% endif %}
 {% endmacro %}
 
 {% macro bigquery__alter_column_comment(relation, column_dict) -%}

@@ -1,0 +1,6 @@
+kind: Features
+body: Support the updating of incremental model description after initial creation
+time: 2024-03-26T20:30:07.092671+09:00
+custom:
+  Author: kiwamizamurai
+  Issue: "1138"

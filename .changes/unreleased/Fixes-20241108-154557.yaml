@@ -1,0 +1,6 @@
+kind: Fixes
+body: Cleans up the temp table created by the merge incremental stratergy when checking the schema
+time: 2024-11-08T15:45:57.570611Z
+custom:
+    Author: joshuao11
+    Issue: "1389"

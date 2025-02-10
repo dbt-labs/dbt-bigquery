@@ -55,6 +55,7 @@ from dbt.adapters.events.types import SchemaCreation, SchemaDrop
 
 from dbt.adapters.bigquery.column import BigQueryColumn, get_nested_column_data_types
 from dbt.adapters.bigquery.connections import BigQueryAdapterResponse, BigQueryConnectionManager
+from dbt.adapters.bigquery.dataplex import DataProfileScan
 from dbt.adapters.bigquery.dataset import add_access_entry_to_dataset, is_access_entry_in_dataset
 from dbt.adapters.bigquery.python_submissions import (
     ClusterDataprocHelper,
@@ -969,3 +970,7 @@ class BigQueryAdapter(BaseAdapter):
         :param str sql: The sql to validate
         """
         return self.connections.dry_run(sql)
+
+    @available
+    def create_or_update_data_profile_scan(self, config):
+        DataProfileScan(self.connections).create_or_update_data_profile_scan(config)

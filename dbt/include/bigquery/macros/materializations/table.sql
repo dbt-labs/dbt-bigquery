@@ -40,6 +40,7 @@
   {% do apply_grants(target_relation, grant_config, should_revoke) %}
 
   {% do persist_docs(target_relation, model) %}
+  {% do adapter.create_or_update_data_profile_scan(model) %}
 
   {{ return({'relations': [target_relation]}) }}
 

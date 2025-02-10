@@ -1,0 +1,6 @@
+kind: Features
+body: Support Data Profiling in dbt
+time: 2024-11-04T08:34:21.596015+09:00
+custom:
+    Author: syou6162
+    Issue: "1330"

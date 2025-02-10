@@ -36,7 +36,8 @@ MY_MATERIALIZED_VIEW = """
     cluster_by=["id", "value"],
     enable_refresh=True,
     refresh_interval_minutes=60,
-    max_staleness="INTERVAL 45 MINUTE"
+    max_staleness="INTERVAL 45 MINUTE",
+    allow_non_incremental_definition=True
 ) }}
 select
     id,

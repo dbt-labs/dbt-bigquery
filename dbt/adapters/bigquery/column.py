@@ -20,6 +20,8 @@ class BigQueryColumn(Column):
     }
     fields: List[Self]  # type: ignore
     mode: str
+    description: str
+    default_value_expression: str
 
     def __init__(
         self,
@@ -27,6 +29,8 @@ class BigQueryColumn(Column):
         dtype: str,
         fields: Optional[Iterable[SchemaField]] = None,
         mode: str = "NULLABLE",
+        description: Optional[Union[SchemaField]] = "", 
+        default_value_expression: Optional[Union[SchemaField]] = "",
     ) -> None:
         super().__init__(column, dtype)
 
@@ -35,6 +39,8 @@ class BigQueryColumn(Column):
 
         self.fields = self.wrap_subfields(fields)
         self.mode = mode
+        self.description = description
+        self.default_value_expression = default_value_expression
 
     @classmethod
     def wrap_subfields(cls: Type[Self], fields: Iterable[SchemaField]) -> List[Self]:
@@ -116,7 +122,7 @@ class BigQueryColumn(Column):
         return self.is_string() and other_column.is_string()
 
     def __repr__(self) -> str:
-        return "<BigQueryColumn {} ({}, {})>".format(self.name, self.data_type, self.mode)
+        return "<BigQueryColumn {} ({}, {}, {}, {})>".format(self.name, self.data_type, self.mode, self.description, self.default_value_expression)
 
     def column_to_bq_schema(self) -> SchemaField:
         """Convert a column to a bigquery schema object."""

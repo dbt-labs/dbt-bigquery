@@ -392,7 +392,7 @@ class BigQueryAdapter(BaseAdapter):
         for col in table.schema:
             # BigQuery returns type labels that are not valid type specifiers
             dtype = self.Column.translate_type(col.field_type)
-            column = self.Column(col.name, dtype, col.fields, col.mode)
+            column = self.Column(col.name, dtype, col.fields, col.mode, col.description, col.default_value_expression)
             columns.append(column)
 
         return columns
